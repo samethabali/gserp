@@ -1,0 +1,81 @@
+package com.gserp.service;
+
+import com.gserp.exception.ResourceNotAvailableException;
+import com.gserp.model.*;
+import com.gserp.store.MockDataStore;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+public class ResourceLockService {
+
+    private final MockDataStore store;
+
+    /**
+     * For a service that requires resources, find an available resource from the required list
+     * in the given time range. Returns the IDs of locked resources.
+     *
+     * The service's requiredResourceIds can represent ALTERNATIVES (e.g., Cilt Bakım Odası 1 OR 2)
+     * or ALL REQUIRED (e.g., Lazer Odası AND Lazer Cihazı).
+     *
+     * Strategy: group by resource type. Within same type → pick one available.
+     * Across types → all must be available.
+     */
+    public List<Long> validateAndLock(ServiceDefinition service, LocalDateTime start, LocalDateTime end,
+                                       Long excludeAppointmentId) {
+        if (!service.isRequiresResource() || service.getRequiredResourceIds().isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> lockedIds = new ArrayList<>();
+
+        // Group required resources by type
+        var byType = new java.util.LinkedHashMap<com.gserp.model.enums.ResourceType, List<Resource>>();
+        for (Long resId : service.getRequiredResourceIds()) {
+            store.findResourceById(resId).ifPresent(r -> {
+                byType.computeIfAbsent(r.getResourceType(), k -> new ArrayList<>()).add(r);
+            });
+        }
+
+        for (var entry : byType.entrySet()) {
+            List<Resource> candidates = entry.getValue();
+            boolean found = false;
+
+            for (Resource candidate : candidates) {
+                if (isResourceAvailable(candidate.getId(), start, end, excludeAppointmentId)) {
+                    lockedIds.add(candidate.getId());
+                    found = true;
+                    break; // one per type is enough
+                }
+            }
+
+            if (!found) {
+                String typeNames = candidates.stream().map(Resource::getName)
+                        .reduce((a, b) -> a + " / " + b).orElse("Kaynak");
+                throw new ResourceNotAvailableException(
+                        typeNames + " bu saatte müsait değil (" +
+                        start.toLocalTime() + " - " + end.toLocalTime() + ")");
+            }
+        }
+
+        return lockedIds;
+    }
+
+    private boolean isResourceAvailable(Long resourceId, LocalDateTime start, LocalDateTime end,
+                                         Long excludeAppointmentId) {
+        List<Appointment> conflicts = store.findAppointmentsByResourceAndDateRange(resourceId, start, end);
+        if (excludeAppointmentId != null) {
+            conflicts = conflicts.stream()
+                    .filter(a -> !a.getId().equals(excludeAppointmentId))
+                    .toList();
+        }
+        Resource resource = store.findResourceById(resourceId).orElse(null);
+        if (resource == null) return false;
+        return conflicts.size() < resource.getCapacity();
+    }
+}

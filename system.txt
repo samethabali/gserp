@@ -1,0 +1,84 @@
+# GSERP - Kurumsal Kaynak Planlama ve Randevu Yönetim Sistemi Gereksinim ve Teknik Detay Metni
+
+Bu belge, GSERP uygulamasının işlevsel gerekliliklerini, sistem mimarisini ve teknik kontrol mekanizmalarını detaylandırmak amacıyla hazırlanmıştır. Uygulama, karmaşık randevu süreçlerini, personel yönetimini ve kaynak optimizasyonunu merkezi bir platformda toplar.
+
+## 1. Temel Proje Vizyonu ve Teknoloji Yığını
+GSERP, yüksek performanslı ve gerçek zamanlı bir randevu yönetim sistemidir. 
+- **Backend:** Java 17+, Spring Boot 3.x, Spring WebSocket, Lombok.
+- **Frontend:** Thymeleaf (Server-side rendering), Vanilla JavaScript, CSS3.
+- **Veri Yönetimi:** MockDataStore (Şu anki aşamada bellek içi yönetim, genişletilebilir yapı).
+- **İletişim:** REST API ve Gerçek Zamanlı Güncellemeler (WebSocket STOMP).
+
+---
+
+## 2. İşlevsel Gereklilikler ve Modüller
+
+### 2.1. Randevu Yönetim Sistemi (Appointment Management)
+Uygulamanın kalbidir ve aşağıdaki kontrolleri gerçekleştirir:
+- **Tekil ve Çoklu Seans:** Sistem, tek seferlik randevuların yanı sıra haftalık tekrarlayan (multi-session) randevular oluşturabilir.
+- **Sürükle-Bırak Taşıma (Drag & Drop):** Randevular takvim üzerinde taşındığında otomatik olarak çakışma kontrolü ve kaynak kilitleme süreçleri tetiklenir.
+- **Durum Takibi:** Randevular `SCHEDULED`, `COMPLETED`, `CANCELLED` gibi durumlarla takip edilir. İptallerde zorunlu neden girişi istenebilir.
+- **Fiyatlandırma ve İskonto:** Hizmetin baz fiyatı üzerine manuel düzeltmeler (adjustment) ve notlar eklenebilir.
+
+### 2.2. Kaynak Kilitleme ve Çakışma Kontrolü (Resource Locking)
+Uygulama, fiziksel kaynakların (oda, cihaz, ekipman) verimli kullanılmasını sağlar:
+- **Tür Bazlı Kaynak Atama (Type-based Allocation):** Sistem, bir hizmet için gerekli kaynakları türlerine göre gruplar. Örneğin; "Cilt Bakım Odası" türünde birden fazla oda varsa, müsait olan herhangi birini otomatik olarak seçer ve kilitler.
+- **Kapasite Kontrolü:** Her kaynağın bir kapasitesi vardır (örn: bir oda aynı anda 2 kişiye hizmet verebilir). `ResourceLockService` kapasite aşımını kontrol eder.
+- **Personel Müsaitliği:** Randevunun atandığı personelin çalışma saatleri ve mevcut randevu yükü `SchedulerService` ile kontrol edilir.
+
+### 2.3. Çoklu Seans ve Çakışma Stratejisi
+- **Otomatik Seans Planlama:** Kullanıcı toplam seans sayısını girdiğinde, sistem haftalık periyotlarla randevuları oluşturur.
+- **Esnek Çakışma Yönetimi:** Çoklu seans oluşturulurken bir seansta çakışma (personel dolu veya kaynak yok) tespit edilirse, sistem işlemi durdurmaz. Randevuyu "zorunlu" olarak oluşturur (createSingleForced) ve banko görevlisine uyarı mesajı dönerek manuel düzeltme imkanı sağlar.
+
+### 2.3. Personel ve Hizmet Yönetimi (Staff & Service Management)
+- **Personel Tanımları:** Personellerin çalışma saatleri, uzmanlık alanları ve takvim renk kodları sistemde tanımlıdır.
+- **Hizmet Katalogları:** Her hizmetin süresi, baz fiyatı ve ihtiyaç duyduğu kaynaklar (resource requirements) belirlenmiştir.
+
+### 2.4. Bekleme Listesi (Waitlist)
+- Dolu saat dilimleri için müşteriler bekleme listesine alınabilir ve uygunluk durumunda randevuya dönüştürülebilir.
+
+---
+
+## 3. Teknik Kontrol Mekanizmaları ve Güvenlik
+
+### 3.1. Denetim Günlüğü ve İzlenebilirlik (Audit System)
+Sistem üzerindeki her kritik eylem kayıt altına alınır:
+- **AuditAction:** `CREATE`, `UPDATE`, `DELETE`, `STATUS_CHANGE` eylemleri üzerinden sistemdeki her hareket izlenir.
+- **Değişim Takibi:** Hangi verinin eskiden ne olduğu ve neye dönüştüğü (Old State -> New State) takip edilebilir. `AuditService` tüm bu loglama sürecini yönetir.
+
+### 3.2. Müşteri ve Randevu Bayrakları (Appointment Flags)
+Randevulara ek bilgiler eklemek için "Bayrak" (Flag) sistemi kullanılır:
+- **FlagType:** Müşteri bazlı `ALLERGY` (Alerji), `PREFERENCE` (Tercih), `VIP`, `DRINK` (İçecek tercihi) veya `CUSTOM` bayrakları atanabilir.
+- **Görselleştirme:** Bu bayraklar takvim üzerinde ikonlarla temsil edilerek personelin hızlı bilgi sahibi olması sağlanır.
+
+### 3.2. Gerçek Zamanlı Senkronizasyon (WebSocket)
+- **Canlı Güncelleme:** Bir kullanıcı bir randevuyu taşıdığında veya yeni bir kayıt açtığında, `NotificationService` üzerinden tüm bağlı istemcilere (dashboard ve takvim kullanıcıları) anlık bildirim gönderilir.
+- **Dashboard Yenileme:** İstatistiksel verilerin (günlük ciro, randevu sayısı vb.) sayfa yenilenmeden güncellenmesini sağlar.
+
+### 3.3. Versiyonlama ve Veri Bütünlüğü (Optimistic Locking)
+- Randevular üzerinde bir `version` alanı bulunur. Aynı randevu üzerinde iki farklı kullanıcının aynı anda işlem yapması durumunda "ConflictException" fırlatılarak veri kaybı önlenir.
+
+---
+
+## 4. Sistem Mimari Yapısı (Klasör ve Dosya Sorumlulukları)
+
+- **`com.gserp.controller`**: API uç noktalarını ve sayfa yönlendirmelerini yönetir.
+- **`com.gserp.service`**: İş mantığını (business logic) yürütür. 
+    - `AppointmentService`: Randevu yaşam döngüsü.
+    - `ResourceLockService`: Kaynak yönetimi.
+    - `SchedulerService`: Zamanlama ve uygunluk kontrolleri.
+- **`com.gserp.model`**: Veri modellerini ve Enum yapılarını (`AuditAction`, `AppointmentStatus` vb.) içerir.
+- **`com.gserp.store`**: Veri erişim katmanı.
+- **`src/main/resources/templates`**: Thymeleaf tabanlı kullanıcı arayüzü dosyaları.
+- **`src/main/resources/static`**: CSS, JS ve imaj gibi statik dosyalar.
+
+---
+
+## 5. Uygulama İş Akışı Örneği
+1. **Giriş:** Kullanıcı Takvim ekranından bir saat dilimi seçer.
+2. **Kontrol:** Sistem, personelin çalışma saatlerini ve o saatteki kaynak müsaitliğini doğrular.
+3. **Kayıt:** Randevu kaydedilir, kaynaklar rezerve edilir ve Audit logu oluşturulur.
+4. **Yayın:** WebSocket üzerinden diğer tüm açık ekranlara "Yeni Randevu Oluşturuldu" bilgisi gider ve Dashboard sayaçları artar.
+
+---
+**Not:** Bu belge, projenin mevcut tüm kontrollerini, eklemelerini ve sistemin çalışma prensiplerini kapsayan tam bir gereksinim metnidir.

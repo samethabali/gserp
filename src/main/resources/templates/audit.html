@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GSERP — İşlem Kütüğü</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="app-layout">
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-icon">💅</div>
+            <div><h1>GSERP</h1><span class="brand-sub">Salon Yönetim Sistemi</span></div>
+        </div>
+        <nav class="sidebar-nav">
+            <span class="nav-section-title">Ana Menü</span>
+            <a href="/" class="nav-item"><span class="nav-icon">📅</span> Takvim</a>
+            <a href="/dashboard" class="nav-item"><span class="nav-icon">📊</span> Dashboard</a>
+            <span class="nav-section-title">Yönetim</span>
+
+            <a href="/services" class="nav-item"><span class="nav-icon">💇</span> Hizmetler</a>
+            <a href="/staff" class="nav-item"><span class="nav-icon">👩‍💼</span> Personel</a>
+            <a href="/resources" class="nav-item"><span class="nav-icon">🏠</span> Kaynaklar</a>
+            <span class="nav-section-title">Sistem</span>
+            <a href="/audit" class="nav-item active"><span class="nav-icon">📋</span> İşlem Kütüğü</a>
+        </nav>
+    </aside>
+
+    <main class="main-content">
+        <header class="topbar">
+            <span class="topbar-title">📋 İşlem Kütüğü (Audit Log)</span>
+            <button class="btn btn-secondary" onclick="loadAudit()">🔄 Yenile</button>
+        </header>
+        <div class="page-content">
+            <div class="glass-card" style="padding:0;overflow:hidden;">
+                <table class="data-table">
+                    <thead>
+                        <tr><th>Zaman</th><th>İşlem</th><th>Tür</th><th>ID</th><th>Eski Değer</th><th>Yeni Değer</th></tr>
+                    </thead>
+                    <tbody id="auditTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</div>
+<script src="/js/app.js"></script>
+<script>
+    const actionLabels = { CREATE: '🟢 Oluşturma', UPDATE: '🟡 Güncelleme', DELETE: '🔴 Silme', STATUS_CHANGE: '🔵 Durum Değişikliği' };
+
+    async function loadAudit() {
+        const res = await fetch('/api/audit?limit=100');
+        const json = await res.json();
+        const logs = (json.data || []).reverse();
+        document.getElementById('auditTableBody').innerHTML = logs.map(l => `
+            <tr>
+                <td style="font-variant-numeric:tabular-nums;font-size:0.8rem;">${l.createdAt ? new Date(l.createdAt).toLocaleString('tr-TR') : '-'}</td>
+                <td>${actionLabels[l.action] || l.action}</td>
+                <td><span class="badge badge-scheduled">${l.entityType}</span></td>
+                <td>#${l.entityId}</td>
+                <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;" title="${l.oldValue || ''}">${l.oldValue || '—'}</td>
+                <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;" title="${l.newValue || ''}">${l.newValue || '—'}</td>
+            </tr>
+        `).join('');
+    }
+
+    loadAudit();
+</script>
+</body>
+</html>
