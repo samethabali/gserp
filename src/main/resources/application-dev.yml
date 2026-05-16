@@ -14,7 +14,4 @@ spring:
     prefix: classpath:/templates/
     suffix: .html
 
-logging:
-  level:
-    com.gserp: DEBUG
-    org.hibernate.SQL: INFO
+# Logging seviyeleri logback-spring.xml'de profile bazlı tanımlı.

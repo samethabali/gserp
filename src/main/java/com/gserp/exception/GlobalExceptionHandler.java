@@ -1,14 +1,25 @@
 package com.gserp.exception;
 
 import com.gserp.dto.response.ApiResponse;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Arrays;
+
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private final boolean prodProfile;
+
+    public GlobalExceptionHandler(Environment env) {
+        this.prodProfile = Arrays.asList(env.getActiveProfiles()).contains("prod");
+    }
 
     @ExceptionHandler(ConflictException.class)
     public ResponseEntity<ApiResponse<Void>> handleConflict(ConflictException ex) {
@@ -46,7 +57,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneral(Exception ex) {
+        log.error("Unhandled exception", ex);
+        String message = prodProfile
+                ? "Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin."
+                : "Beklenmeyen hata: " + ex.getMessage();
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error("Beklenmeyen hata: " + ex.getMessage()));
+                .body(ApiResponse.error(message));
     }
 }

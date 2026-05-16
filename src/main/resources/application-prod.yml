@@ -37,7 +37,5 @@ management:
     readinessstate:
       enabled: true
 
-logging:
-  level:
-    com.gserp: INFO
-    org.hibernate.SQL: WARN
+# Logging seviyeleri logback-spring.xml'de profile bazlı tanımlı.
+# Dosya yolu LOG_DIR env'iyle override edilebilir (default: /var/log/gserp).
