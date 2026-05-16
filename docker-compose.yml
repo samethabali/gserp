@@ -1,0 +1,52 @@
+# GSERP — production stack (app + postgres)
+# Önkoşul: .env.example -> .env (gerçek değerlerle doldurulmuş)
+# Çalıştırma: docker compose up -d --build
+# Sağlık: curl http://localhost:8989/actuator/health  -> {"status":"UP"}
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: gserp-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: gserp
+      POSTGRES_USER: gserp
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD .env dosyasında tanımlı olmalı}
+    volumes:
+      - gserp-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gserp -d gserp"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # DB sadece app servisinden erişilebilsin — hostta port açma.
+    expose:
+      - "5432"
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: gserp:latest
+    container_name: gserp-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/gserp
+      SPRING_DATASOURCE_USERNAME: gserp
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET .env'de tanımlı olmalı}
+      APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS}
+      SERVER_PORT: 8989
+      LOG_DIR: /var/log/gserp
+    ports:
+      # Yalnızca loopback'e bind — nginx/reverse-proxy önünde çalışır.
+      - "127.0.0.1:8989:8989"
+    volumes:
+      - gserp-app-logs:/var/log/gserp
+
+volumes:
+  gserp-db-data:
+  gserp-app-logs:

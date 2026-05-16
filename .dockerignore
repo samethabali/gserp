@@ -1,0 +1,31 @@
+target/
+.git/
+.gitignore
+.gitattributes
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+
+# IDE/OS
+.DS_Store
+Thumbs.db
+
+# Local notes / secrets
+system.txt
+.env
+.env.*
+!.env.example
+*.log
+logs/
+
+# Build/test artifacts
+**/*.class
+
+# Local-only compose & docs not needed inside image
+docker-compose.dev.yml
+docs/
+
+# Claude/agent metadata
+.claude/
