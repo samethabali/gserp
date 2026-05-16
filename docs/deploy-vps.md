@@ -4,6 +4,12 @@ Bu doküman GSERP'i tek bir Linux VPS'e (Ubuntu 22.04 / 24.04 LTS varsayılır) 
 Compose üzerinden, nginx reverse proxy ve Let's Encrypt TLS ile yayına almanın
 adım adım yönergesidir.
 
+> **Hızlı yol:** Aşağıdaki adımların büyük kısmını `scripts/vps-setup.sh` script'i
+> idempotent (zaten var olanı atlar) şekilde yapar. Önce sistem kurulumu (Docker,
+> nginx, UFW, certbot) elle tamamlanmalı; sonrasında script GSERP'e özgü kısmı
+> (clone, .env, compose up, nginx site, backup cron) otomatikleştirir. Yine de
+> bu doküman referans olarak baştan adım adım açıklar.
+
 Hedef mimari:
 
 ```
