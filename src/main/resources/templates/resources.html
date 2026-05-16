@@ -98,8 +98,7 @@
     let resources = [];
 
     async function loadResources() {
-        const res = await fetch('/api/resources');
-        const json = await res.json();
+        const json = await api('GET', '/api/resources');
         resources = json.data || [];
         renderResources();
     }
@@ -140,14 +139,13 @@
         };
         const url = id ? `/api/resources/${id}` : '/api/resources';
         const method = id ? 'PUT' : 'POST';
-        const res = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
-        const json = await res.json();
+        const json = await api(method, url, body);
         if (json.success) {
             showToast(json.message, 'success');
             closeModal('resModal');
             loadResources();
         } else {
-            showToast(json.message, 'error');
+            showToast(json.message || 'İşlem başarısız', 'error');
         }
     }
 

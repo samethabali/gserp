@@ -107,16 +107,29 @@ async function api(method, url, body) {
     if (csrfToken && csrfHeader && method !== 'GET' && method !== 'HEAD') {
         headers[csrfHeader] = csrfToken;
     }
-    const opts = { method, headers, credentials: 'same-origin' };
+    const opts = {
+        method,
+        headers,
+        credentials: 'same-origin',
+        redirect: 'manual'   // 302 -> /login akışını otomatik takip etme
+    };
     if (body) opts.body = JSON.stringify(body);
     const res = await fetch(url, opts);
-    if (res.status === 401 || res.status === 403) {
+
+    // 401/403/302 (form-login chain'inden redirect) -> oturum yok demek
+    if (res.status === 401 || res.status === 403 || res.type === 'opaqueredirect') {
         if (!window.location.pathname.startsWith('/login')) {
             window.location.href = '/login';
-            return { success: false, message: 'Oturum sona erdi' };
         }
+        return { success: false, message: 'Oturum sona erdi' };
     }
-    return res.json();
+    // Boş 204 cevapları
+    if (res.status === 204) return { success: true };
+    try {
+        return await res.json();
+    } catch (e) {
+        return { success: false, message: 'Sunucudan beklenmeyen yanıt' };
+    }
 }
 
 console.log('%c💅 GSERP — Güzellik Salonu ERP', 'font-size:16px;font-weight:bold;color:#9b59b6;');

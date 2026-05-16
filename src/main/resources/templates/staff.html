@@ -101,8 +101,7 @@
     const roleLabels = { SPECIALIST: 'Uzman', RECEPTIONIST: 'Resepsiyonist', ADMIN: 'Admin' };
 
     async function loadStaff() {
-        const res = await fetch('/api/staff');
-        const json = await res.json();
+        const json = await api('GET', '/api/staff');
         staffList = json.data || [];
         renderStaff();
     }
@@ -158,14 +157,13 @@
         };
         const url = id ? `/api/staff/${id}` : '/api/staff';
         const method = id ? 'PUT' : 'POST';
-        const res = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
-        const json = await res.json();
+        const json = await api(method, url, body);
         if (json.success) {
             showToast(json.message, 'success');
             closeModal('staffModal');
             loadStaff();
         } else {
-            showToast(json.message, 'error');
+            showToast(json.message || 'İşlem başarısız', 'error');
         }
     }
 

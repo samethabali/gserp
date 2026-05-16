@@ -184,13 +184,7 @@ function initCalendar() {
             };
 
             try {
-                const res = await fetch(`/api/appointments/${a.id}/move`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(moveData)
-                });
-                const json = await res.json();
-
+                const json = await api('PUT', `/api/appointments/${a.id}/move`, moveData);
                 if (!json.success) {
                     info.revert();
                     showToast(json.message || 'Taşıma başarısız', 'error');
@@ -425,13 +419,7 @@ async function saveAppointment() {
             method = 'POST';
         }
 
-        const res = await fetch(url, {
-            method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
-        });
-
-        const json = await res.json();
+        const json = await api(method, url, body);
 
         if (json.success) {
             showToast(json.message || 'Randevu kaydedildi', 'success');
@@ -555,12 +543,7 @@ async function confirmStatusChange() {
         reason = document.getElementById('statusReasonCustom').value.trim() || 'Diğer';
     }
 
-    const res = await fetch(`/api/appointments/${id}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status, reason })
-    });
-    const json = await res.json();
+    const json = await api('PATCH', `/api/appointments/${id}/status`, { status, reason });
     if (json.success) {
         showToast('Durum güncellendi', 'success');
         closeModal('statusModal');
@@ -572,12 +555,7 @@ async function confirmStatusChange() {
 
 async function changeAppointmentStatus(id, status) {
     // For simple transitions (no reason needed: start, complete)
-    const res = await fetch(`/api/appointments/${id}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status })
-    });
-    const json = await res.json();
+    const json = await api('PATCH', `/api/appointments/${id}/status`, { status });
     if (json.success) {
         showToast('Durum güncellendi', 'success');
         closeModal('viewModal');
@@ -589,8 +567,7 @@ async function changeAppointmentStatus(id, status) {
 
 async function deleteAppointment(id) {
     if (!confirm('Bu randevuyu silmek istediğinize emin misiniz?')) return;
-    const res = await fetch(`/api/appointments/${id}`, { method: 'DELETE' });
-    const json = await res.json();
+    const json = await api('DELETE', `/api/appointments/${id}`);
     showToast(json.message || 'Silindi', json.success ? 'success' : 'error');
     closeModal('viewModal');
     calendar.refetchEvents();

@@ -84,12 +84,7 @@ async function loadAppointments() {
 }
 
 async function quickStatus(id, status) {
-    const res = await fetch(`/api/appointments/${id}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status })
-    });
-    const json = await res.json();
+    const json = await api('PATCH', `/api/appointments/${id}/status`, { status });
     if (json.success) {
         showToast(statusLabels[status] || 'Güncellendi', 'success');
         refreshDashboard();
