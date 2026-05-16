@@ -1,5 +1,6 @@
 package com.gserp.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.gserp.model.enums.FlagType;
 import jakarta.persistence.*;
 import lombok.*;
@@ -18,6 +19,7 @@ public class AppointmentFlag {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "appointment_id", nullable = false)
     private Appointment appointment;
