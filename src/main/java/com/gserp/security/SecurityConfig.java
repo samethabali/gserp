@@ -47,15 +47,21 @@ public class SecurityConfig {
     }
 
     /**
-     * REST API chain: /api/** stateless JWT, CSRF off, /api/auth/** permitAll.
+     * REST API chain: hibrit auth — hem JWT (Bearer) hem form-login session kabul eder.
+     * - JWT istekleri: STATELESS gibi davranır (filter principal'i koyar, session yok)
+     * - Tarayıcı istekleri: webFilterChain'in açtığı JSESSIONID cookie ile gelir
+     * - CSRF: cookie tabanlı (browser session POST/PUT/DELETE'leri için zorunlu),
+     *   JWT header'lı istekler için /api/auth/** ignored
      */
     @Bean
     @Order(1)
     public SecurityFilterChain apiFilterChain(HttpSecurity http) throws Exception {
         http
             .securityMatcher("/api/**")
-            .csrf(csrf -> csrf.disable())
-            .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .csrf(csrf -> csrf
+                    .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                    .ignoringRequestMatchers(new AntPathRequestMatcher("/api/auth/**")))
+            .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
             .authorizeHttpRequests(auth -> auth
                     .requestMatchers("/api/auth/**").permitAll()
                     .anyRequest().authenticated())
