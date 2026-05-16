@@ -99,13 +99,23 @@ function statusBadge(status) {
 }
 
 // ─── API Helper ───
+const csrfToken = document.querySelector('meta[name="_csrf"]')?.content;
+const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content;
+
 async function api(method, url, body) {
-    const opts = {
-        method,
-        headers: { 'Content-Type': 'application/json' }
-    };
+    const headers = { 'Content-Type': 'application/json' };
+    if (csrfToken && csrfHeader && method !== 'GET' && method !== 'HEAD') {
+        headers[csrfHeader] = csrfToken;
+    }
+    const opts = { method, headers, credentials: 'same-origin' };
     if (body) opts.body = JSON.stringify(body);
     const res = await fetch(url, opts);
+    if (res.status === 401 || res.status === 403) {
+        if (!window.location.pathname.startsWith('/login')) {
+            window.location.href = '/login';
+            return { success: false, message: 'Oturum sona erdi' };
+        }
+    }
     return res.json();
 }
 

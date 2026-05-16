@@ -1,8 +1,10 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="tr">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="tr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
     <title>GSERP — İşlem Kütüğü</title>
     <link rel="stylesheet" href="/css/style.css">
 </head>
@@ -30,7 +32,14 @@
     <main class="main-content">
         <header class="topbar">
             <span class="topbar-title">📋 İşlem Kütüğü (Audit Log)</span>
-            <button class="btn btn-secondary" onclick="loadAudit()">🔄 Yenile</button>
+            <div class="topbar-actions">
+                <button class="btn btn-secondary" onclick="loadAudit()">🔄 Yenile</button>
+                <span style="color:var(--color-text-muted);font-size:0.9rem;">👤 <span sec:authentication="name">user</span></span>
+                <form method="post" th:action="@{/logout}" style="display:inline;">
+                    <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                    <button type="submit" class="btn btn-secondary btn-xs">Çıkış</button>
+                </form>
+            </div>
         </header>
         <div class="page-content">
             <div class="glass-card" style="padding:0;overflow:hidden;">

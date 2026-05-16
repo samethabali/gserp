@@ -3,9 +3,12 @@ package com.gserp.service;
 import com.gserp.model.AuditLogEntry;
 import com.gserp.model.enums.AuditAction;
 import com.gserp.repository.AuditLogEntryRepository;
+import com.gserp.security.AuthenticatedUser;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,12 +39,20 @@ public class AuditService {
     }
 
     /**
-     * Convenience — log with system user (id=0). Until Aşama 2 lands a real
-     * SecurityContext, callers without an authenticated principal use this.
+     * Convenience — SecurityContext'ten o anki principal'in user id'sini çeker.
+     * Anonim/system bağlamlarda 0L fallback'i kullanılır.
      */
     public void log(AuditAction action, String entityType, Long entityId,
                     String oldValue, String newValue) {
-        log(0L, action, entityType, entityId, oldValue, newValue);
+        log(currentUserId(), action, entityType, entityId, oldValue, newValue);
+    }
+
+    private Long currentUserId() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.isAuthenticated() && auth.getPrincipal() instanceof AuthenticatedUser user) {
+            return user.getId();
+        }
+        return 0L;
     }
 
     @Transactional(readOnly = true)
