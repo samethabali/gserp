@@ -1,42 +1,48 @@
 package com.gserp.service;
 
 import com.gserp.model.Resource;
-import com.gserp.store.MockDataStore;
+import com.gserp.repository.ResourceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class ResourceService {
 
-    private final MockDataStore store;
+    private final ResourceRepository resourceRepository;
 
     public List<Resource> getAll() {
-        return store.findAllResources();
+        return resourceRepository.findAll();
     }
 
     public List<Resource> getActive() {
-        return store.findActiveResources();
+        return resourceRepository.findByActiveTrue();
     }
 
     public Optional<Resource> getById(Long id) {
-        return store.findResourceById(id);
+        return resourceRepository.findById(id);
     }
 
+    @Transactional
     public Resource create(Resource resource) {
-        return store.addResource(resource);
+        resource.setCreatedAt(LocalDateTime.now());
+        return resourceRepository.save(resource);
     }
 
+    @Transactional
     public Resource update(Long id, Resource updated) {
-        Resource existing = store.findResourceById(id)
+        Resource existing = resourceRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Kaynak bulunamadı: " + id));
         existing.setName(updated.getName());
         existing.setResourceType(updated.getResourceType());
         existing.setCapacity(updated.getCapacity());
         existing.setActive(updated.isActive());
-        return store.updateResource(existing);
+        return resourceRepository.save(existing);
     }
 }

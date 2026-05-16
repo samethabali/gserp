@@ -1,14 +1,22 @@
 server:
-  port: 8989
+  port: ${SERVER_PORT:8989}
+  forward-headers-strategy: framework
 
 spring:
-  thymeleaf:
-    cache: false
-    prefix: classpath:/templates/
-    suffix: .html
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
   jackson:
     deserialization:
       ADJUST_DATES_TO_CONTEXT_TIME_ZONE: false
       FAIL_ON_UNKNOWN_PROPERTIES: false
     serialization:
       WRITE_DATES_AS_TIMESTAMPS: false
+  jpa:
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration

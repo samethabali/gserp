@@ -1,37 +1,46 @@
 package com.gserp.service;
 
 import com.gserp.model.Staff;
-import com.gserp.store.MockDataStore;
+import com.gserp.model.enums.StaffRole;
+import com.gserp.repository.StaffRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class StaffService {
 
-    private final MockDataStore store;
+    private final StaffRepository staffRepository;
 
     public List<Staff> getAll() {
-        return store.findAllStaff();
+        return staffRepository.findAll();
     }
 
     public List<Staff> getActiveSpecialists() {
-        return store.findActiveSpecialists();
+        return staffRepository.findByActiveTrueAndRole(StaffRole.SPECIALIST);
     }
 
     public Optional<Staff> getById(Long id) {
-        return store.findStaffById(id);
+        return staffRepository.findById(id);
     }
 
+    @Transactional
     public Staff create(Staff staff) {
-        return store.addStaff(staff);
+        LocalDateTime now = LocalDateTime.now();
+        staff.setCreatedAt(now);
+        staff.setUpdatedAt(now);
+        return staffRepository.save(staff);
     }
 
+    @Transactional
     public Staff update(Long id, Staff updated) {
-        Staff existing = store.findStaffById(id)
+        Staff existing = staffRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Personel bulunamadı: " + id));
         existing.setName(updated.getName());
         existing.setPhone(updated.getPhone());
@@ -39,6 +48,7 @@ public class StaffService {
         existing.setRole(updated.getRole());
         existing.setColorHex(updated.getColorHex());
         existing.setActive(updated.isActive());
-        return store.updateStaff(existing);
+        existing.setUpdatedAt(LocalDateTime.now());
+        return staffRepository.save(existing);
     }
 }

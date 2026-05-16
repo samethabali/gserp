@@ -1,0 +1,20 @@
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/gserp_dev}
+    username: ${SPRING_DATASOURCE_USERNAME:gserp}
+    password: ${SPRING_DATASOURCE_PASSWORD:gserp}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate.format_sql: true
+  thymeleaf:
+    cache: false
+    prefix: classpath:/templates/
+    suffix: .html
+
+logging:
+  level:
+    com.gserp: DEBUG
+    org.hibernate.SQL: INFO

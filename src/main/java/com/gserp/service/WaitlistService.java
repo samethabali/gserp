@@ -1,10 +1,11 @@
 package com.gserp.service;
 
 import com.gserp.model.WaitlistEntry;
-import com.gserp.store.MockDataStore;
+import com.gserp.repository.WaitlistEntryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -12,40 +13,44 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class WaitlistService {
 
-    private final MockDataStore store;
+    private final WaitlistEntryRepository waitlistRepository;
 
+    @Transactional
     public WaitlistEntry add(WaitlistEntry entry) {
         entry.setCreatedAt(LocalDateTime.now());
         entry.setFulfilled(false);
-        return store.saveWaitlistEntry(entry);
+        return waitlistRepository.save(entry);
     }
 
     public List<WaitlistEntry> getActive() {
-        return store.findActiveWaitlistEntries();
+        return waitlistRepository.findByFulfilledFalse();
     }
 
     public List<WaitlistEntry> getAll() {
-        return store.findAllWaitlistEntries();
+        return waitlistRepository.findAll();
     }
 
+    @Transactional
     public void fulfill(Long id) {
-        store.findWaitlistEntryById(id).ifPresent(e -> {
+        waitlistRepository.findById(id).ifPresent(e -> {
             e.setFulfilled(true);
-            store.saveWaitlistEntry(e);
+            waitlistRepository.save(e);
         });
     }
 
+    @Transactional
     public void delete(Long id) {
-        store.deleteWaitlistEntry(id);
+        waitlistRepository.deleteById(id);
     }
 
     /**
      * Check if there are waitlist entries matching a cancelled/no-show appointment.
      */
     public List<WaitlistEntry> findMatchingEntries(Long serviceId, Long staffId) {
-        return store.findActiveWaitlistEntries().stream()
+        return waitlistRepository.findByFulfilledFalse().stream()
                 .filter(e -> (e.getServiceId() != null && e.getServiceId().equals(serviceId))
                            || (e.getPreferredStaffId() != null && e.getPreferredStaffId().equals(staffId)))
                 .toList();

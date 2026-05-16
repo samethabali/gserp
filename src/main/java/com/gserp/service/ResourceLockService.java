@@ -1,20 +1,29 @@
 package com.gserp.service;
 
 import com.gserp.exception.ResourceNotAvailableException;
-import com.gserp.model.*;
-import com.gserp.store.MockDataStore;
+import com.gserp.model.Appointment;
+import com.gserp.model.Resource;
+import com.gserp.model.ServiceDefinition;
+import com.gserp.model.enums.AppointmentStatus;
+import com.gserp.model.enums.ResourceType;
+import com.gserp.repository.AppointmentRepository;
+import com.gserp.repository.ResourceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class ResourceLockService {
 
-    private final MockDataStore store;
+    private final ResourceRepository resourceRepository;
+    private final AppointmentRepository appointmentRepository;
 
     /**
      * For a service that requires resources, find an available resource from the required list
@@ -35,11 +44,10 @@ public class ResourceLockService {
         List<Long> lockedIds = new ArrayList<>();
 
         // Group required resources by type
-        var byType = new java.util.LinkedHashMap<com.gserp.model.enums.ResourceType, List<Resource>>();
+        var byType = new LinkedHashMap<ResourceType, List<Resource>>();
         for (Long resId : service.getRequiredResourceIds()) {
-            store.findResourceById(resId).ifPresent(r -> {
-                byType.computeIfAbsent(r.getResourceType(), k -> new ArrayList<>()).add(r);
-            });
+            resourceRepository.findById(resId).ifPresent(r ->
+                    byType.computeIfAbsent(r.getResourceType(), k -> new ArrayList<>()).add(r));
         }
 
         for (var entry : byType.entrySet()) {
@@ -47,7 +55,7 @@ public class ResourceLockService {
             boolean found = false;
 
             for (Resource candidate : candidates) {
-                if (isResourceAvailable(candidate.getId(), start, end, excludeAppointmentId)) {
+                if (isResourceAvailable(candidate, start, end, excludeAppointmentId)) {
                     lockedIds.add(candidate.getId());
                     found = true;
                     break; // one per type is enough
@@ -66,16 +74,15 @@ public class ResourceLockService {
         return lockedIds;
     }
 
-    private boolean isResourceAvailable(Long resourceId, LocalDateTime start, LocalDateTime end,
+    private boolean isResourceAvailable(Resource resource, LocalDateTime start, LocalDateTime end,
                                          Long excludeAppointmentId) {
-        List<Appointment> conflicts = store.findAppointmentsByResourceAndDateRange(resourceId, start, end);
+        List<Appointment> conflicts = appointmentRepository.findResourceOverlap(
+                resource.getId(), start, end, AppointmentStatus.CANCELLED);
         if (excludeAppointmentId != null) {
             conflicts = conflicts.stream()
                     .filter(a -> !a.getId().equals(excludeAppointmentId))
                     .toList();
         }
-        Resource resource = store.findResourceById(resourceId).orElse(null);
-        if (resource == null) return false;
         return conflicts.size() < resource.getCapacity();
     }
 }

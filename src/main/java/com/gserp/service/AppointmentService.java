@@ -6,10 +6,13 @@ import com.gserp.dto.response.AppointmentResponse;
 import com.gserp.exception.ConflictException;
 import com.gserp.model.*;
 import com.gserp.model.enums.*;
-import com.gserp.store.MockDataStore;
+import com.gserp.repository.AppointmentRepository;
+import com.gserp.repository.ServiceDefinitionRepository;
+import com.gserp.repository.StaffRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
@@ -23,9 +26,12 @@ import java.util.UUID;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class AppointmentService {
 
-    private final MockDataStore store;
+    private final AppointmentRepository appointmentRepository;
+    private final ServiceDefinitionRepository serviceRepository;
+    private final StaffRepository staffRepository;
     private final SchedulerService schedulerService;
     private final ResourceLockService resourceLockService;
     private final AuditService auditService;
@@ -35,6 +41,7 @@ public class AppointmentService {
      * Create appointment(s). If numberOfSessions > 1, creates multiple weekly appointments.
      * Returns the first appointment response. Warnings are logged.
      */
+    @Transactional
     public AppointmentResponse create(AppointmentCreateRequest req) {
         int sessions = (req.getNumberOfSessions() != null && req.getNumberOfSessions() > 1)
                 ? req.getNumberOfSessions() : 1;
@@ -43,7 +50,6 @@ public class AppointmentService {
             return createSingle(req, null, null, null);
         }
 
-        // Multi-session: generate group ID and create each week
         String groupId = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
         DayOfWeek preferredDay = req.getPreferredDayOfWeek() != null
                 ? req.getPreferredDayOfWeek()
@@ -56,10 +62,8 @@ public class AppointmentService {
         LocalDate sessionDate = req.getStartTime().toLocalDate();
 
         for (int i = 1; i <= sessions; i++) {
-            // For first session, use the provided date; for subsequent, find next preferred day
             if (i > 1) {
                 sessionDate = sessionDate.plusWeeks(1);
-                // Adjust to preferred day of week
                 while (sessionDate.getDayOfWeek() != preferredDay) {
                     sessionDate = sessionDate.plusDays(1);
                 }
@@ -83,11 +87,9 @@ public class AppointmentService {
                 AppointmentResponse resp = createSingle(sessionReq, groupId, i, sessions);
                 created.add(resp);
             } catch (ConflictException e) {
-                // Çakışma varsa uyarı olarak ekle ama devam et
                 warnings.add("Seans " + i + " (" + sessionDate + "): " + e.getMessage());
                 log.warn("Session {} conflict: {}", i, e.getMessage());
 
-                // Yine de oluştur — bankocu halleder
                 AppointmentResponse resp = createSingleForced(sessionReq, groupId, i, sessions);
                 created.add(resp);
             }
@@ -97,43 +99,34 @@ public class AppointmentService {
             log.info("Session creation warnings: {}", warnings);
         }
 
-        return created.get(0); // İlk seansı dön
+        return created.get(0);
     }
 
-    /**
-     * Create a single appointment with full conflict validation.
-     */
     private AppointmentResponse createSingle(AppointmentCreateRequest req,
                                               String sessionGroupId, Integer sessionNum, Integer totalSessions) {
-        ServiceDefinition service = store.findServiceById(req.getServiceId())
+        ServiceDefinition service = serviceRepository.findById(req.getServiceId())
                 .orElseThrow(() -> new IllegalArgumentException("Hizmet bulunamadı: " + req.getServiceId()));
         LocalDateTime endTime = req.getStartTime().plusMinutes(service.getDurationMinutes());
 
-        Staff staff = store.findStaffById(req.getStaffId())
+        Staff staff = staffRepository.findById(req.getStaffId())
                 .orElseThrow(() -> new IllegalArgumentException("Uzman bulunamadı: " + req.getStaffId()));
 
-        // Check working hours
         if (!schedulerService.isWithinWorkingHours(req.getStaffId(), req.getStartTime(), endTime)) {
             throw new ConflictException(staff.getName() + " bu saatte çalışma saatleri dışında");
         }
 
-        // Check staff availability
         if (!schedulerService.isStaffAvailable(req.getStaffId(), req.getStartTime(), endTime, null)) {
             throw new ConflictException(staff.getName() + " bu saatte başka bir randevusu var");
         }
 
-        // Check & lock resources
         List<Long> lockedResources = resourceLockService.validateAndLock(service, req.getStartTime(), endTime, null);
 
         return buildAndSave(req, service, endTime, lockedResources, sessionGroupId, sessionNum, totalSessions);
     }
 
-    /**
-     * Force-create a single appointment (skip conflict checks — for session warnings).
-     */
     private AppointmentResponse createSingleForced(AppointmentCreateRequest req,
                                                      String sessionGroupId, Integer sessionNum, Integer totalSessions) {
-        ServiceDefinition service = store.findServiceById(req.getServiceId())
+        ServiceDefinition service = serviceRepository.findById(req.getServiceId())
                 .orElseThrow(() -> new IllegalArgumentException("Hizmet bulunamadı: " + req.getServiceId()));
         LocalDateTime endTime = req.getStartTime().plusMinutes(service.getDurationMinutes());
 
@@ -153,6 +146,7 @@ public class AppointmentService {
         BigDecimal finalPrice = req.getFinalPrice() != null ? req.getFinalPrice()
                 : basePrice.add(adjustment);
 
+        LocalDateTime now = LocalDateTime.now();
         Appointment appointment = Appointment.builder()
                 .customerName(req.getCustomerName())
                 .customerPhone(req.getCustomerPhone() != null ? req.getCustomerPhone() : "")
@@ -169,24 +163,25 @@ public class AppointmentService {
                 .sessionGroupId(sessionGroupId)
                 .sessionNumber(sessionNum)
                 .totalSessions(totalSessions)
-                .version(1)
+                .createdAt(now)
+                .updatedAt(now)
                 .resourceIds(new ArrayList<>(lockedResources))
                 .flags(new ArrayList<>())
                 .build();
 
-        // Add flags
         if (req.getFlags() != null) {
             for (var flagReq : req.getFlags()) {
-                appointment.getFlags().add(AppointmentFlag.builder()
-                        .id(store.nextFlagId())
+                AppointmentFlag flag = AppointmentFlag.builder()
+                        .appointment(appointment)
                         .flagType(flagReq.getFlagType())
                         .flagValue(flagReq.getFlagValue())
                         .icon(flagReq.getIcon())
-                        .build());
+                        .build();
+                appointment.getFlags().add(flag);
             }
         }
 
-        Appointment saved = store.saveAppointment(appointment);
+        Appointment saved = appointmentRepository.save(appointment);
 
         String sessionInfo = sessionNum != null ? " (Seans " + sessionNum + "/" + totalSessions + ")" : "";
         auditService.log(AuditAction.CREATE, "APPOINTMENT", saved.getId(), null,
@@ -202,21 +197,22 @@ public class AppointmentService {
     /**
      * Move (drag-drop) an appointment to a new time and/or staff.
      */
+    @Transactional
     public AppointmentResponse move(AppointmentMoveRequest req) {
-        Appointment appointment = store.findAppointmentById(req.getAppointmentId())
+        Appointment appointment = appointmentRepository.findById(req.getAppointmentId())
                 .orElseThrow(() -> new IllegalArgumentException("Randevu bulunamadı: " + req.getAppointmentId()));
 
         if (appointment.getVersion() != req.getVersion()) {
             throw new ConflictException("Bu randevu başka birisi tarafından güncellendi. Lütfen sayfayı yenileyip tekrar deneyin.");
         }
 
-        ServiceDefinition service = store.findServiceById(appointment.getServiceId())
+        ServiceDefinition service = serviceRepository.findById(appointment.getServiceId())
                 .orElseThrow(() -> new IllegalArgumentException("Hizmet bulunamadı"));
 
         Long newStaffId = req.getNewStaffId() != null ? req.getNewStaffId() : appointment.getStaffId();
         LocalDateTime newEnd = req.getNewStartTime().plusMinutes(service.getDurationMinutes());
 
-        Staff newStaff = store.findStaffById(newStaffId)
+        Staff newStaff = staffRepository.findById(newStaffId)
                 .orElseThrow(() -> new IllegalArgumentException("Uzman bulunamadı"));
 
         if (!schedulerService.isWithinWorkingHours(newStaffId, req.getNewStartTime(), newEnd)) {
@@ -230,23 +226,24 @@ public class AppointmentService {
         List<Long> lockedResources = resourceLockService.validateAndLock(service, req.getNewStartTime(), newEnd, appointment.getId());
 
         String oldState = String.format("%s %s-%s",
-                store.findStaffById(appointment.getStaffId()).map(Staff::getName).orElse("?"),
+                staffRepository.findById(appointment.getStaffId()).map(Staff::getName).orElse("?"),
                 appointment.getStartTime().toLocalTime(), appointment.getEndTime().toLocalTime());
 
         appointment.setStaffId(newStaffId);
         appointment.setStartTime(req.getNewStartTime());
         appointment.setEndTime(newEnd);
-        appointment.setResourceIds(new ArrayList<>(lockedResources));
-        appointment.setVersion(appointment.getVersion() + 1);
+        appointment.getResourceIds().clear();
+        appointment.getResourceIds().addAll(lockedResources);
+        appointment.setUpdatedAt(LocalDateTime.now());
 
-        store.saveAppointment(appointment);
+        Appointment saved = appointmentRepository.save(appointment);
 
         String newState = String.format("%s %s-%s",
-                newStaff.getName(), appointment.getStartTime().toLocalTime(), appointment.getEndTime().toLocalTime());
+                newStaff.getName(), saved.getStartTime().toLocalTime(), saved.getEndTime().toLocalTime());
 
-        auditService.log(AuditAction.UPDATE, "APPOINTMENT", appointment.getId(), oldState, newState);
+        auditService.log(AuditAction.UPDATE, "APPOINTMENT", saved.getId(), oldState, newState);
 
-        AppointmentResponse response = toResponse(appointment);
+        AppointmentResponse response = toResponse(saved);
         notificationService.broadcastAppointmentChange("MOVE", response);
         notificationService.broadcastDashboardRefresh();
 
@@ -256,8 +253,9 @@ public class AppointmentService {
     /**
      * Change appointment status with optional reason.
      */
+    @Transactional
     public AppointmentResponse changeStatus(Long id, AppointmentStatus newStatus, String reason) {
-        Appointment appointment = store.findAppointmentById(id)
+        Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Randevu bulunamadı: " + id));
 
         String oldStatus = appointment.getStatus().name();
@@ -265,13 +263,13 @@ public class AppointmentService {
         if (reason != null && !reason.isBlank()) {
             appointment.setCancellationReason(reason);
         }
-        appointment.setVersion(appointment.getVersion() + 1);
-        store.saveAppointment(appointment);
+        appointment.setUpdatedAt(LocalDateTime.now());
+        Appointment saved = appointmentRepository.save(appointment);
 
         auditService.log(AuditAction.STATUS_CHANGE, "APPOINTMENT", id, oldStatus,
                 newStatus.name() + (reason != null ? " — " + reason : ""));
 
-        AppointmentResponse response = toResponse(appointment);
+        AppointmentResponse response = toResponse(saved);
         notificationService.broadcastAppointmentChange("STATUS_CHANGE", response);
         notificationService.broadcastDashboardRefresh();
 
@@ -281,19 +279,18 @@ public class AppointmentService {
     /**
      * Update appointment details (note, flags, price, customer info).
      */
+    @Transactional
     public AppointmentResponse update(Long id, AppointmentCreateRequest req) {
-        Appointment appointment = store.findAppointmentById(id)
+        Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Randevu bulunamadı: " + id));
 
-        // Update customer info
         if (req.getCustomerName() != null) appointment.setCustomerName(req.getCustomerName());
         if (req.getCustomerPhone() != null) appointment.setCustomerPhone(req.getCustomerPhone());
 
-        // Update service/staff/time if provided
         if (req.getStaffId() != null) appointment.setStaffId(req.getStaffId());
         if (req.getServiceId() != null) {
             appointment.setServiceId(req.getServiceId());
-            ServiceDefinition service = store.findServiceById(req.getServiceId()).orElse(null);
+            ServiceDefinition service = serviceRepository.findById(req.getServiceId()).orElse(null);
             if (service != null && req.getStartTime() != null) {
                 appointment.setEndTime(req.getStartTime().plusMinutes(service.getDurationMinutes()));
                 appointment.setBasePrice(service.getBasePrice());
@@ -302,7 +299,7 @@ public class AppointmentService {
         if (req.getStartTime() != null) {
             appointment.setStartTime(req.getStartTime());
             if (appointment.getServiceId() != null) {
-                ServiceDefinition svc = store.findServiceById(appointment.getServiceId()).orElse(null);
+                ServiceDefinition svc = serviceRepository.findById(appointment.getServiceId()).orElse(null);
                 if (svc != null) {
                     appointment.setEndTime(req.getStartTime().plusMinutes(svc.getDurationMinutes()));
                 }
@@ -311,7 +308,6 @@ public class AppointmentService {
 
         if (req.getInternalNote() != null) appointment.setInternalNote(req.getInternalNote());
 
-        // Pricing
         if (req.getAdjustment() != null) appointment.setAdjustment(req.getAdjustment());
         if (req.getAdjustmentNote() != null) appointment.setAdjustmentNote(req.getAdjustmentNote());
         if (req.getFinalPrice() != null) {
@@ -320,53 +316,55 @@ public class AppointmentService {
             appointment.setFinalPrice(appointment.getBasePrice().add(req.getAdjustment()));
         }
 
-        // Flags
         if (req.getFlags() != null) {
             appointment.getFlags().clear();
             for (var flagReq : req.getFlags()) {
-                appointment.getFlags().add(AppointmentFlag.builder()
-                        .id(store.nextFlagId())
-                        .appointmentId(id)
+                AppointmentFlag flag = AppointmentFlag.builder()
+                        .appointment(appointment)
                         .flagType(flagReq.getFlagType())
                         .flagValue(flagReq.getFlagValue())
                         .icon(flagReq.getIcon())
-                        .build());
+                        .build();
+                appointment.getFlags().add(flag);
             }
         }
 
-        appointment.setVersion(appointment.getVersion() + 1);
-        store.saveAppointment(appointment);
+        appointment.setUpdatedAt(LocalDateTime.now());
+        Appointment saved = appointmentRepository.save(appointment);
 
         auditService.log(AuditAction.UPDATE, "APPOINTMENT", id, null, "Randevu güncellendi");
 
-        AppointmentResponse response = toResponse(appointment);
+        AppointmentResponse response = toResponse(saved);
         notificationService.broadcastAppointmentChange("UPDATE", response);
 
         return response;
     }
 
+    @Transactional
     public void delete(Long id) {
-        Appointment appointment = store.findAppointmentById(id)
+        Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Randevu bulunamadı: " + id));
 
         auditService.log(AuditAction.DELETE, "APPOINTMENT", id,
                 "Silinen: " + appointment.getCustomerName() + " " + appointment.getStartTime(), null);
 
-        store.deleteAppointment(id);
-
         AppointmentResponse response = toResponse(appointment);
+        appointmentRepository.delete(appointment);
+
         notificationService.broadcastAppointmentChange("DELETE", response);
         notificationService.broadcastDashboardRefresh();
     }
 
     public List<AppointmentResponse> getByDate(LocalDate date) {
-        return store.findAppointmentsByDate(date).stream()
+        return appointmentRepository.findByStartTimeBetween(
+                        date.atStartOfDay(), date.plusDays(1).atStartOfDay()).stream()
+                .sorted((a, b) -> a.getStartTime().compareTo(b.getStartTime()))
                 .map(this::toResponse)
                 .toList();
     }
 
     public List<AppointmentResponse> getAll() {
-        return store.findAllAppointments().stream()
+        return appointmentRepository.findAll().stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -375,17 +373,15 @@ public class AppointmentService {
      * Find appointments by customer phone (for history).
      */
     public List<AppointmentResponse> findByCustomerPhone(String phone) {
-        return store.findAllAppointments().stream()
-                .filter(a -> phone.equals(a.getCustomerPhone()))
-                .sorted((a, b) -> b.getStartTime().compareTo(a.getStartTime()))
+        return appointmentRepository.findByCustomerPhoneOrderByStartTimeDesc(phone).stream()
                 .limit(10)
                 .map(this::toResponse)
                 .toList();
     }
 
     public AppointmentResponse toResponse(Appointment a) {
-        Staff staff = store.findStaffById(a.getStaffId()).orElse(null);
-        ServiceDefinition service = store.findServiceById(a.getServiceId()).orElse(null);
+        Staff staff = staffRepository.findById(a.getStaffId()).orElse(null);
+        ServiceDefinition service = serviceRepository.findById(a.getServiceId()).orElse(null);
 
         return AppointmentResponse.builder()
                 .id(a.getId())

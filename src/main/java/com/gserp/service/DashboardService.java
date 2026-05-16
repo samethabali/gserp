@@ -4,9 +4,11 @@ import com.gserp.dto.response.DashboardResponse;
 import com.gserp.model.Appointment;
 import com.gserp.model.Staff;
 import com.gserp.model.enums.AppointmentStatus;
-import com.gserp.store.MockDataStore;
+import com.gserp.repository.AppointmentRepository;
+import com.gserp.repository.StaffRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -17,12 +19,15 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class DashboardService {
 
-    private final MockDataStore store;
+    private final AppointmentRepository appointmentRepository;
+    private final StaffRepository staffRepository;
 
     public DashboardResponse getDailySummary(LocalDate date) {
-        List<Appointment> appointments = store.findAppointmentsByDate(date);
+        List<Appointment> appointments = appointmentRepository.findByStartTimeBetween(
+                date.atStartOfDay(), date.plusDays(1).atStartOfDay());
 
         int total = appointments.size();
         int completed = (int) appointments.stream().filter(a -> a.getStatus() == AppointmentStatus.COMPLETED).count();
@@ -49,7 +54,7 @@ public class DashboardService {
 
         List<DashboardResponse.StaffPerformance> staffPerf = new ArrayList<>();
         for (var entry : byStaff.entrySet()) {
-            Staff staff = store.findStaffById(entry.getKey()).orElse(null);
+            Staff staff = staffRepository.findById(entry.getKey()).orElse(null);
             if (staff == null) continue;
 
             List<Appointment> staffAppts = entry.getValue();
