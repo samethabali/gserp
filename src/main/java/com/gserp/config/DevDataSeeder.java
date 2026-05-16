@@ -7,7 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +27,7 @@ import java.util.List;
 @Slf4j
 @Component
 @Profile("dev")
+@Order(10) // InitialAdminSeeder (default order) önce çalışsın
 @RequiredArgsConstructor
 public class DevDataSeeder implements CommandLineRunner {
 
@@ -36,14 +37,10 @@ public class DevDataSeeder implements CommandLineRunner {
     private final CustomerRepository customerRepository;
     private final WorkingHoursRepository workingHoursRepository;
     private final AppointmentRepository appointmentRepository;
-    private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
 
     @Override
     @Transactional
     public void run(String... args) {
-        seedDefaultAdmin();
-
         if (staffRepository.count() > 0) {
             log.info("Dev seed skipped — DB already populated");
             return;
@@ -60,21 +57,6 @@ public class DevDataSeeder implements CommandLineRunner {
         log.info("Dev seed complete: {} staff, {} resources, {} services, {} appointments",
                 staffRepository.count(), resourceRepository.count(),
                 serviceRepository.count(), appointmentRepository.count());
-    }
-
-    private void seedDefaultAdmin() {
-        if (userRepository.count() > 0) {
-            return;
-        }
-        User admin = User.builder()
-                .username("admin")
-                .passwordHash(passwordEncoder.encode("admin"))
-                .role(UserRole.ADMIN)
-                .enabled(true)
-                .createdAt(LocalDateTime.now())
-                .build();
-        userRepository.save(admin);
-        log.info("Dev seed: default admin user oluşturuldu (admin / admin) — prod'da KULLANMA");
     }
 
     private List<Staff> seedStaff() {

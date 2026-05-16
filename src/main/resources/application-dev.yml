@@ -15,3 +15,8 @@ spring:
     suffix: .html
 
 # Logging seviyeleri logback-spring.xml'de profile bazlı tanımlı.
+
+# Dev kolaylığı için ilk admin (InitialAdminSeeder DB boşsa yaratır).
+# Prod'da BU DEĞERLER KULLANILMAZ — orada .env üzerinden geçer.
+GSERP_INITIAL_ADMIN_USERNAME: admin
+GSERP_INITIAL_ADMIN_PASSWORD: admin
