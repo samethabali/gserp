@@ -5,6 +5,7 @@ import com.gserp.model.AuditLogEntry;
 import com.gserp.service.AuditService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,6 +18,7 @@ public class AuditController {
     private final AuditService auditService;
 
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<List<AuditLogEntry>>> getRecent(
             @RequestParam(defaultValue = "50") int limit) {
         return ResponseEntity.ok(ApiResponse.ok(auditService.getRecent(limit)));

@@ -5,6 +5,7 @@ import com.gserp.model.Resource;
 import com.gserp.service.ResourceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -27,11 +28,13 @@ public class ResourceController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Resource>> create(@RequestBody Resource resource) {
         return ResponseEntity.ok(ApiResponse.ok("Kaynak eklendi", resourceService.create(resource)));
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Resource>> update(@PathVariable Long id, @RequestBody Resource resource) {
         return ResponseEntity.ok(ApiResponse.ok("Kaynak güncellendi", resourceService.update(id, resource)));
     }

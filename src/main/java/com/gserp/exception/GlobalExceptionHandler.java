@@ -3,6 +3,7 @@ package com.gserp.exception;
 import com.gserp.dto.response.ApiResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 
@@ -35,6 +36,12 @@ public class GlobalExceptionHandler {
                 .orElse("Doğrulama hatası");
         return ResponseEntity.badRequest()
                 .body(ApiResponse.error(message));
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAccessDenied(AccessDeniedException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.error("Bu işlem için yetkiniz yok"));
     }
 
     @ExceptionHandler(Exception.class)

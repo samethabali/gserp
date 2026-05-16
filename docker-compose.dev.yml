@@ -1,0 +1,25 @@
+# Dev DB only — uygulama IDE / mvn spring-boot:run ile host'tan çalıştırılır.
+# Tam stack (app + db) için docker-compose.yml kullan (Aşama 4'te eklenecek).
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: gserp-db-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: gserp_dev
+      POSTGRES_USER: gserp
+      POSTGRES_PASSWORD: gserp
+    ports:
+      # Host'ta 5432/5433 başka postgres'lerce kullanılıyor, 5434'e bind.
+      # SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5434/gserp_dev ile çalıştır.
+      - "127.0.0.1:5434:5432"
+    volumes:
+      - gserp-db-dev-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gserp -d gserp_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  gserp-db-dev-data:

@@ -5,6 +5,7 @@ import com.gserp.model.Staff;
 import com.gserp.service.StaffService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -34,11 +35,13 @@ public class StaffController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Staff>> create(@RequestBody Staff staff) {
         return ResponseEntity.ok(ApiResponse.ok("Personel eklendi", staffService.create(staff)));
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Staff>> update(@PathVariable Long id, @RequestBody Staff staff) {
         return ResponseEntity.ok(ApiResponse.ok("Personel güncellendi", staffService.update(id, staff)));
     }

@@ -5,6 +5,7 @@ import com.gserp.model.ServiceDefinition;
 import com.gserp.service.ServiceDefinitionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -34,11 +35,13 @@ public class ServiceController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<ServiceDefinition>> create(@RequestBody ServiceDefinition sd) {
         return ResponseEntity.ok(ApiResponse.ok("Hizmet eklendi", serviceService.create(sd)));
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<ServiceDefinition>> update(@PathVariable Long id, @RequestBody ServiceDefinition sd) {
         return ResponseEntity.ok(ApiResponse.ok("Hizmet güncellendi", serviceService.update(id, sd)));
     }
