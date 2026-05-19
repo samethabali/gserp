@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <title>GSERP — Müşteriler</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+<div class="app-layout">
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-icon">💅</div>
+            <div><h1>GSERP</h1><span class="brand-sub">Salon Yönetim Sistemi</span></div>
+        </div>
+        <nav class="sidebar-nav">
+            <span class="nav-section-title">Ana Menü</span>
+            <a href="/" class="nav-item"><span class="nav-icon">📅</span> Takvim</a>
+            <a href="/dashboard" class="nav-item"><span class="nav-icon">📊</span> Dashboard</a>
+            <span class="nav-section-title">Yönetim</span>
+            <a href="/services" class="nav-item"><span class="nav-icon">💇</span> Hizmetler</a>
+            <a href="/staff" class="nav-item"><span class="nav-icon">👩‍💼</span> Personel</a>
+            <a href="/resources" class="nav-item"><span class="nav-icon">🏠</span> Kaynaklar</a>
+            <a href="/expenses" class="nav-item"><span class="nav-icon">💸</span> Masraflar</a>
+            <a href="/products" class="nav-item"><span class="nav-icon">📦</span> Ürünler</a>
+            <a href="/customers" class="nav-item active"><span class="nav-icon">👥</span> Müşteriler</a>
+            <span class="nav-section-title">Sistem</span>
+            <a href="/booking" class="nav-item" target="_blank"><span class="nav-icon">🔗</span> Booking Sayfası</a>
+            <a href="/audit" class="nav-item"><span class="nav-icon">📋</span> İşlem Kütüğü</a>
+        </nav>
+    </aside>
+
+    <main class="main-content">
+        <header class="topbar">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <button class="menu-toggle" id="menuToggle" aria-label="Menüyü Aç">☰</button>
+                <span class="topbar-title">👥 Müşteriler</span>
+            </div>
+            <div class="topbar-actions">
+                <span style="color:var(--text-secondary);font-size:0.9rem;">👤 <span sec:authentication="name">user</span></span>
+                <form method="post" th:action="@{/logout}" style="display:inline;">
+                    <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                    <button type="submit" class="btn btn-secondary btn-xs">Çıkış</button>
+                </form>
+            </div>
+        </header>
+
+        <div class="page-content" style="display:flex;gap:20px;align-items:flex-start;">
+            <!-- Sol: Liste -->
+            <div style="width:340px;flex-shrink:0;">
+                <div class="crud-header" style="margin-bottom:12px;">
+                    <h2 style="font-size:1.1rem;">Müşteri Listesi</h2>
+                    <button class="btn btn-primary btn-sm" onclick="openCustomerModal()">➕ Yeni</button>
+                </div>
+                <div class="search-bar" style="margin-bottom:12px;">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="customerSearch" placeholder="İsim, telefon veya e-posta..."
+                           oninput="searchCustomers(this.value)">
+                </div>
+                <div id="customerList" style="display:flex;flex-direction:column;gap:8px;max-height:calc(100vh - 220px);overflow-y:auto;"></div>
+            </div>
+
+            <!-- Sağ: Detay -->
+            <div style="flex:1;min-width:0;" id="detailPane">
+                <div class="glass-card" style="padding:40px;text-align:center;color:var(--text-muted);">
+                    <div style="font-size:3rem;margin-bottom:12px;">👥</div>
+                    <p>Detayları görüntülemek için bir müşteri seçin</p>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Müşteri Ekle/Düzenle Modalı -->
+<div class="modal-overlay" id="customerModal">
+    <div class="modal" style="max-width:480px;">
+        <div class="modal-header">
+            <h3 id="customerModalTitle">Yeni Müşteri</h3>
+            <button class="modal-close" onclick="closeModal('customerModal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="editCustomerId">
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Ad *</label>
+                    <input type="text" class="form-input" id="cstFirstName" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Soyad</label>
+                    <input type="text" class="form-input" id="cstLastName">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Telefon</label>
+                    <input type="text" class="form-input" id="cstPhone" placeholder="05XX XXX XXXX">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">E-posta</label>
+                    <input type="email" class="form-input" id="cstEmail">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Notlar</label>
+                <textarea class="form-textarea" id="cstNotes" placeholder="Allerji, tercih vb."></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('customerModal')">İptal</button>
+            <button class="btn btn-primary" onclick="saveCustomer()">💾 Kaydet</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+<script src="/js/app.js"></script>
+<script src="/js/customers.js"></script>
+</body>
+</html>

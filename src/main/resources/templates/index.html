@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css">
 </head>
 <body>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
 <div class="app-layout">
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-brand">
@@ -25,7 +26,11 @@
             <a href="/services" class="nav-item"><span class="nav-icon">💇</span> Hizmetler</a>
             <a href="/staff" class="nav-item"><span class="nav-icon">👩‍💼</span> Personel</a>
             <a href="/resources" class="nav-item"><span class="nav-icon">🏠</span> Kaynaklar</a>
+            <a href="/expenses" class="nav-item"><span class="nav-icon">💸</span> Masraflar</a>
+            <a href="/products" class="nav-item"><span class="nav-icon">📦</span> Ürünler</a>
+            <a href="/customers" class="nav-item"><span class="nav-icon">👥</span> Müşteriler</a>
             <span class="nav-section-title">Sistem</span>
+            <a href="/booking" class="nav-item" target="_blank"><span class="nav-icon">🔗</span> Booking Sayfası</a>
             <a href="/audit" class="nav-item"><span class="nav-icon">📋</span> İşlem Kütüğü</a>
         </nav>
     </aside>
@@ -33,6 +38,7 @@
     <main class="main-content">
         <header class="topbar">
             <div style="display:flex;align-items:center;gap:12px;">
+                <button class="menu-toggle" id="menuToggle" aria-label="Menüyü Aç">☰</button>
                 <span class="topbar-title">📅 Randevu Takvimi</span>
             </div>
             <div class="topbar-actions">

@@ -3,12 +3,15 @@ package com.gserp.controller;
 import com.gserp.dto.response.ApiResponse;
 import com.gserp.dto.response.DashboardResponse;
 import com.gserp.service.DashboardService;
+import com.gserp.service.SessionReminderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/dashboard")
@@ -16,6 +19,7 @@ import java.time.LocalDate;
 public class DashboardController {
 
     private final DashboardService dashboardService;
+    private final SessionReminderService sessionReminderService;
 
     @GetMapping("/today")
     public ResponseEntity<ApiResponse<DashboardResponse>> getToday() {
@@ -26,5 +30,12 @@ public class DashboardController {
     public ResponseEntity<ApiResponse<DashboardResponse>> getByDate(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         return ResponseEntity.ok(ApiResponse.ok(dashboardService.getDailySummary(date)));
+    }
+
+    @GetMapping("/sessions")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getSessionProgress(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return ResponseEntity.ok(ApiResponse.ok(
+                sessionReminderService.getActiveSessionProgress(date != null ? date : LocalDate.now())));
     }
 }

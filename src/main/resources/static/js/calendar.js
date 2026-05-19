@@ -455,7 +455,10 @@ function showAppointmentDetail(a) {
                 <span class="staff-dot" style="background:${a.staffColor};width:14px;height:14px;"></span>
                 <div>
                     <div style="font-weight:700;font-size:1.1rem;">${a.customerName}</div>
-                    <div style="color:var(--text-secondary);font-size:0.85rem;">📞 ${a.customerPhone || '-'}</div>
+                    <div style="color:var(--text-secondary);font-size:0.85rem;">
+                        📞 ${a.customerPhone || '-'}
+                        ${a.customerPhone ? `<a href="/customers?phone=${encodeURIComponent(a.customerPhone)}" target="_blank" style="margin-left:8px;font-size:0.75rem;color:var(--color-primary-light);text-decoration:none;">👤 Profil</a>` : ''}
+                    </div>
                 </div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
@@ -492,10 +495,35 @@ function showAppointmentDetail(a) {
     document.getElementById('viewModalFooter').innerHTML = actions;
     openModal('viewModal');
 
-    // Load customer history
+    // Load customer history and balance
     if (a.customerPhone) {
         loadCustomerHistory(a.customerPhone, a.id);
+        loadCustomerBalance(a.customerPhone);
     }
+}
+
+async function loadCustomerBalance(phone) {
+    try {
+        const res = await api('GET', `/api/payments/customer?phone=${encodeURIComponent(phone)}`);
+        const payments = res.data || [];
+        if (!payments.length) return;
+
+        // Toplam ödenen vs beklenen farkı hesapla (basit gösterim için son veresiye kaydı)
+        const deferred = payments.filter(p => p.status === 'DEFERRED');
+        if (!deferred.length) return;
+
+        const totalDeferred = deferred.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+        const banner = document.getElementById('customerHistorySection');
+        if (!banner) return;
+
+        const existing = banner.innerHTML;
+        banner.innerHTML = `
+            <div style="background:rgba(243,156,18,0.12);border:1px solid rgba(243,156,18,0.3);
+                        border-radius:8px;padding:10px 14px;margin-bottom:8px;font-size:0.85rem;">
+                ⚠️ Bu müşterinin <strong>${formatCurrency(totalDeferred)}</strong> tutarında açık veresiyesi bulunmaktadır.
+            </div>
+        ` + existing;
+    } catch (e) { /* silent */ }
 }
 
 async function loadCustomerHistory(phone, currentId) {

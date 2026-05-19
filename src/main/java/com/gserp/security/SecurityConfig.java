@@ -60,10 +60,13 @@ public class SecurityConfig {
             .securityMatcher("/api/**")
             .csrf(csrf -> csrf
                     .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-                    .ignoringRequestMatchers(new AntPathRequestMatcher("/api/auth/**")))
+                    .ignoringRequestMatchers(
+                            new AntPathRequestMatcher("/api/auth/**"),
+                            new AntPathRequestMatcher("/api/booking/**")))
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
             .authorizeHttpRequests(auth -> auth
                     .requestMatchers("/api/auth/**").permitAll()
+                    .requestMatchers("/api/booking/**").permitAll()
                     .anyRequest().authenticated())
             .exceptionHandling(ex -> ex
                     .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
@@ -83,7 +86,7 @@ public class SecurityConfig {
                     .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                     .ignoringRequestMatchers(new AntPathRequestMatcher("/ws-calendar/**")))
             .authorizeHttpRequests(auth -> auth
-                    .requestMatchers("/login", "/css/**", "/js/**", "/images/**",
+                    .requestMatchers("/login", "/booking", "/css/**", "/js/**", "/images/**",
                             "/webjars/**", "/favicon.ico",
                             "/actuator/health", "/actuator/info").permitAll()
                     .requestMatchers("/ws-calendar/**").authenticated()

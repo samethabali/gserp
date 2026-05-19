@@ -50,9 +50,6 @@ public class WaitlistService {
      * Check if there are waitlist entries matching a cancelled/no-show appointment.
      */
     public List<WaitlistEntry> findMatchingEntries(Long serviceId, Long staffId) {
-        return waitlistRepository.findByFulfilledFalse().stream()
-                .filter(e -> (e.getServiceId() != null && e.getServiceId().equals(serviceId))
-                           || (e.getPreferredStaffId() != null && e.getPreferredStaffId().equals(staffId)))
-                .toList();
+        return waitlistRepository.findMatchingUnfulfilled(serviceId, staffId);
     }
 }

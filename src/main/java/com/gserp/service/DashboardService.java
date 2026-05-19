@@ -2,9 +2,11 @@ package com.gserp.service;
 
 import com.gserp.dto.response.DashboardResponse;
 import com.gserp.model.Appointment;
+import com.gserp.model.ServiceDefinition;
 import com.gserp.model.Staff;
 import com.gserp.model.enums.AppointmentStatus;
 import com.gserp.repository.AppointmentRepository;
+import com.gserp.repository.ServiceDefinitionRepository;
 import com.gserp.repository.StaffRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -24,6 +26,7 @@ public class DashboardService {
 
     private final AppointmentRepository appointmentRepository;
     private final StaffRepository staffRepository;
+    private final ServiceDefinitionRepository serviceDefinitionRepository;
 
     public DashboardResponse getDailySummary(LocalDate date) {
         List<Appointment> appointments = appointmentRepository.findByStartTimeBetween(
@@ -48,13 +51,20 @@ public class DashboardService {
                 .filter(p -> p != null)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // Staff performance
+        // Hizmet adlarını tek seferde yükle (N+1 önlemi)
+        Map<Long, String> serviceNames = serviceDefinitionRepository.findAll().stream()
+                .collect(Collectors.toMap(ServiceDefinition::getId, ServiceDefinition::getName));
+
+        // Staff performance — tüm ilgili personelleri tek sorguda yükle (N+1 önlemi)
         Map<Long, List<Appointment>> byStaff = appointments.stream()
                 .collect(Collectors.groupingBy(Appointment::getStaffId));
 
+        Map<Long, Staff> staffMap = staffRepository.findAllById(byStaff.keySet()).stream()
+                .collect(Collectors.toMap(Staff::getId, s -> s));
+
         List<DashboardResponse.StaffPerformance> staffPerf = new ArrayList<>();
         for (var entry : byStaff.entrySet()) {
-            Staff staff = staffRepository.findById(entry.getKey()).orElse(null);
+            Staff staff = staffMap.get(entry.getKey());
             if (staff == null) continue;
 
             List<Appointment> staffAppts = entry.getValue();
@@ -66,6 +76,18 @@ public class DashboardService {
                     .filter(p -> p != null)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+            List<DashboardResponse.AppointmentDetail> details = staffAppts.stream()
+                    .map(a -> DashboardResponse.AppointmentDetail.builder()
+                            .appointmentId(a.getId())
+                            .customerName(a.getCustomerName())
+                            .serviceName(serviceNames.getOrDefault(a.getServiceId(), "-"))
+                            .startTime(a.getStartTime())
+                            .finalPrice(a.getFinalPrice())
+                            .status(a.getStatus())
+                            .build())
+                    .sorted(java.util.Comparator.comparing(DashboardResponse.AppointmentDetail::getStartTime))
+                    .collect(Collectors.toList());
+
             staffPerf.add(DashboardResponse.StaffPerformance.builder()
                     .staffId(staff.getId())
                     .staffName(staff.getName())
@@ -74,6 +96,7 @@ public class DashboardService {
                     .completed(sCompleted)
                     .noShows(sNoShows)
                     .revenue(sRevenue)
+                    .appointments(details)
                     .build());
         }
 

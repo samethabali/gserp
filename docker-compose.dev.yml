@@ -12,7 +12,7 @@ services:
     ports:
       # Host'ta 5432/5433 başka postgres'lerce kullanılıyor, 5434'e bind.
       # SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5434/gserp_dev ile çalıştır.
-      - "127.0.0.1:5434:5432"
+      - "5800:5432"
     volumes:
       - gserp-db-dev-data:/var/lib/postgresql/data
     healthcheck:

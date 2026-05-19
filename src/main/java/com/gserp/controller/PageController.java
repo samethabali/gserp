@@ -40,4 +40,24 @@ public class PageController {
     public String audit() {
         return "audit";
     }
+
+    @GetMapping("/customers")
+    public String customers() {
+        return "customers";
+    }
+
+    @GetMapping("/expenses")
+    public String expenses() {
+        return "expenses";
+    }
+
+    @GetMapping("/products")
+    public String products() {
+        return "products";
+    }
+
+    @GetMapping("/booking")
+    public String booking() {
+        return "booking";
+    }
 }

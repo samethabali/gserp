@@ -1,0 +1,267 @@
+/* ═══════════════════════════════════════════════════════════════
+   GSERP — Customers Page (customers.js)
+   ═══════════════════════════════════════════════════════════════ */
+
+let allCustomers = [];
+let selectedCustomerId = null;
+
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadCustomers();
+
+    // URL'de ?phone= varsa otomatik arama yap ve müşteriyi seç
+    const phoneParam = new URLSearchParams(window.location.search).get('phone');
+    if (phoneParam) {
+        document.getElementById('customerSearch').value = phoneParam;
+        searchCustomers(phoneParam);
+        // Eşleşen tek müşteri varsa otomatik aç
+        const match = allCustomers.find(c => c.phone === phoneParam);
+        if (match) selectCustomer(match.id);
+    }
+});
+
+async function loadCustomers(query) {
+    const url = query ? `/api/customers?q=${encodeURIComponent(query)}` : '/api/customers';
+    const json = await api('GET', url);
+    allCustomers = json.data || [];
+    renderList(allCustomers);
+}
+
+function searchCustomers(q) {
+    const filtered = allCustomers.filter(c => {
+        const lq = q.toLowerCase();
+        return c.fullName.toLowerCase().includes(lq)
+            || (c.phone && c.phone.includes(lq))
+            || (c.email && c.email.toLowerCase().includes(lq));
+    });
+    renderList(filtered);
+}
+
+function renderList(customers) {
+    const el = document.getElementById('customerList');
+    if (!customers.length) {
+        el.innerHTML = '<div class="empty-state"><div class="empty-icon">👥</div><p>Müşteri bulunamadı</p></div>';
+        return;
+    }
+    el.innerHTML = customers.map(c => {
+        const balanceHtml = c.balance && parseFloat(c.balance) !== 0
+            ? `<span class="badge ${parseFloat(c.balance) > 0 ? 'badge-completed' : 'badge-cancelled'}" style="font-size:0.65rem;">
+                ${parseFloat(c.balance) > 0 ? '💰 +' : '⚠️ '}${formatCurrency(c.balance)}
+               </span>`
+            : '';
+        const isSelected = c.id === selectedCustomerId;
+        return `
+        <div class="glass-card" style="padding:14px;cursor:pointer;${isSelected ? 'border-color:var(--color-primary);' : ''}"
+             onclick="selectCustomer(${c.id})">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                <div>
+                    <div style="font-weight:600;font-size:0.95rem;">${c.fullName}</div>
+                    <div style="font-size:0.78rem;color:var(--text-secondary);">📞 ${c.phone || '-'}</div>
+                </div>
+                <div style="text-align:right;font-size:0.75rem;color:var(--text-muted);">
+                    ${c.totalAppointments} randevu<br>${balanceHtml}
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+async function selectCustomer(id) {
+    selectedCustomerId = id;
+    renderList(allCustomers);
+    const json = await api('GET', `/api/customers/${id}`);
+    if (json.data) renderDetail(json.data);
+}
+
+function renderDetail(c) {
+    const balance = parseFloat(c.balance || 0);
+    const balanceColor = balance > 0 ? 'var(--color-success)' : balance < 0 ? 'var(--color-danger)' : 'var(--text-muted)';
+    const balanceLabel = balance > 0 ? '💰 Kredi' : balance < 0 ? '⚠️ Borç' : 'Bakiye';
+
+    const pastRows = (c.pastAppointments || []).slice(0, 10).map(a => `
+        <tr>
+            <td style="padding:6px 10px;font-size:0.8rem;">${formatDate(a.startTime)}</td>
+            <td style="padding:6px 10px;font-size:0.8rem;">${formatTime(a.startTime)}</td>
+            <td style="padding:6px 10px;font-size:0.8rem;">${a.serviceName}</td>
+            <td style="padding:6px 10px;font-size:0.8rem;">${a.staffName}</td>
+            <td style="padding:6px 10px;font-size:0.8rem;">${formatCurrency(a.finalPrice)}</td>
+            <td style="padding:6px 10px;">${statusBadge(a.status)}</td>
+        </tr>`).join('');
+
+    const upcomingRows = (c.upcomingAppointments || []).slice(0, 5).map(a => `
+        <tr>
+            <td style="padding:6px 10px;font-size:0.8rem;">${formatDate(a.startTime)}</td>
+            <td style="padding:6px 10px;font-size:0.8rem;">${formatTime(a.startTime)}</td>
+            <td style="padding:6px 10px;font-size:0.8rem;">${a.serviceName}</td>
+            <td style="padding:6px 10px;font-size:0.8rem;">${a.staffName}</td>
+            <td style="padding:6px 10px;">${statusBadge(a.status)}</td>
+        </tr>`).join('');
+
+    const paymentRows = (c.payments || []).slice(0, 10).map(p => `
+        <tr>
+            <td style="padding:6px 10px;font-size:0.8rem;">${formatDate(p.collectedAt)}</td>
+            <td style="padding:6px 10px;font-size:0.8rem;">${formatCurrency(p.amount)}</td>
+            <td style="padding:6px 10px;">
+                <span class="badge ${p.method === 'CASH' ? 'badge-completed' : 'badge-in-progress'}">${p.method === 'CASH' ? '💵 Nakit' : '💳 Kart'}</span>
+            </td>
+            <td style="padding:6px 10px;">
+                <span class="badge ${p.status === 'PAID' ? 'badge-completed' : p.status === 'DEFERRED' ? 'badge-cancelled' : 'badge-in-progress'}">
+                    ${p.status === 'PAID' ? 'Ödendi' : p.status === 'DEFERRED' ? 'Veresiye' : 'Kısmi'}
+                </span>
+            </td>
+        </tr>`).join('');
+
+    const productSaleRows = (c.productSales || []).slice(0, 10).map(s => `
+        <tr>
+            <td style="padding:6px 10px;font-size:0.8rem;">${formatDate(s.soldAt.split('T')[0])}</td>
+            <td style="padding:6px 10px;font-size:0.8rem;"><strong>${s.productName}</strong></td>
+            <td style="padding:6px 10px;font-size:0.8rem;">${s.quantity} adet</td>
+            <td style="padding:6px 10px;font-size:0.8rem;">${formatCurrency(s.unitPrice)}</td>
+            <td style="padding:6px 10px;font-size:0.8rem;font-weight:600;">${formatCurrency(s.totalPrice)}</td>
+        </tr>`).join('');
+
+    document.getElementById('detailPane').innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:16px;">
+            <!-- Başlık -->
+            <div class="glass-card" style="padding:20px;">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
+                    <div>
+                        <h2 style="font-size:1.4rem;font-weight:700;margin-bottom:4px;">${c.fullName}</h2>
+                        <div style="color:var(--text-secondary);font-size:0.85rem;">📞 ${c.phone || '-'} &nbsp;|&nbsp; ✉️ ${c.email || '-'}</div>
+                        ${c.notes ? `<div style="margin-top:8px;font-size:0.82rem;color:var(--text-muted);">📝 ${c.notes}</div>` : ''}
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">${balanceLabel}</div>
+                        <div style="font-size:1.5rem;font-weight:700;color:${balanceColor};">${formatCurrency(Math.abs(balance))}</div>
+                        <div style="margin-top:8px;display:flex;gap:6px;justify-content:flex-end;">
+                            <button class="btn btn-secondary btn-sm" onclick="editCustomer(${c.id})">✏️ Düzenle</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Yaklaşan randevular -->
+            ${upcomingRows ? `
+            <div class="glass-card" style="padding:0;overflow:hidden;">
+                <div style="padding:16px 20px;border-bottom:1px solid var(--border-glass);font-weight:600;">
+                    📅 Yaklaşan Randevular (${c.upcomingAppointments?.length || 0})
+                </div>
+                <div style="overflow-x:auto;">
+                    <table style="width:100%;border-collapse:collapse;">
+                        <thead><tr style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;">
+                            <th style="padding:8px 10px;text-align:left;">Tarih</th>
+                            <th style="padding:8px 10px;text-align:left;">Saat</th>
+                            <th style="padding:8px 10px;text-align:left;">Hizmet</th>
+                            <th style="padding:8px 10px;text-align:left;">Uzman</th>
+                            <th style="padding:8px 10px;text-align:left;">Durum</th>
+                        </tr></thead>
+                        <tbody>${upcomingRows}</tbody>
+                    </table>
+                </div>
+            </div>` : ''}
+
+            <!-- Geçmiş işlemler -->
+            <div class="glass-card" style="padding:0;overflow:hidden;">
+                <div style="padding:16px 20px;border-bottom:1px solid var(--border-glass);font-weight:600;">
+                    📜 Geçmiş İşlemler (${c.pastAppointments?.length || 0})
+                </div>
+                ${pastRows ? `<div style="overflow-x:auto;">
+                    <table style="width:100%;border-collapse:collapse;">
+                        <thead><tr style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;">
+                            <th style="padding:8px 10px;text-align:left;">Tarih</th>
+                            <th style="padding:8px 10px;text-align:left;">Saat</th>
+                            <th style="padding:8px 10px;text-align:left;">Hizmet</th>
+                            <th style="padding:8px 10px;text-align:left;">Uzman</th>
+                            <th style="padding:8px 10px;text-align:left;">Ücret</th>
+                            <th style="padding:8px 10px;text-align:left;">Durum</th>
+                        </tr></thead>
+                        <tbody>${pastRows}</tbody>
+                    </table>
+                </div>` : '<div style="padding:20px;color:var(--text-muted);font-size:0.85rem;">Geçmiş işlem yok</div>'}
+            </div>
+
+            <!-- Satın Alınan Ürünler -->
+            ${productSaleRows ? `
+            <div class="glass-card" style="padding:0;overflow:hidden;">
+                <div style="padding:16px 20px;border-bottom:1px solid var(--border-glass);font-weight:600;">
+                    📦 Satın Alınan Ürünler (${c.productSales?.length || 0})
+                </div>
+                <div style="overflow-x:auto;">
+                    <table style="width:100%;border-collapse:collapse;">
+                        <thead><tr style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;">
+                            <th style="padding:8px 10px;text-align:left;">Tarih</th>
+                            <th style="padding:8px 10px;text-align:left;">Ürün Adı</th>
+                            <th style="padding:8px 10px;text-align:left;">Miktar</th>
+                            <th style="padding:8px 10px;text-align:left;">Birim Fiyat</th>
+                            <th style="padding:8px 10px;text-align:left;">Toplam Tutar</th>
+                        </tr></thead>
+                        <tbody>${productSaleRows}</tbody>
+                    </table>
+                </div>
+            </div>` : ''}
+
+            <!-- Ödeme geçmişi -->
+            ${paymentRows ? `
+            <div class="glass-card" style="padding:0;overflow:hidden;">
+                <div style="padding:16px 20px;border-bottom:1px solid var(--border-glass);font-weight:600;">
+                    💳 Ödeme Geçmişi (${c.payments?.length || 0})
+                </div>
+                <div style="overflow-x:auto;">
+                    <table style="width:100%;border-collapse:collapse;">
+                        <thead><tr style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;">
+                            <th style="padding:8px 10px;text-align:left;">Tarih</th>
+                            <th style="padding:8px 10px;text-align:left;">Tutar</th>
+                            <th style="padding:8px 10px;text-align:left;">Yöntem</th>
+                            <th style="padding:8px 10px;text-align:left;">Durum</th>
+                        </tr></thead>
+                        <tbody>${paymentRows}</tbody>
+                    </table>
+                </div>
+            </div>` : ''}
+        </div>`;
+}
+
+// ─── Müşteri Ekle/Düzenle ───
+function openCustomerModal(c) {
+    document.getElementById('editCustomerId').value = c ? c.id : '';
+    document.getElementById('cstFirstName').value  = c ? c.firstName : '';
+    document.getElementById('cstLastName').value   = c ? c.lastName || '' : '';
+    document.getElementById('cstPhone').value      = c ? c.phone || '' : '';
+    document.getElementById('cstEmail').value      = c ? c.email || '' : '';
+    document.getElementById('cstNotes').value      = c ? c.notes || '' : '';
+    document.getElementById('customerModalTitle').textContent = c ? 'Müşteri Düzenle' : 'Yeni Müşteri';
+    openModal('customerModal');
+}
+
+async function editCustomer(id) {
+    const json = await api('GET', `/api/customers/${id}`);
+    if (json.data) openCustomerModal(json.data);
+}
+
+async function saveCustomer() {
+    const id = document.getElementById('editCustomerId').value;
+    const body = {
+        firstName: document.getElementById('cstFirstName').value.trim(),
+        lastName:  document.getElementById('cstLastName').value.trim(),
+        phone:     document.getElementById('cstPhone').value.trim(),
+        email:     document.getElementById('cstEmail').value.trim(),
+        notes:     document.getElementById('cstNotes').value.trim(),
+    };
+
+    if (!body.firstName) {
+        showToast('Ad alanı zorunludur', 'warning');
+        return;
+    }
+
+    const url    = id ? `/api/customers/${id}` : '/api/customers';
+    const method = id ? 'PUT' : 'POST';
+    const json   = await api(method, url, body);
+
+    if (json.success) {
+        showToast(json.message, 'success');
+        closeModal('customerModal');
+        await loadCustomers();
+        if (id) selectCustomer(parseInt(id));
+    } else {
+        showToast(json.message || 'Kayıt başarısız', 'error');
+    }
+}

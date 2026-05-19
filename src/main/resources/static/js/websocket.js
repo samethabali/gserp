@@ -33,6 +33,12 @@ function connectWebSocket() {
                 }
             });
 
+            // Subscribe to general notifications (session reminders, etc.)
+            stompClient.subscribe('/topic/notifications', function (message) {
+                const payload = JSON.parse(message.body);
+                handleNotification(payload);
+            });
+
         }, function (error) {
             wsConnected = false;
             updateWsStatus(false);
@@ -89,6 +95,18 @@ function handleWsAppointmentChange(payload) {
             `${actionLabels[action] || action}: ${appointment.customerName || ''} — ${appointment.serviceName || ''}`,
             'info'
         );
+    }
+}
+
+function handleNotification(payload) {
+    const { type, message } = payload;
+
+    if (type === 'SESSION_REMINDER') {
+        showToast(message, 'warning');
+        // Dashboard'daki seans panelini güncelle
+        if (typeof loadSessionProgress === 'function') {
+            loadSessionProgress();
+        }
     }
 }
 

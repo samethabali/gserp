@@ -1,15 +1,21 @@
 package com.gserp.service;
 
 import com.gserp.model.Staff;
+import com.gserp.model.WorkingHours;
+import com.gserp.model.enums.ServiceCategory;
 import com.gserp.model.enums.StaffRole;
 import com.gserp.repository.StaffRepository;
+import com.gserp.repository.WorkingHoursRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.DayOfWeek;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -17,6 +23,7 @@ import java.util.Optional;
 public class StaffService {
 
     private final StaffRepository staffRepository;
+    private final WorkingHoursRepository workingHoursRepository;
 
     public List<Staff> getAll() {
         return staffRepository.findAll();
@@ -50,5 +57,44 @@ public class StaffService {
         existing.setActive(updated.isActive());
         existing.setUpdatedAt(LocalDateTime.now());
         return staffRepository.save(existing);
+    }
+
+    @Transactional
+    @SuppressWarnings("null")
+    public Staff updateSpecializations(Long id, Set<ServiceCategory> categories) {
+        Staff staff = staffRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Personel bulunamadı: " + id));
+        staff.getSpecializations().clear();
+        if (categories != null) staff.getSpecializations().addAll(categories);
+        staff.setUpdatedAt(LocalDateTime.now());
+        return staffRepository.save(staff);
+    }
+
+    public List<Staff> getBySpecialization(ServiceCategory category) {
+        return staffRepository.findActiveBySpecialization(category);
+    }
+
+    public List<WorkingHours> getWorkingHours(Long staffId) {
+        return workingHoursRepository.findByStaffId(staffId);
+    }
+
+    @Transactional
+    public List<WorkingHours> saveWorkingHours(Long staffId, List<WorkingHours> incoming) {
+        // Mevcut kayıtları sil, yenileri kaydet
+        List<WorkingHours> existing = workingHoursRepository.findByStaffId(staffId);
+        workingHoursRepository.deleteAll(existing);
+
+        List<WorkingHours> toSave = new ArrayList<>();
+        for (DayOfWeek dow : DayOfWeek.values()) {
+            final DayOfWeek d = dow;
+            WorkingHours wh = incoming.stream()
+                    .filter(w -> w.getDayOfWeek() == d)
+                    .findFirst()
+                    .orElse(WorkingHours.builder().dayOfWeek(d).dayOff(true).build());
+            wh.setId(null);
+            wh.setStaffId(staffId);
+            toSave.add(wh);
+        }
+        return workingHoursRepository.saveAll(toSave);
     }
 }

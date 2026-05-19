@@ -1,8 +1,10 @@
 package com.gserp.dto.response;
 
+import com.gserp.model.enums.AppointmentStatus;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -34,5 +36,19 @@ public class DashboardResponse {
         private int completed;
         private int noShows;
         private BigDecimal revenue;
+        private List<AppointmentDetail> appointments;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class AppointmentDetail {
+        private Long appointmentId;
+        private String customerName;
+        private String serviceName;
+        private LocalDateTime startTime;
+        private BigDecimal finalPrice;
+        private AppointmentStatus status;
     }
 }

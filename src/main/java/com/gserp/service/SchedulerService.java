@@ -29,12 +29,14 @@ public class SchedulerService {
         DayOfWeek dow = start.getDayOfWeek();
         List<WorkingHours> hours = workingHoursRepository.findByStaffId(staffId);
 
+        // Kayıt hiç tanımlanmamışsa kısıtlama uygulanmaz
+        if (hours.isEmpty()) return true;
+
         return hours.stream()
                 .filter(wh -> wh.getDayOfWeek() == dow && !wh.isDayOff())
                 .anyMatch(wh -> {
                     LocalTime s = start.toLocalTime();
-                    LocalTime e = end.toLocalTime();
-                    return !s.isBefore(wh.getStartTime()) && !e.isAfter(wh.getEndTime());
+                    return !s.isBefore(wh.getStartTime()) && s.isBefore(wh.getEndTime());
                 });
     }
 

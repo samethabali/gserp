@@ -49,4 +49,23 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
             @Param("cancelled") AppointmentStatus cancelled);
 
     List<Appointment> findByCustomerPhoneOrderByStartTimeDesc(String phone);
+
+    long countByCustomerPhone(String phone);
+
+    long countByCustomerPhoneAndStartTimeAfter(String phone, LocalDateTime after);
+
+    List<Appointment> findByCustomerPhoneAndStartTimeBeforeOrderByStartTimeDesc(String phone, java.time.LocalDateTime before);
+
+    List<Appointment> findByCustomerPhoneAndStartTimeAfterOrderByStartTimeAsc(String phone, java.time.LocalDateTime after);
+
+    @Query("""
+            select a from Appointment a
+            where a.sessionGroupId is not null
+              and a.status = 'SCHEDULED'
+              and a.startTime >= :start
+              and a.startTime < :end
+            """)
+    List<Appointment> findUpcomingSessionAppointments(
+            @Param("start") java.time.LocalDateTime start,
+            @Param("end")   java.time.LocalDateTime end);
 }

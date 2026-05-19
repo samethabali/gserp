@@ -33,4 +33,16 @@ public class NotificationService {
     public void broadcastDashboardRefresh() {
         messagingTemplate.convertAndSend("/topic/dashboard", Map.of("action", "REFRESH"));
     }
+
+    /**
+     * Broadcast a general notification (session reminders, low stock, etc.)
+     */
+    public void broadcastNotification(String type, String message, Object data) {
+        Map<String, Object> payload = new java.util.HashMap<>();
+        payload.put("type", type);
+        payload.put("message", message);
+        if (data != null) payload.put("data", data);
+        messagingTemplate.convertAndSend("/topic/notifications", payload);
+        log.debug("WS notification: {} — {}", type, message);
+    }
 }

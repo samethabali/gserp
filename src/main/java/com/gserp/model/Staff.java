@@ -1,10 +1,13 @@
 package com.gserp.model;
 
+import com.gserp.model.enums.ServiceCategory;
 import com.gserp.model.enums.StaffRole;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "staff")
@@ -39,4 +42,11 @@ public class Staff {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "staff_specialization", joinColumns = @JoinColumn(name = "staff_id"))
+    @Column(name = "service_category")
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private Set<ServiceCategory> specializations = new HashSet<>();
 }
