@@ -31,6 +31,9 @@ public class User {
     @Column(name = "staff_id")
     private Long staffId;
 
+    @Column(name = "customer_id")
+    private Long customerId;
+
     @Column(nullable = false)
     private boolean enabled;
 

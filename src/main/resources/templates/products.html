@@ -27,6 +27,7 @@
             <a href="/expenses" class="nav-item"><span class="nav-icon">💸</span> Masraflar</a>
             <a href="/products" class="nav-item active"><span class="nav-icon">📦</span> Ürünler</a>
             <a href="/customers" class="nav-item"><span class="nav-icon">👥</span> Müşteriler</a>
+            <a href="/campaigns" class="nav-item"><span class="nav-icon">🎁</span> Kampanyalar</a>
             <span class="nav-section-title">Sistem</span>
             <a href="/booking" class="nav-item" target="_blank"><span class="nav-icon">🔗</span> Booking Sayfası</a>
             <a href="/audit" class="nav-item"><span class="nav-icon">📋</span> İşlem Kütüğü</a>
@@ -42,6 +43,10 @@
             <div class="topbar-actions">
                 <button class="btn btn-secondary" id="tabProducts" onclick="switchTab('products')">📦 Ürünler</button>
                 <button class="btn btn-ghost" id="tabSales" onclick="switchTab('sales')">🧾 Satışlar</button>
+                <button class="btn" id="lowStockFilterBtn" onclick="toggleLowStockFilter()"
+                    style="display:none;background:rgba(231,76,60,0.12);border-color:rgba(231,76,60,0.4);color:#e74c3c;font-size:0.85rem;">
+                    ⚠️ Kritik Stok (<span id="lowStockCount">0</span>)
+                </button>
                 <button class="btn btn-primary" onclick="openProductModal()">➕ Yeni Ürün</button>
                 <span style="color:var(--text-secondary);font-size:0.9rem;">👤 <span sec:authentication="name">user</span></span>
                 <form method="post" th:action="@{/logout}" style="display:inline;">

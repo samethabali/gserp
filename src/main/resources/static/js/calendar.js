@@ -221,6 +221,7 @@ function localDateStr(d) {
 }
 
 function getEventBgColor(appointment) {
+    if (appointment.status === 'PENDING_APPROVAL') return 'rgba(241, 196, 15, 0.6)';
     if (appointment.status === 'COMPLETED') return 'rgba(46, 204, 113, 0.35)';
     if (appointment.status === 'CANCELLED') return 'rgba(231, 76, 60, 0.25)';
     if (appointment.status === 'NO_SHOW') return 'rgba(155, 89, 182, 0.25)';
@@ -478,7 +479,12 @@ function showAppointmentDetail(a) {
 
     // Status action buttons
     let actions = '';
-    if (a.status === 'SCHEDULED') {
+    if (a.status === 'PENDING_APPROVAL') {
+        actions = `
+            <button class="btn btn-sm btn-success" onclick="approveAppointment(${a.id})">✅ Onayla</button>
+            <button class="btn btn-sm btn-ghost" onclick="openStatusModal(${a.id}, 'CANCELLED', '❌ Reddet')">❌ Reddet</button>
+        `;
+    } else if (a.status === 'SCHEDULED') {
         actions = `
             <button class="btn btn-sm btn-warning" onclick="changeAppointmentStatus(${a.id}, 'IN_PROGRESS')">▶️ Başlat</button>
             <button class="btn btn-sm btn-danger" onclick="openStatusModal(${a.id}, 'NO_SHOW', '👻 Gelmedi')">👻 Gelmedi</button>
@@ -586,6 +592,17 @@ async function changeAppointmentStatus(id, status) {
     const json = await api('PATCH', `/api/appointments/${id}/status`, { status });
     if (json.success) {
         showToast('Durum güncellendi', 'success');
+        closeModal('viewModal');
+        calendar.refetchEvents();
+    } else {
+        showToast(json.message, 'error');
+    }
+}
+
+async function approveAppointment(id) {
+    const json = await api('PATCH', `/api/appointments/${id}/approve`);
+    if (json.success) {
+        showToast('Randevu onaylandı', 'success');
         closeModal('viewModal');
         calendar.refetchEvents();
     } else {

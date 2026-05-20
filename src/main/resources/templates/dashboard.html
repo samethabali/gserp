@@ -8,6 +8,7 @@
     <title>GSERP — Dashboard</title>
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" media="print" href="/css/print.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
     <style>
         .dashboard-grid {
             display: grid;
@@ -60,6 +61,21 @@
             padding: 16px;
             border-left: 4px solid var(--staff-color, #fff);
         }
+        .chart-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-top: 24px;
+        }
+        @media (max-width: 900px) { .chart-grid { grid-template-columns: 1fr; } }
+        .chart-card {
+            background: var(--bg-glass);
+            border: 1px solid var(--border-glass);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .chart-title { font-size: 1rem; font-weight: 700; margin-bottom: 16px; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+        .stock-badge { display: none; background: rgba(231,76,60,0.15); border: 1px solid rgba(231,76,60,0.4); color: #e74c3c; font-size: 0.78rem; font-weight: 700; padding: 4px 10px; border-radius: 20px; cursor: pointer; text-decoration: none; }
     </style>
 </head>
 <body>
@@ -81,6 +97,7 @@
             <a href="/expenses" class="nav-item"><span class="nav-icon">💸</span> Masraflar</a>
             <a href="/products" class="nav-item"><span class="nav-icon">📦</span> Ürünler</a>
             <a href="/customers" class="nav-item"><span class="nav-icon">👥</span> Müşteriler</a>
+            <a href="/campaigns" class="nav-item"><span class="nav-icon">🎁</span> Kampanyalar</a>
             <span class="nav-section-title">Sistem</span>
             <a href="/booking" class="nav-item" target="_blank"><span class="nav-icon">🔗</span> Booking Sayfası</a>
             <a href="/audit" class="nav-item"><span class="nav-icon">📋</span> İşlem Kütüğü</a>
@@ -94,6 +111,7 @@
                 <span class="topbar-title">📊 Dashboard</span>
             </div>
             <div class="topbar-actions">
+                <a href="/products" id="stockAlertBadge" class="stock-badge">⚠️ <span id="stockAlertCount">0</span> ürün kritik stok</a>
                 <input type="date" id="dashDate" class="form-input" style="width:160px;">
                 <button class="btn btn-secondary" onclick="window.print()">🖨️ Rapor Yazdır</button>
                 <span style="color:var(--color-text-muted);font-size:0.9rem;">👤 <span sec:authentication="name">user</span></span>
@@ -176,6 +194,17 @@
                         <div class="kpi-label">Toplam Tahsilat</div>
                         <div class="kpi-value" id="payTotal">0 ₺</div>
                     </div>
+                </div>
+            </div>
+            <!-- Grafikler -->
+            <div class="chart-grid">
+                <div class="chart-card">
+                    <div class="chart-title">📈 7 Günlük Gelir Trendi</div>
+                    <canvas id="trendChart" height="120"></canvas>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-title">📊 Personel Performansı</div>
+                    <canvas id="staffChart" height="180"></canvas>
                 </div>
             </div>
         </div>

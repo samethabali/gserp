@@ -1,6 +1,7 @@
 package com.gserp.controller;
 
 import com.gserp.dto.response.ApiResponse;
+import com.gserp.dto.response.DailyTrendDto;
 import com.gserp.dto.response.DashboardResponse;
 import com.gserp.service.DashboardService;
 import com.gserp.service.SessionReminderService;
@@ -37,5 +38,11 @@ public class DashboardController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         return ResponseEntity.ok(ApiResponse.ok(
                 sessionReminderService.getActiveSessionProgress(date != null ? date : LocalDate.now())));
+    }
+
+    @GetMapping("/trend")
+    public ResponseEntity<ApiResponse<List<DailyTrendDto>>> getTrend(
+            @RequestParam(defaultValue = "7") int days) {
+        return ResponseEntity.ok(ApiResponse.ok(dashboardService.getTrend(Math.min(days, 30))));
     }
 }

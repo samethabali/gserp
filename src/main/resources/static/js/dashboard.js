@@ -13,6 +13,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     refreshDashboard();
+    loadTrendChart();
+    checkLowStock();
 });
 
 async function refreshDashboard() {
@@ -93,6 +95,10 @@ async function loadKPIs() {
         } else {
             container.innerHTML = '<div style="color:var(--text-muted);font-size:0.9rem;">Kayıtlı veri bulunamadı.</div>';
         }
+
+        // Personel bar grafiğini güncelle
+        if (d.staffPerformance) renderStaffChart(d.staffPerformance);
+
     } catch (e) {
         console.error('Dashboard load error:', e);
     }
@@ -297,3 +303,121 @@ setInterval(() => {
         refreshDashboard();
     }
 }, 60000);
+
+// ─── Trend Grafiği (Chart.js) ───
+let trendChartInstance = null;
+let staffChartInstance = null;
+
+async function loadTrendChart() {
+    try {
+        const res = await api('GET', '/api/dashboard/trend?days=7');
+        const trend = res.data || [];
+
+        const labels = trend.map(d => {
+            const dt = new Date(d.date);
+            return dt.toLocaleDateString('tr-TR', { weekday: 'short', day: 'numeric', month: 'short' });
+        });
+        const revenues = trend.map(d => parseFloat(d.revenue) || 0);
+        const totals = trend.map(d => d.totalAppointments);
+        const completed = trend.map(d => d.completed);
+
+        const ctx = document.getElementById('trendChart');
+        if (!ctx) return;
+
+        if (trendChartInstance) trendChartInstance.destroy();
+
+        trendChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: 'Gelir (₺)',
+                        data: revenues,
+                        borderColor: '#9b59b6',
+                        backgroundColor: 'rgba(155,89,182,0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Randevu',
+                        data: totals,
+                        borderColor: '#3498db',
+                        backgroundColor: 'transparent',
+                        tension: 0.4,
+                        borderDash: [4, 4],
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                interaction: { mode: 'index', intersect: false },
+                plugins: { legend: { labels: { color: '#ccc', font: { size: 11 } } } },
+                scales: {
+                    x: { ticks: { color: '#999', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                    y: {
+                        position: 'left',
+                        ticks: { color: '#9b59b6', callback: v => '₺' + v.toLocaleString('tr') },
+                        grid: { color: 'rgba(255,255,255,0.05)' }
+                    },
+                    y1: {
+                        position: 'right',
+                        ticks: { color: '#3498db' },
+                        grid: { drawOnChartArea: false }
+                    }
+                }
+            }
+        });
+    } catch (e) {
+        console.error('Trend chart error:', e);
+    }
+}
+
+function renderStaffChart(staffPerf) {
+    const ctx = document.getElementById('staffChart');
+    if (!ctx || !staffPerf || !staffPerf.length) return;
+
+    if (staffChartInstance) staffChartInstance.destroy();
+
+    staffChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: staffPerf.map(s => s.staffName),
+            datasets: [
+                {
+                    label: 'Gelir (₺)',
+                    data: staffPerf.map(s => parseFloat(s.revenue) || 0),
+                    backgroundColor: staffPerf.map(s => s.staffColor || '#9b59b6'),
+                    borderRadius: 6
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { ticks: { color: '#ccc', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                y: {
+                    ticks: { color: '#999', callback: v => '₺' + v.toLocaleString('tr') },
+                    grid: { color: 'rgba(255,255,255,0.05)' }
+                }
+            }
+        }
+    });
+}
+
+// ─── Düşük Stok Uyarısı ───
+async function checkLowStock() {
+    try {
+        const res = await api('GET', '/api/products/low-stock');
+        const items = res.data || [];
+        const badge = document.getElementById('stockAlertBadge');
+        const count = document.getElementById('stockAlertCount');
+        if (badge && items.length > 0) {
+            count.textContent = items.length;
+            badge.style.display = 'inline-block';
+        }
+    } catch (e) { /* sessiz hata */ }
+}

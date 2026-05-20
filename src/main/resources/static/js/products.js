@@ -44,6 +44,28 @@ async function loadProducts() {
     } else {
         alert.style.display = 'none';
     }
+
+    // Topbar kritik stok butonu
+    const btn = document.getElementById('lowStockFilterBtn');
+    const cnt = document.getElementById('lowStockCount');
+    if (btn && cnt) {
+        cnt.textContent = low.length;
+        btn.style.display = low.length > 0 ? 'inline-flex' : 'none';
+    }
+}
+
+let showingLowStock = false;
+function toggleLowStockFilter() {
+    showingLowStock = !showingLowStock;
+    const btn = document.getElementById('lowStockFilterBtn');
+    if (showingLowStock) {
+        const low = allProducts.filter(p => p.active && p.stockQuantity <= p.lowStockThreshold);
+        renderProducts(low);
+        if (btn) btn.style.outline = '2px solid #e74c3c';
+    } else {
+        filterProducts();
+        if (btn) btn.style.outline = 'none';
+    }
 }
 
 function populateCategories() {

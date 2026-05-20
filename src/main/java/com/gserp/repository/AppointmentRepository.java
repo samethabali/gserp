@@ -68,4 +68,18 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
     List<Appointment> findUpcomingSessionAppointments(
             @Param("start") java.time.LocalDateTime start,
             @Param("end")   java.time.LocalDateTime end);
+
+    @Query("""
+            select a from Appointment a
+            where a.customerPhone = :phone
+              and a.status in :statuses
+            order by a.startTime asc
+            """)
+    List<Appointment> findByCustomerPhoneAndStatusIn(
+            @Param("phone") String phone,
+            @Param("statuses") List<AppointmentStatus> statuses);
+
+    List<Appointment> findByCustomerPhoneOrderByStartTimeAsc(String phone);
+
+    long countByCustomerPhoneAndStatus(String phone, AppointmentStatus status);
 }

@@ -1,5 +1,6 @@
 package com.gserp.service;
 
+import com.gserp.dto.response.DailyTrendDto;
 import com.gserp.dto.response.DashboardResponse;
 import com.gserp.model.Appointment;
 import com.gserp.model.ServiceDefinition;
@@ -111,5 +112,32 @@ public class DashboardService {
                 .expectedRevenue(expectedRevenue)
                 .staffPerformance(staffPerf)
                 .build();
+    }
+
+    public List<DailyTrendDto> getTrend(int days) {
+        LocalDate today = LocalDate.now();
+        List<DailyTrendDto> result = new ArrayList<>();
+
+        for (int i = days - 1; i >= 0; i--) {
+            LocalDate day = today.minusDays(i);
+            List<Appointment> appts = appointmentRepository.findByStartTimeBetween(
+                    day.atStartOfDay(), day.plusDays(1).atStartOfDay());
+
+            int tot = appts.size();
+            int comp = (int) appts.stream().filter(a -> a.getStatus() == AppointmentStatus.COMPLETED).count();
+            BigDecimal rev = appts.stream()
+                    .filter(a -> a.getStatus() == AppointmentStatus.COMPLETED)
+                    .map(Appointment::getFinalPrice)
+                    .filter(p -> p != null)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            result.add(DailyTrendDto.builder()
+                    .date(day.toString())
+                    .totalAppointments(tot)
+                    .completed(comp)
+                    .revenue(rev)
+                    .build());
+        }
+        return result;
     }
 }

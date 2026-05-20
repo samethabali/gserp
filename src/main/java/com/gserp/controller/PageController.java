@@ -60,4 +60,24 @@ public class PageController {
     public String booking() {
         return "booking";
     }
+
+    @GetMapping("/customer/login")
+    public String customerLogin() {
+        return "customer-login";
+    }
+
+    @GetMapping("/customer/register")
+    public String customerRegister() {
+        return "customer-register";
+    }
+
+    @GetMapping("/customer/portal")
+    public String customerPortal() {
+        return "customer-portal";
+    }
+
+    @GetMapping("/campaigns")
+    public String campaigns() {
+        return "campaigns";
+    }
 }

@@ -70,4 +70,19 @@ public class AppointmentController {
     public ResponseEntity<ApiResponse<List<AppointmentResponse>>> getHistory(@RequestParam String phone) {
         return ResponseEntity.ok(ApiResponse.ok(appointmentService.findByCustomerPhone(phone)));
     }
+
+    @PatchMapping("/{id}/approve")
+    public ResponseEntity<ApiResponse<AppointmentResponse>> approve(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok("Randevu onaylandı",
+                appointmentService.changeStatus(id, AppointmentStatus.SCHEDULED, null)));
+    }
+
+    @PatchMapping("/{id}/reject")
+    public ResponseEntity<ApiResponse<AppointmentResponse>> reject(
+            @PathVariable Long id,
+            @RequestBody(required = false) Map<String, String> body) {
+        String reason = body != null ? body.get("reason") : null;
+        return ResponseEntity.ok(ApiResponse.ok("Randevu isteği reddedildi",
+                appointmentService.changeStatus(id, AppointmentStatus.CANCELLED, reason)));
+    }
 }

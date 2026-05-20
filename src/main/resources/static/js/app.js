@@ -79,6 +79,7 @@ function pad(n) {
 
 // ─── Status Helpers ───
 const statusLabels = {
+    PENDING_APPROVAL: 'Onay Bekliyor',
     SCHEDULED: 'Bekliyor',
     IN_PROGRESS: 'Devam Ediyor',
     COMPLETED: 'Tamamlandı',
@@ -87,6 +88,7 @@ const statusLabels = {
 };
 
 const statusBadgeClass = {
+    PENDING_APPROVAL: 'badge-pending-approval',
     SCHEDULED: 'badge-scheduled',
     IN_PROGRESS: 'badge-in-progress',
     COMPLETED: 'badge-completed',

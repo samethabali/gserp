@@ -38,4 +38,7 @@ public class AppointmentCreateRequest {
     // ─── Session support ───
     private Integer numberOfSessions;       // null veya 1 = tek randevu; >1 = çoklu seans
     private DayOfWeek preferredDayOfWeek;   // tercih edilen gün (seans sistemi için)
+
+    // ─── Campaign support ───
+    private String couponCode;              // müşteri portalından kupon kodu
 }

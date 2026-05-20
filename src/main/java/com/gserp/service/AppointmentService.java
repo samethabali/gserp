@@ -6,6 +6,7 @@ import com.gserp.dto.response.AppointmentResponse;
 import com.gserp.exception.ConflictException;
 import com.gserp.model.*;
 import com.gserp.model.enums.*;
+import com.gserp.service.CampaignService.CouponValidationResult;
 import com.gserp.repository.AppointmentRepository;
 import com.gserp.repository.ServiceDefinitionRepository;
 import com.gserp.repository.StaffRepository;
@@ -186,6 +187,94 @@ public class AppointmentService {
         String sessionInfo = sessionNum != null ? " (Seans " + sessionNum + "/" + totalSessions + ")" : "";
         auditService.log(AuditAction.CREATE, "APPOINTMENT", saved.getId(), null,
                 "Yeni randevu: " + req.getCustomerName() + " → " + service.getName() + sessionInfo);
+
+        AppointmentResponse response = toResponse(saved);
+        notificationService.broadcastAppointmentChange("CREATE", response);
+        notificationService.broadcastDashboardRefresh();
+
+        return response;
+    }
+
+    /**
+     * Müşteri portalından gelen randevu isteği — PENDING_APPROVAL statüsüyle oluşturur.
+     */
+    @Transactional
+    public AppointmentResponse createRequest(AppointmentCreateRequest req) {
+        return createRequest(req, null, BigDecimal.ZERO);
+    }
+
+    /**
+     * Kupon veya sadakat indirimiyle randevu isteği oluşturur.
+     */
+    @Transactional
+    public AppointmentResponse createRequest(AppointmentCreateRequest req,
+                                             CouponValidationResult coupon,
+                                             BigDecimal loyaltyDiscountPct) {
+        ServiceDefinition service = serviceRepository.findById(req.getServiceId())
+                .orElseThrow(() -> new IllegalArgumentException("Hizmet bulunamadı: " + req.getServiceId()));
+        LocalDateTime endTime = req.getStartTime().plusMinutes(service.getDurationMinutes());
+
+        Staff staff = staffRepository.findById(req.getStaffId())
+                .orElseThrow(() -> new IllegalArgumentException("Uzman bulunamadı: " + req.getStaffId()));
+
+        if (!schedulerService.isWithinWorkingHours(req.getStaffId(), req.getStartTime(), endTime)) {
+            throw new ConflictException(staff.getName() + " bu saatte çalışma saatleri dışında");
+        }
+        if (!schedulerService.isStaffAvailable(req.getStaffId(), req.getStartTime(), endTime, null)) {
+            throw new ConflictException(staff.getName() + " bu saatte müsait değil");
+        }
+
+        BigDecimal basePrice = service.getBasePrice();
+        BigDecimal finalPrice;
+        BigDecimal adjustment;
+        String adjustmentNote = req.getAdjustmentNote() != null ? req.getAdjustmentNote() : "";
+
+        if (coupon != null) {
+            // Kupon indirimi
+            if (coupon.discountType() == com.gserp.model.enums.DiscountType.PERCENTAGE) {
+                BigDecimal disc = basePrice.multiply(coupon.discountValue())
+                        .divide(java.math.BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+                finalPrice = basePrice.subtract(disc).max(BigDecimal.ZERO);
+            } else {
+                finalPrice = basePrice.subtract(coupon.discountValue()).max(BigDecimal.ZERO);
+            }
+            adjustment = finalPrice.subtract(basePrice);
+            adjustmentNote = "Kupon: " + coupon.code();
+        } else if (loyaltyDiscountPct != null && loyaltyDiscountPct.compareTo(BigDecimal.ZERO) > 0) {
+            // Sadakat indirimi
+            BigDecimal disc = basePrice.multiply(loyaltyDiscountPct)
+                    .divide(java.math.BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+            finalPrice = basePrice.subtract(disc).max(BigDecimal.ZERO);
+            adjustment = finalPrice.subtract(basePrice);
+        } else {
+            adjustment = BigDecimal.ZERO;
+            finalPrice = basePrice;
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        Appointment appointment = Appointment.builder()
+                .customerName(req.getCustomerName())
+                .customerPhone(req.getCustomerPhone() != null ? req.getCustomerPhone() : "")
+                .staffId(req.getStaffId())
+                .serviceId(req.getServiceId())
+                .startTime(req.getStartTime())
+                .endTime(endTime)
+                .status(AppointmentStatus.PENDING_APPROVAL)
+                .basePrice(basePrice)
+                .adjustment(adjustment)
+                .adjustmentNote(adjustmentNote)
+                .finalPrice(finalPrice)
+                .internalNote(req.getInternalNote() != null ? req.getInternalNote() : "")
+                .createdAt(now)
+                .updatedAt(now)
+                .resourceIds(new ArrayList<>())
+                .flags(new ArrayList<>())
+                .build();
+
+        Appointment saved = appointmentRepository.save(appointment);
+
+        auditService.log(AuditAction.CREATE, "APPOINTMENT", saved.getId(), null,
+                "Randevu isteği: " + req.getCustomerName() + " → " + service.getName() + " (onay bekliyor)");
 
         AppointmentResponse response = toResponse(saved);
         notificationService.broadcastAppointmentChange("CREATE", response);

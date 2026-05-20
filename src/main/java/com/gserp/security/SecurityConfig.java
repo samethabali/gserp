@@ -62,11 +62,16 @@ public class SecurityConfig {
                     .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                     .ignoringRequestMatchers(
                             new AntPathRequestMatcher("/api/auth/**"),
-                            new AntPathRequestMatcher("/api/booking/**")))
+                            new AntPathRequestMatcher("/api/booking/**"),
+                            new AntPathRequestMatcher("/api/customer/**"),
+                            new AntPathRequestMatcher("/api/campaigns/**")))
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
             .authorizeHttpRequests(auth -> auth
                     .requestMatchers("/api/auth/**").permitAll()
                     .requestMatchers("/api/booking/**").permitAll()
+                    .requestMatchers("/api/customer/**").hasRole("CUSTOMER")
+                    .requestMatchers("/api/campaigns/validate", "/api/campaigns/loyalty-info").authenticated()
+                    .requestMatchers("/api/campaigns/**").hasAnyRole("ADMIN","RECEPTIONIST")
                     .anyRequest().authenticated())
             .exceptionHandling(ex -> ex
                     .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
@@ -88,7 +93,9 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                     .requestMatchers("/login", "/booking", "/css/**", "/js/**", "/images/**",
                             "/webjars/**", "/favicon.ico",
-                            "/actuator/health", "/actuator/info").permitAll()
+                            "/actuator/health", "/actuator/info",
+                            "/customer/login", "/customer/register").permitAll()
+                    .requestMatchers("/customer/**").hasRole("CUSTOMER")
                     .requestMatchers("/ws-calendar/**").authenticated()
                     .anyRequest().authenticated())
             .formLogin(form -> form

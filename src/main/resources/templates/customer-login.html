@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GSERP — Müşteri Girişi</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;">
+    <div class="glass-card" style="width:100%;max-width:420px;padding:32px;">
+        <div style="text-align:center;margin-bottom:24px;">
+            <div style="font-size:48px;">💅</div>
+            <h1 style="margin:8px 0 4px;">Müşteri Girişi</h1>
+            <span style="color:var(--color-text-muted);font-size:0.9rem;">Randevularınızı görüntüleyin ve yönetin</span>
+        </div>
+
+        <div id="errorMsg" style="display:none;margin-bottom:16px;padding:10px 14px;background:rgba(231,76,60,0.1);border:1px solid rgba(231,76,60,0.3);border-radius:8px;color:#e74c3c;font-size:0.9rem;"></div>
+
+        <div class="form-group">
+            <label class="form-label" for="email">E-posta</label>
+            <input type="email" class="form-input" id="email" required autofocus>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="password">Parola</label>
+            <input type="password" class="form-input" id="password" required>
+        </div>
+
+        <button id="loginBtn" class="btn btn-primary" style="width:100%;margin-top:8px;">Giriş Yap</button>
+
+        <p style="text-align:center;margin-top:16px;color:var(--color-text-muted);font-size:0.9rem;">
+            Hesabınız yok mu?
+            <a href="/customer/register" style="color:var(--color-accent);">Kayıt Olun</a>
+        </p>
+        <p style="text-align:center;margin-top:4px;font-size:0.85rem;">
+            <a href="/booking" style="color:var(--color-text-muted);">Giriş yapmadan randevu al →</a>
+        </p>
+    </div>
+</div>
+<script>
+    document.getElementById('loginBtn').addEventListener('click', async () => {
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+        const errorMsg = document.getElementById('errorMsg');
+        errorMsg.style.display = 'none';
+
+        try {
+            const res = await fetch('/api/auth/customer/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                errorMsg.textContent = '⚠️ ' + (data.message || 'Giriş başarısız');
+                errorMsg.style.display = 'block';
+                return;
+            }
+            localStorage.setItem('customerToken', data.data.accessToken);
+            localStorage.setItem('customerRefreshToken', data.data.refreshToken);
+            window.location.href = '/customer/portal';
+        } catch (e) {
+            errorMsg.textContent = '⚠️ Bağlantı hatası';
+            errorMsg.style.display = 'block';
+        }
+    });
+
+    document.getElementById('password').addEventListener('keydown', e => {
+        if (e.key === 'Enter') document.getElementById('loginBtn').click();
+    });
+</script>
+</body>
+</html>

@@ -12,6 +12,10 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
 
     Optional<Customer> findByPhone(String phone);
 
+    Optional<Customer> findByEmail(String email);
+
+    boolean existsByEmail(String email);
+
     /**
      * DB seviyesinde müşteri arama — isim, telefon veya e-posta ile ILIKE.
      * CustomerService.getAll() içindeki in-memory filtrelemeyi ortadan kaldırır.
