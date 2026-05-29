@@ -9,8 +9,9 @@
 #   VPS_SSH_KEY      Bu kullanıcının PRIVATE SSH anahtarı (tüm içerik)
 #   VPS_SSH_PORT     (opsiyonel) SSH portu — tanımsızsa 22
 #
-# Not: VPS'te /opt/gserp önceden vps-setup.sh ile kurulmuş olmalı (.env mevcut).
+# Not: VPS'te /home/gserp/gserp önceden kurulmuş olmalı (.env + .git mevcut).
 # Bu workflow ilk kurulumu YAPMAZ; sadece mevcut stack'i günceller.
+# Deploy, dizinin sahibi olan 'gserp' kullanıcısıyla yapılır.
 
 name: Deploy to VPS
 
@@ -38,8 +39,11 @@ jobs:
           script: |
             set -euo pipefail
 
-            INSTALL_DIR=/opt/gserp
+            INSTALL_DIR=/home/gserp/gserp
             BRANCH=production-ready
+            # App, paylaşımlı (external) postgres kullanan prod override ile çalışır.
+            # Bu dosya VPS'e özgüdür (repo'da takip edilmez), silme.
+            COMPOSE_FILE="$INSTALL_DIR/docker-compose.prod.yml"
 
             cd "$INSTALL_DIR"
 
@@ -49,9 +53,9 @@ jobs:
             git pull --ff-only
             echo "[+] Güncel: $(git rev-parse --short HEAD)"
 
-            echo "[*] docker compose build + up"
-            docker compose -f "$INSTALL_DIR/docker-compose.yml" build app
-            docker compose -f "$INSTALL_DIR/docker-compose.yml" up -d
+            echo "[*] docker compose build + up ($COMPOSE_FILE)"
+            docker compose -f "$COMPOSE_FILE" build app
+            docker compose -f "$COMPOSE_FILE" up -d
 
             echo "[*] App healthy bekleniyor (max 120s)..."
             DEADLINE=$(( $(date +%s) + 120 ))
@@ -67,7 +71,7 @@ jobs:
 
             if [ "$STATUS" != "healthy" ]; then
               echo "[x] gserp-app healthy olmadı (durum: $STATUS). Son loglar:"
-              docker compose -f "$INSTALL_DIR/docker-compose.yml" logs --tail 80 app
+              docker compose -f "$COMPOSE_FILE" logs --tail 80 app
               exit 1
             fi
 
