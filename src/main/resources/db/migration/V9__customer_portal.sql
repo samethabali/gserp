@@ -1,7 +1,7 @@
 -- V9: Müşteri Portalı — müşteri girişi, randevu isteği sistemi
 
--- 1. AppointmentStatus enum'una PENDING_APPROVAL ekle
-ALTER TYPE appointment_status ADD VALUE IF NOT EXISTS 'PENDING_APPROVAL';
+-- 1. AppointmentStatus için PENDING_APPROVAL değeri JPA enum'unda eklendi.
+--    DB tarafında status sütunu VARCHAR(32) olarak saklandığı için ek bir DDL gerekmiyor.
 
 -- 2. users tablosuna customer_id FK ekle (müşteri kullanıcıları için)
 ALTER TABLE users ADD COLUMN IF NOT EXISTS customer_id BIGINT;
