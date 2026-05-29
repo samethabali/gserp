@@ -1,0 +1,77 @@
+# GSERP — production-ready push'unda VPS'e otomatik deploy.
+#
+# Akış: SSH ile VPS'e bağlan, /opt/gserp'te git pull yap, docker compose
+# build + up çalıştır, app healthy olana kadar bekle.
+#
+# Gerekli GitHub repo secrets (Settings -> Secrets and variables -> Actions):
+#   VPS_HOST         VPS IP veya hostname (örn. 203.0.113.10)
+#   VPS_USER         SSH kullanıcısı (örn. deploy) — docker grubunda olmalı
+#   VPS_SSH_KEY      Bu kullanıcının PRIVATE SSH anahtarı (tüm içerik)
+#   VPS_SSH_PORT     (opsiyonel) SSH portu — tanımsızsa 22
+#
+# Not: VPS'te /opt/gserp önceden vps-setup.sh ile kurulmuş olmalı (.env mevcut).
+# Bu workflow ilk kurulumu YAPMAZ; sadece mevcut stack'i günceller.
+
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [production-ready]
+  workflow_dispatch: {}   # Actions sekmesinden elle de tetiklenebilir
+
+concurrency:
+  group: vps-deploy
+  cancel-in-progress: false   # Deploy'ları yarıda kesme; sırayla çalışsınlar
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH ile VPS'e deploy
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_SSH_PORT || 22 }}
+          command_timeout: 15m
+          script: |
+            set -euo pipefail
+
+            INSTALL_DIR=/opt/gserp
+            BRANCH=production-ready
+
+            cd "$INSTALL_DIR"
+
+            echo "[*] Mevcut: $(git rev-parse --short HEAD)"
+            git fetch --all --tags --prune
+            git checkout "$BRANCH"
+            git pull --ff-only
+            echo "[+] Güncel: $(git rev-parse --short HEAD)"
+
+            echo "[*] docker compose build + up"
+            docker compose -f "$INSTALL_DIR/docker-compose.yml" build app
+            docker compose -f "$INSTALL_DIR/docker-compose.yml" up -d
+
+            echo "[*] App healthy bekleniyor (max 120s)..."
+            DEADLINE=$(( $(date +%s) + 120 ))
+            STATUS=missing
+            while [ "$(date +%s)" -lt "$DEADLINE" ]; do
+              STATUS=$(docker inspect --format='{{.State.Health.Status}}' gserp-app 2>/dev/null || echo missing)
+              if [ "$STATUS" = "healthy" ]; then
+                echo "[+] gserp-app healthy"
+                break
+              fi
+              sleep 5
+            done
+
+            if [ "$STATUS" != "healthy" ]; then
+              echo "[x] gserp-app healthy olmadı (durum: $STATUS). Son loglar:"
+              docker compose -f "$INSTALL_DIR/docker-compose.yml" logs --tail 80 app
+              exit 1
+            fi
+
+            # Eski/dangling imajları temizle (disk şişmesin)
+            docker image prune -f >/dev/null 2>&1 || true
+
+            echo "[+] Deploy tamam: $(git rev-parse --short HEAD)"
