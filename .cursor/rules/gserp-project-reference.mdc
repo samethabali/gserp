@@ -1,0 +1,26 @@
+---
+description: GSERP proje referansı — mimari, tenant, API ve deploy hakkında her şey
+globs:
+  - "**/*"
+alwaysApply: true
+---
+
+# GSERP Proje Hafızası
+
+GSERP hakkında kapsamlı bilgi için **önce** şu dosyayı oku:
+
+**[docs/PROJECT_REFERENCE.md](docs/PROJECT_REFERENCE.md)**
+
+## Kritik özet (agent için)
+
+- **Stack:** Java 21, Spring Boot 3.4, PostgreSQL 16, Flyway V1–V24, Thymeleaf, JWT, WebSocket/STOMP
+- **Model:** Multi-tenant SaaS — `organization` → `salon` (branch); izolasyon **`salon_id`** ile
+- **Tenant çözümleme:** `X-Salon-Slug` header veya subdomain; local dev → slug `default` (salon id=1)
+- **Roller:** PLATFORM_ADMIN, ORG_OWNER, BRANCH_MANAGER/ADMIN, RECEPTIONIST, SPECIALIST, CUSTOMER
+- **Paket:** `com.gserp` — tenant: `com.gserp.tenant`, security: `com.gserp.security`
+- **Public API:** `/api/booking/**`, `/api/auth/**`, `/api/webhooks/**`, `/api/onboarding/register`
+- **WebSocket:** `/topic/salon.{salonId}.appointments` (global topic kullanma)
+- **Deploy:** Docker compose, VDS wildcard nginx, MCP `deploy_kurallari.yaml` gserp profili
+- **Test:** `mvn verify`, Testcontainers PG, testlerde `X-Salon-Slug: default`
+
+Yeni özellik veya bugfix yapmadan önce PROJECT_REFERENCE.md ile çelişmediğinden emin ol.

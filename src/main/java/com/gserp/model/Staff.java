@@ -2,6 +2,7 @@ package com.gserp.model;
 
 import com.gserp.model.enums.ServiceCategory;
 import com.gserp.model.enums.StaffRole;
+import com.gserp.tenant.TenantEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -15,11 +16,14 @@ import java.util.Set;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Staff {
+public class Staff implements TenantEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "salon_id", nullable = false)
+    private Long salonId;
 
     @Column(nullable = false)
     private String name;

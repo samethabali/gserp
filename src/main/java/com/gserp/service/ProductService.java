@@ -7,6 +7,7 @@ import com.gserp.repository.ProductSaleRepository;
 import com.gserp.model.Customer;
 import com.gserp.repository.CustomerRepository;
 import com.gserp.dto.response.ProductSaleStatsResponse;
+import com.gserp.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -65,7 +66,8 @@ public class ProductService {
         // Find customer if not directly provided but phone exists
         Long resolvedCustomerId = customerId;
         if (resolvedCustomerId == null && customerPhone != null && !customerPhone.isBlank()) {
-            List<Customer> matching = customerRepository.searchByQuery(customerPhone.trim());
+            List<Customer> matching = customerRepository.searchBySalonIdAndQuery(
+                    TenantContext.requireSalonId(), customerPhone.trim());
             if (!matching.isEmpty()) {
                 resolvedCustomerId = matching.get(0).getId();
             }

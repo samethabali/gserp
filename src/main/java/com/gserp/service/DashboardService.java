@@ -2,13 +2,19 @@ package com.gserp.service;
 
 import com.gserp.dto.response.DailyTrendDto;
 import com.gserp.dto.response.DashboardResponse;
+import com.gserp.dto.response.OrgSummaryResponse;
 import com.gserp.model.Appointment;
+import com.gserp.model.Organization;
+import com.gserp.model.Salon;
 import com.gserp.model.ServiceDefinition;
 import com.gserp.model.Staff;
 import com.gserp.model.enums.AppointmentStatus;
 import com.gserp.repository.AppointmentRepository;
+import com.gserp.repository.OrganizationRepository;
+import com.gserp.repository.SalonRepository;
 import com.gserp.repository.ServiceDefinitionRepository;
 import com.gserp.repository.StaffRepository;
+import com.gserp.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,10 +34,13 @@ public class DashboardService {
     private final AppointmentRepository appointmentRepository;
     private final StaffRepository staffRepository;
     private final ServiceDefinitionRepository serviceDefinitionRepository;
+    private final SalonRepository salonRepository;
+    private final OrganizationRepository organizationRepository;
 
     public DashboardResponse getDailySummary(LocalDate date) {
-        List<Appointment> appointments = appointmentRepository.findByStartTimeBetween(
-                date.atStartOfDay(), date.plusDays(1).atStartOfDay());
+        Long salonId = TenantContext.requireSalonId();
+        List<Appointment> appointments = appointmentRepository.findBySalonIdAndStartTimeBetween(
+                salonId, date.atStartOfDay(), date.plusDays(1).atStartOfDay());
 
         int total = appointments.size();
         int completed = (int) appointments.stream().filter(a -> a.getStatus() == AppointmentStatus.COMPLETED).count();
@@ -115,13 +124,14 @@ public class DashboardService {
     }
 
     public List<DailyTrendDto> getTrend(int days) {
+        Long salonId = TenantContext.requireSalonId();
         LocalDate today = LocalDate.now();
         List<DailyTrendDto> result = new ArrayList<>();
 
         for (int i = days - 1; i >= 0; i--) {
             LocalDate day = today.minusDays(i);
-            List<Appointment> appts = appointmentRepository.findByStartTimeBetween(
-                    day.atStartOfDay(), day.plusDays(1).atStartOfDay());
+            List<Appointment> appts = appointmentRepository.findBySalonIdAndStartTimeBetween(
+                    salonId, day.atStartOfDay(), day.plusDays(1).atStartOfDay());
 
             int tot = appts.size();
             int comp = (int) appts.stream().filter(a -> a.getStatus() == AppointmentStatus.COMPLETED).count();
@@ -139,5 +149,44 @@ public class DashboardService {
                     .build());
         }
         return result;
+    }
+
+    public OrgSummaryResponse getOrgSummary(Long organizationId) {
+        Organization org = organizationRepository.findById(organizationId)
+                .orElseThrow(() -> new IllegalArgumentException("Organizasyon bulunamadı"));
+        LocalDate today = LocalDate.now();
+        List<Salon> salons = salonRepository.findByOrganizationIdAndActiveTrue(organizationId);
+
+        List<OrgSummaryResponse.SalonSummary> salonSummaries = new ArrayList<>();
+        int totalAppts = 0;
+        BigDecimal totalRevenue = BigDecimal.ZERO;
+
+        for (Salon salon : salons) {
+            List<Appointment> appts = appointmentRepository.findBySalonIdAndStartTimeBetween(
+                    salon.getId(), today.atStartOfDay(), today.plusDays(1).atStartOfDay());
+            BigDecimal rev = appts.stream()
+                    .filter(a -> a.getStatus() == AppointmentStatus.COMPLETED)
+                    .map(Appointment::getFinalPrice)
+                    .filter(p -> p != null)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            totalAppts += appts.size();
+            totalRevenue = totalRevenue.add(rev);
+            salonSummaries.add(OrgSummaryResponse.SalonSummary.builder()
+                    .salonId(salon.getId())
+                    .slug(salon.getSlug())
+                    .name(salon.getName())
+                    .appointmentsToday(appts.size())
+                    .revenueToday(rev)
+                    .build());
+        }
+
+        return OrgSummaryResponse.builder()
+                .organizationId(organizationId)
+                .organizationName(org.getName())
+                .salonCount(salons.size())
+                .totalAppointmentsToday(totalAppts)
+                .totalRevenueToday(totalRevenue)
+                .salons(salonSummaries)
+                .build();
     }
 }

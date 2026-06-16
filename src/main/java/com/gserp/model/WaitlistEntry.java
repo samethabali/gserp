@@ -1,5 +1,6 @@
 package com.gserp.model;
 
+import com.gserp.tenant.TenantEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -13,11 +14,14 @@ import java.time.LocalTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class WaitlistEntry {
+public class WaitlistEntry implements TenantEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "salon_id", nullable = false)
+    private Long salonId;
 
     @Column(name = "customer_name", nullable = false)
     private String customerName;

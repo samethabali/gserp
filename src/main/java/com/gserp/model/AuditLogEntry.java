@@ -1,6 +1,7 @@
 package com.gserp.model;
 
 import com.gserp.model.enums.AuditAction;
+import com.gserp.tenant.TenantEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -14,11 +15,14 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class AuditLogEntry {
+public class AuditLogEntry implements TenantEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "salon_id", nullable = false)
+    private Long salonId;
 
     @Column(name = "user_id")
     private Long userId;

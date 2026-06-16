@@ -41,4 +41,6 @@ public class AppointmentCreateRequest {
 
     // ─── Campaign support ───
     private String couponCode;              // müşteri portalından kupon kodu
+
+    private java.util.List<String> consentTypes;
 }

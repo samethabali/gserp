@@ -27,6 +27,8 @@ mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=dev
 
 Tarayıcı: <http://localhost:8989> · varsayılan dev kullanıcısı: `admin / admin`.
 
+**Tam dokümantasyon:** [docs/PROJECT_REFERENCE.md](docs/PROJECT_REFERENCE.md)
+
 ## Production Deploy (Docker Compose)
 
 ```bash
@@ -66,4 +68,4 @@ Bkz. [.env.example](.env.example).
 
 ## Lisans
 
-Eğitim/staj projesi. Tüm hakları saklıdır.
+Ticari kullanım için lisanslanabilir salon ERP yazılımı. Detaylar için proje sahibi ile iletişime geçin.

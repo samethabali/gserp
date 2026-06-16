@@ -1,0 +1,5 @@
+-- V19: Coupon scope (SALON, ORG, GLOBAL)
+
+ALTER TABLE coupon ADD COLUMN IF NOT EXISTS scope VARCHAR(16) NOT NULL DEFAULT 'SALON'
+    CHECK (scope IN ('SALON', 'ORG', 'GLOBAL'));
+ALTER TABLE coupon ADD COLUMN IF NOT EXISTS organization_id BIGINT REFERENCES organization(id);

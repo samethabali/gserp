@@ -13,6 +13,7 @@ import com.gserp.security.AuthenticatedUser;
 import com.gserp.service.AppointmentService;
 import com.gserp.service.CampaignService;
 import com.gserp.service.CampaignService.CouponValidationResult;
+import com.gserp.tenant.TenantContext;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -58,6 +59,7 @@ public class CustomerPortalController {
             @AuthenticationPrincipal AuthenticatedUser principal) {
         Customer customer = resolveCustomer(principal);
         String phone = customer.getPhone();
+        Long salonId = TenantContext.requireSalonId();
 
         List<AppointmentStatus> activeStatuses = List.of(
                 AppointmentStatus.PENDING_APPROVAL,
@@ -71,12 +73,12 @@ public class CustomerPortalController {
         );
 
         List<AppointmentResponse> active = phone != null
-                ? appointmentRepository.findByCustomerPhoneAndStatusIn(phone, activeStatuses)
+                ? appointmentRepository.findBySalonIdAndCustomerPhoneAndStatusIn(salonId, phone, activeStatuses)
                         .stream().map(appointmentService::toResponse).toList()
                 : List.of();
 
         List<AppointmentResponse> past = phone != null
-                ? appointmentRepository.findByCustomerPhoneAndStatusIn(phone, pastStatuses)
+                ? appointmentRepository.findBySalonIdAndCustomerPhoneAndStatusIn(salonId, phone, pastStatuses)
                         .stream().map(appointmentService::toResponse).toList()
                 : List.of();
 
@@ -154,7 +156,7 @@ public class CustomerPortalController {
             @PathVariable Long id) {
         Customer customer = resolveCustomer(principal);
 
-        var appointment = appointmentRepository.findById(id)
+        var appointment = appointmentRepository.findByIdAndSalonId(id, TenantContext.requireSalonId())
                 .orElse(null);
 
         if (appointment == null) {

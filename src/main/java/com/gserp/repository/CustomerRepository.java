@@ -10,21 +10,22 @@ import java.util.Optional;
 
 public interface CustomerRepository extends JpaRepository<Customer, Long> {
 
-    Optional<Customer> findByPhone(String phone);
+    Optional<Customer> findByIdAndSalonId(Long id, Long salonId);
 
-    Optional<Customer> findByEmail(String email);
+    List<Customer> findBySalonId(Long salonId);
 
-    boolean existsByEmail(String email);
+    Optional<Customer> findBySalonIdAndPhone(Long salonId, String phone);
 
-    /**
-     * DB seviyesinde müşteri arama — isim, telefon veya e-posta ile ILIKE.
-     * CustomerService.getAll() içindeki in-memory filtrelemeyi ortadan kaldırır.
-     */
+    Optional<Customer> findBySalonIdAndEmail(Long salonId, String email);
+
+    boolean existsBySalonIdAndEmail(Long salonId, String email);
+
     @Query("""
            SELECT c FROM Customer c
-           WHERE LOWER(CONCAT(c.firstName, ' ', COALESCE(c.lastName, ''))) LIKE LOWER(CONCAT('%', :query, '%'))
+           WHERE c.salonId = :salonId
+             AND (LOWER(CONCAT(c.firstName, ' ', COALESCE(c.lastName, ''))) LIKE LOWER(CONCAT('%', :query, '%'))
               OR (c.phone IS NOT NULL AND c.phone LIKE CONCAT('%', :query, '%'))
-              OR (c.email IS NOT NULL AND LOWER(c.email) LIKE LOWER(CONCAT('%', :query, '%')))
+              OR (c.email IS NOT NULL AND LOWER(c.email) LIKE LOWER(CONCAT('%', :query, '%'))))
            """)
-    List<Customer> searchByQuery(@Param("query") String query);
+    List<Customer> searchBySalonIdAndQuery(@Param("salonId") Long salonId, @Param("query") String query);
 }

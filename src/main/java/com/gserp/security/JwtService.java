@@ -1,5 +1,6 @@
 package com.gserp.security;
 
+import com.gserp.model.enums.UserRole;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
@@ -17,6 +18,15 @@ import java.util.function.Function;
 @Service
 public class JwtService {
 
+    public static final String CLAIM_TYP = "typ";
+    public static final String CLAIM_SALON_ID = "salonId";
+    public static final String CLAIM_ORG_ID = "orgId";
+    public static final String CLAIM_ROLE = "role";
+    public static final String CLAIM_STAFF_ID = "staffId";
+    public static final String CLAIM_CUSTOMER_ID = "customerId";
+    public static final String TYP_ACCESS = "access";
+    public static final String TYP_REFRESH = "refresh";
+
     private final SecretKey signingKey;
     private final long accessTtlMillis;
     private final long refreshTtlMillis;
@@ -32,21 +42,57 @@ public class JwtService {
     }
 
     public String generateToken(UserDetails userDetails) {
-        return buildToken(new HashMap<>(), userDetails.getUsername(), accessTtlMillis);
+        Map<String, Object> claims = new HashMap<>();
+        claims.put(CLAIM_TYP, TYP_ACCESS);
+        if (userDetails instanceof AuthenticatedUser au) {
+            if (au.getSalonId() != null) claims.put(CLAIM_SALON_ID, au.getSalonId());
+            if (au.getOrganizationId() != null) claims.put(CLAIM_ORG_ID, au.getOrganizationId());
+            claims.put(CLAIM_ROLE, au.getRole().name());
+            if (au.getStaffId() != null) claims.put(CLAIM_STAFF_ID, au.getStaffId());
+            if (au.getCustomerId() != null) claims.put(CLAIM_CUSTOMER_ID, au.getCustomerId());
+        }
+        return buildToken(claims, userDetails.getUsername(), accessTtlMillis);
     }
 
     public String generateRefreshToken(UserDetails userDetails) {
-        return buildToken(Map.of("typ", "refresh"), userDetails.getUsername(), refreshTtlMillis);
+        return buildToken(Map.of(CLAIM_TYP, TYP_REFRESH), userDetails.getUsername(), refreshTtlMillis);
     }
 
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
     }
 
+    public String extractTokenType(String token) {
+        return extractClaim(token, claims -> claims.get(CLAIM_TYP, String.class));
+    }
+
+    public Long extractSalonId(String token) {
+        return extractClaim(token, claims -> {
+            Object v = claims.get(CLAIM_SALON_ID);
+            if (v instanceof Number n) return n.longValue();
+            return null;
+        });
+    }
+
     public boolean validateToken(String token, UserDetails userDetails) {
         try {
             String username = extractUsername(token);
-            return username.equals(userDetails.getUsername()) && !isExpired(token);
+            String typ = extractTokenType(token);
+            return username.equals(userDetails.getUsername())
+                    && TYP_ACCESS.equals(typ)
+                    && !isExpired(token);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public boolean validateRefreshToken(String token, UserDetails userDetails) {
+        try {
+            String username = extractUsername(token);
+            String typ = extractTokenType(token);
+            return username.equals(userDetails.getUsername())
+                    && TYP_REFRESH.equals(typ)
+                    && !isExpired(token);
         } catch (Exception e) {
             return false;
         }

@@ -2,6 +2,7 @@ package com.gserp.service;
 
 import com.gserp.model.ServiceDefinition;
 import com.gserp.repository.ServiceDefinitionRepository;
+import com.gserp.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,7 +24,7 @@ public class ServiceDefinitionService {
     }
 
     public List<ServiceDefinition> getActive() {
-        return serviceRepository.findByActiveTrue();
+        return serviceRepository.findBySalonIdAndActiveTrue(TenantContext.requireSalonId());
     }
 
     public Optional<ServiceDefinition> getById(Long id) {

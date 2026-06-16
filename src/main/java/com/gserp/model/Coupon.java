@@ -1,6 +1,7 @@
 package com.gserp.model;
 
 import com.gserp.model.enums.DiscountType;
+import com.gserp.tenant.TenantEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -13,11 +14,21 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Coupon {
+public class Coupon implements TenantEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "salon_id", nullable = false)
+    private Long salonId;
+
+    @Column(nullable = false, length = 16)
+    @Builder.Default
+    private String scope = "SALON";
+
+    @Column(name = "organization_id")
+    private Long organizationId;
 
     @Column(nullable = false, unique = true, length = 32)
     private String code;

@@ -11,6 +11,7 @@ import com.gserp.model.enums.PaymentStatus;
 import com.gserp.repository.AppointmentRepository;
 import com.gserp.repository.CustomerRepository;
 import com.gserp.repository.PaymentRepository;
+import com.gserp.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,7 +34,8 @@ public class PaymentService {
     @Transactional
     public PaymentResponse collect(PaymentCreateRequest req) {
         Long appointmentId = req.getAppointmentId();
-        Appointment appt = appointmentRepository.findById(appointmentId)
+        Long salonId = TenantContext.requireSalonId();
+        Appointment appt = appointmentRepository.findByIdAndSalonId(appointmentId, salonId)
                 .orElseThrow(() -> new IllegalArgumentException("Randevu bulunamadı: " + appointmentId));
 
         Payment payment = Payment.builder()
@@ -58,7 +60,7 @@ public class PaymentService {
     }
 
     private void updateCustomerBalance(String phone, BigDecimal finalPrice, BigDecimal paid, PaymentStatus status) {
-        Optional<Customer> opt = customerRepository.findByPhone(phone);
+        Optional<Customer> opt = customerRepository.findBySalonIdAndPhone(TenantContext.requireSalonId(), phone);
         if (opt.isEmpty()) return;
 
         Customer customer = opt.get();

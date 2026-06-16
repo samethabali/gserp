@@ -1,6 +1,7 @@
 package com.gserp.model;
 
 import com.gserp.model.enums.ResourceType;
+import com.gserp.tenant.TenantEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -12,11 +13,14 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Resource {
+public class Resource implements TenantEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "salon_id", nullable = false)
+    private Long salonId;
 
     @Column(nullable = false)
     private String name;

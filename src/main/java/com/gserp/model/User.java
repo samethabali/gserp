@@ -1,6 +1,7 @@
 package com.gserp.model;
 
 import com.gserp.model.enums.UserRole;
+import com.gserp.tenant.TenantEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -12,13 +13,19 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class User {
+public class User implements TenantEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 64)
+    @Column(name = "salon_id", nullable = false)
+    private Long salonId;
+
+    @Column(name = "organization_id")
+    private Long organizationId;
+
+    @Column(nullable = false, length = 64)
     private String username;
 
     @Column(name = "password_hash", nullable = false, length = 100)
@@ -36,6 +43,12 @@ public class User {
 
     @Column(nullable = false)
     private boolean enabled;
+
+    @Column(name = "must_change_password", nullable = false)
+    private boolean mustChangePassword;
+
+    @Column(name = "password_changed_at")
+    private LocalDateTime passwordChangedAt;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

@@ -2,6 +2,7 @@ package com.gserp.model;
 
 import com.gserp.model.enums.PaymentMethod;
 import com.gserp.model.enums.PaymentStatus;
+import com.gserp.tenant.TenantEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -18,11 +19,14 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Payment {
+public class Payment implements TenantEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "salon_id", nullable = false)
+    private Long salonId;
 
     @Column(name = "appointment_id", nullable = false)
     private Long appointmentId;

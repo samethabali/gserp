@@ -8,6 +8,7 @@ import com.gserp.model.Customer;
 import com.gserp.repository.AppointmentRepository;
 import com.gserp.repository.CustomerRepository;
 import com.gserp.repository.PaymentRepository;
+import com.gserp.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,25 +39,27 @@ public class CustomerService {
     private final ProductSaleRepository productSaleRepository;
 
     public List<CustomerResponse> getAll(String query) {
+        Long salonId = TenantContext.requireSalonId();
         List<Customer> customers;
         if (query != null && !query.isBlank()) {
-            customers = customerRepository.searchByQuery(query.trim());
+            customers = customerRepository.searchBySalonIdAndQuery(salonId, query.trim());
         } else {
-            customers = customerRepository.findAll();
+            customers = customerRepository.findBySalonId(salonId);
         }
         return customers.stream().map(this::toResponse).collect(Collectors.toList());
     }
 
     public Optional<CustomerDetailResponse> getDetail(Long id) {
-        return customerRepository.findById(id).map(c -> {
+        Long salonId = TenantContext.requireSalonId();
+        return customerRepository.findByIdAndSalonId(id, salonId).map(c -> {
             LocalDateTime now = LocalDateTime.now();
 
             List<AppointmentResponse> past = appointmentRepository
-                    .findByCustomerPhoneAndStartTimeBeforeOrderByStartTimeDesc(c.getPhone(), now)
+                    .findBySalonIdAndCustomerPhoneAndStartTimeBeforeOrderByStartTimeDesc(salonId, c.getPhone(), now)
                     .stream().map(appointmentService::toResponse).collect(Collectors.toList());
 
             List<AppointmentResponse> upcoming = appointmentRepository
-                    .findByCustomerPhoneAndStartTimeAfterOrderByStartTimeAsc(c.getPhone(), now)
+                    .findBySalonIdAndCustomerPhoneAndStartTimeAfterOrderByStartTimeAsc(salonId, c.getPhone(), now)
                     .stream().map(appointmentService::toResponse).collect(Collectors.toList());
 
             List<PaymentResponse> payments = c.getPhone() != null
@@ -111,6 +114,8 @@ public class CustomerService {
 
     @Transactional
     public Customer create(Customer customer) {
+        Long salonId = TenantContext.requireSalonId();
+        customer.setSalonId(salonId);
         customer.setCreatedAt(LocalDateTime.now());
         customer.setUpdatedAt(LocalDateTime.now());
         if (customer.getBalance() == null) customer.setBalance(BigDecimal.ZERO);
@@ -119,7 +124,8 @@ public class CustomerService {
 
     @Transactional
     public Customer update(Long id, Customer updated) {
-        Customer existing = customerRepository.findById(id)
+        Long salonId = TenantContext.requireSalonId();
+        Customer existing = customerRepository.findByIdAndSalonId(id, salonId)
                 .orElseThrow(() -> new IllegalArgumentException("Müşteri bulunamadı: " + id));
         existing.setFirstName(updated.getFirstName());
         existing.setLastName(updated.getLastName());
@@ -131,13 +137,16 @@ public class CustomerService {
     }
 
     public Optional<CustomerResponse> lookupByPhone(String phone) {
-        return customerRepository.findByPhone(phone).map(this::toResponse);
+        Long salonId = TenantContext.requireSalonId();
+        return customerRepository.findBySalonIdAndPhone(salonId, phone).map(this::toResponse);
     }
 
     private CustomerResponse toResponse(Customer c) {
+        Long salonId = TenantContext.requireSalonId();
         String phone = c.getPhone() != null ? c.getPhone() : "";
-        int total = (int) appointmentRepository.countByCustomerPhone(phone);
-        int upcoming = (int) appointmentRepository.countByCustomerPhoneAndStartTimeAfter(phone, LocalDateTime.now());
+        int total = (int) appointmentRepository.countBySalonIdAndCustomerPhone(salonId, phone);
+        int upcoming = (int) appointmentRepository.countBySalonIdAndCustomerPhoneAndStartTimeAfter(
+                salonId, phone, LocalDateTime.now());
 
         return CustomerResponse.builder()
                 .id(c.getId())

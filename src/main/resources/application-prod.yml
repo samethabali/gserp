@@ -25,12 +25,17 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus
   endpoint:
     health:
       probes:
         enabled: true
       show-details: when-authorized
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      application: gserp
   health:
     livenessstate:
       enabled: true

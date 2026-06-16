@@ -16,6 +16,16 @@ public class PageController {
         return "login";
     }
 
+    @GetMapping("/change-password")
+    public String changePassword() {
+        return "change-password";
+    }
+
+    @GetMapping("/privacy")
+    public String privacy() {
+        return "privacy";
+    }
+
     @GetMapping("/dashboard")
     public String dashboard() {
         return "dashboard";
@@ -79,5 +89,30 @@ public class PageController {
     @GetMapping("/campaigns")
     public String campaigns() {
         return "campaigns";
+    }
+
+    @GetMapping("/users")
+    public String users() {
+        return "users";
+    }
+
+    @GetMapping("/settings")
+    public String settings() {
+        return "settings";
+    }
+
+    @GetMapping("/platform/tenants")
+    public String platformTenants() {
+        return "platform/tenants";
+    }
+
+    @GetMapping("/org/dashboard")
+    public String orgDashboard() {
+        return "org/dashboard";
+    }
+
+    @GetMapping("/onboarding/wizard")
+    public String onboardingWizard() {
+        return "onboarding/wizard";
     }
 }

@@ -16,9 +16,11 @@
 name: Deploy to VPS
 
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [production-ready]
-  workflow_dispatch: {}   # Actions sekmesinden elle de tetiklenebilir
+  workflow_dispatch: {}
 
 concurrency:
   group: vps-deploy
@@ -26,6 +28,7 @@ concurrency:
 
 jobs:
   deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: SSH ile VPS'e deploy

@@ -7,6 +7,12 @@ let stompClient = null;
 let wsConnected = false;
 let wsReconnectTimer = null;
 
+function getSalonTopicPrefix() {
+    const meta = document.querySelector('meta[name="salon-id"]');
+    const salonId = meta && meta.content ? meta.content : '1';
+    return '/topic/salon.' + salonId;
+}
+
 function connectWebSocket() {
     try {
         const socket = new SockJS('/ws-calendar');
@@ -18,15 +24,17 @@ function connectWebSocket() {
             updateWsStatus(true);
             console.log('🔗 WebSocket connected');
 
+            const topicPrefix = getSalonTopicPrefix();
+
             // Subscribe to appointment changes
-            stompClient.subscribe('/topic/appointments', function (message) {
+            stompClient.subscribe(topicPrefix + '.appointments', function (message) {
                 const payload = JSON.parse(message.body);
                 console.log('📡 WS received:', payload.action);
                 handleWsAppointmentChange(payload);
             });
 
             // Subscribe to dashboard refresh signals
-            stompClient.subscribe('/topic/dashboard', function (message) {
+            stompClient.subscribe(topicPrefix + '.dashboard', function (message) {
                 const payload = JSON.parse(message.body);
                 if (payload.action === 'REFRESH' && typeof refreshDashboard === 'function') {
                     refreshDashboard();
@@ -34,7 +42,7 @@ function connectWebSocket() {
             });
 
             // Subscribe to general notifications (session reminders, etc.)
-            stompClient.subscribe('/topic/notifications', function (message) {
+            stompClient.subscribe(topicPrefix + '.notifications', function (message) {
                 const payload = JSON.parse(message.body);
                 handleNotification(payload);
             });

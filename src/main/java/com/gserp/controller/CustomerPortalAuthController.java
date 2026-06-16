@@ -7,6 +7,7 @@ import com.gserp.model.enums.UserRole;
 import com.gserp.repository.CustomerRepository;
 import com.gserp.repository.UserRepository;
 import com.gserp.security.JwtService;
+import com.gserp.tenant.TenantContext;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -53,11 +54,12 @@ public class CustomerPortalAuthController {
 
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<Map<String, String>>> register(@Valid @RequestBody RegisterRequest req) {
-        if (customerRepository.existsByEmail(req.email())) {
+        Long salonId = TenantContext.requireSalonId();
+        if (customerRepository.existsBySalonIdAndEmail(salonId, req.email())) {
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("Bu e-posta adresi zaten kayıtlı"));
         }
-        if (userRepository.existsByUsername(req.email())) {
+        if (userRepository.existsBySalonIdAndUsername(salonId, req.email())) {
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error("Bu e-posta adresi zaten kullanımda"));
         }
@@ -65,21 +67,26 @@ public class CustomerPortalAuthController {
         LocalDateTime now = LocalDateTime.now();
 
         Customer savedCustomer = customerRepository.save(Customer.builder()
+                .salonId(salonId)
                 .firstName(req.firstName())
                 .lastName(req.lastName())
                 .email(req.email())
                 .phone(req.phone())
                 .notes("")
+                .consentAt(now)
                 .createdAt(now)
                 .updatedAt(now)
                 .build());
 
         User savedUser = userRepository.save(User.builder()
+                .salonId(salonId)
+                .organizationId(TenantContext.getOrgId())
                 .username(req.email())
                 .passwordHash(passwordEncoder.encode(req.password()))
                 .role(UserRole.CUSTOMER)
                 .customerId(savedCustomer.getId())
                 .enabled(true)
+                .mustChangePassword(false)
                 .createdAt(now)
                 .build());
 
@@ -99,7 +106,7 @@ public class CustomerPortalAuthController {
             return ResponseEntity.status(401).body(ApiResponse.error("Geçersiz e-posta veya parola"));
         }
 
-        User user = userRepository.findByUsername(req.email())
+        User user = userRepository.findBySalonIdAndUsername(TenantContext.requireSalonId(), req.email())
                 .orElse(null);
         if (user == null || user.getRole() != UserRole.CUSTOMER) {
             return ResponseEntity.status(403).body(ApiResponse.error("Bu hesap müşteri portalına erişemez"));

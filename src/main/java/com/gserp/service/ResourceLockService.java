@@ -8,6 +8,7 @@ import com.gserp.model.enums.AppointmentStatus;
 import com.gserp.model.enums.ResourceType;
 import com.gserp.repository.AppointmentRepository;
 import com.gserp.repository.ResourceRepository;
+import com.gserp.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -77,7 +78,7 @@ public class ResourceLockService {
     private boolean isResourceAvailable(Resource resource, LocalDateTime start, LocalDateTime end,
                                          Long excludeAppointmentId) {
         List<Appointment> conflicts = appointmentRepository.findResourceOverlap(
-                resource.getId(), start, end, AppointmentStatus.CANCELLED);
+                TenantContext.requireSalonId(), resource.getId(), start, end, AppointmentStatus.CANCELLED);
         if (excludeAppointmentId != null) {
             conflicts = conflicts.stream()
                     .filter(a -> !a.getId().equals(excludeAppointmentId))

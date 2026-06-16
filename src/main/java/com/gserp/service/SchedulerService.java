@@ -5,6 +5,7 @@ import com.gserp.model.WorkingHours;
 import com.gserp.model.enums.AppointmentStatus;
 import com.gserp.repository.AppointmentRepository;
 import com.gserp.repository.WorkingHoursRepository;
+import com.gserp.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,7 +47,7 @@ public class SchedulerService {
      */
     public boolean isStaffAvailable(Long staffId, LocalDateTime start, LocalDateTime end, Long excludeAppointmentId) {
         List<Appointment> conflicts = appointmentRepository.findStaffOverlap(
-                staffId, start, end, AppointmentStatus.CANCELLED);
+                TenantContext.requireSalonId(), staffId, start, end, AppointmentStatus.CANCELLED);
         if (excludeAppointmentId != null) {
             conflicts = conflicts.stream()
                     .filter(a -> !a.getId().equals(excludeAppointmentId))

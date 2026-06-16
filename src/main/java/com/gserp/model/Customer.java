@@ -1,5 +1,6 @@
 package com.gserp.model;
 
+import com.gserp.tenant.TenantEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -12,11 +13,17 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Customer {
+public class Customer implements TenantEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "salon_id", nullable = false)
+    private Long salonId;
+
+    @Column(name = "home_salon_id")
+    private Long homeSalonId;
 
     @Column(name = "first_name", nullable = false)
     private String firstName;
@@ -35,6 +42,9 @@ public class Customer {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @Column(name = "consent_at")
+    private LocalDateTime consentAt;
 
     @Column(precision = 12, scale = 2)
     @Builder.Default

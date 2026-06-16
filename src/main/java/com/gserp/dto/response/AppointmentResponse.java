@@ -14,6 +14,7 @@ import java.util.List;
 @AllArgsConstructor
 public class AppointmentResponse {
     private Long id;
+    private Long salonId;
 
     // Customer (free text)
     private String customerName;

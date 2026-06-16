@@ -8,14 +8,16 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface StaffRepository extends JpaRepository<Staff, Long> {
-    List<Staff> findByActiveTrueAndRole(StaffRole role);
 
-    /**
-     * Uzmanlık alanına göre aktif personel sorgusu.
-     * StaffService.getBySpecialization() içindeki in-memory filtrelemeyi ortadan kaldırır.
-     */
-    @Query("SELECT s FROM Staff s JOIN s.specializations spec WHERE s.active = true AND spec = :category")
-    List<Staff> findActiveBySpecialization(@Param("category") ServiceCategory category);
+    Optional<Staff> findByIdAndSalonId(Long id, Long salonId);
+
+    List<Staff> findBySalonIdAndActiveTrue(Long salonId);
+
+    List<Staff> findBySalonIdAndActiveTrueAndRole(Long salonId, StaffRole role);
+
+    @Query("SELECT s FROM Staff s JOIN s.specializations spec WHERE s.salonId = :salonId AND s.active = true AND spec = :category")
+    List<Staff> findActiveBySalonIdAndSpecialization(@Param("salonId") Long salonId, @Param("category") ServiceCategory category);
 }

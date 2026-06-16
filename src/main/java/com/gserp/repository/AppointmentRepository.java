@@ -8,78 +8,90 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface AppointmentRepository extends JpaRepository<Appointment, Long> {
 
-    List<Appointment> findByStartTimeBetween(LocalDateTime start, LocalDateTime end);
+    Optional<Appointment> findByIdAndSalonId(Long id, Long salonId);
 
-    /**
-     * Overlap query: appointment [startTime, endTime) intersects [start, end) for given staff,
-     * excluding cancelled status. Used by SchedulerService for conflict detection.
-     */
+    List<Appointment> findBySalonId(Long salonId);
+
+    List<Appointment> findBySalonIdAndStartTimeBetween(Long salonId, LocalDateTime start, LocalDateTime end);
+
+    List<Appointment> findBySalonIdAndStaffIdAndStartTimeBetween(Long salonId, Long staffId, LocalDateTime start, LocalDateTime end);
+
+    List<Appointment> findBySalonIdAndStartTimeBetweenAndStatusIn(
+            Long salonId, LocalDateTime start, LocalDateTime end, List<AppointmentStatus> statuses);
+
     @Query("""
            select a from Appointment a
-           where a.staffId = :staffId
+           where a.salonId = :salonId
+             and a.staffId = :staffId
              and a.status <> :cancelled
              and a.startTime < :end
              and a.endTime > :start
            """)
     List<Appointment> findStaffOverlap(
+            @Param("salonId") Long salonId,
             @Param("staffId") Long staffId,
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end,
             @Param("cancelled") AppointmentStatus cancelled);
 
-    /**
-     * Overlap query for a given resource id (joined via @ElementCollection).
-     * Used by ResourceLockService.
-     */
     @Query("""
            select a from Appointment a
               join a.resourceIds r
-           where r = :resourceId
+           where a.salonId = :salonId
+             and r = :resourceId
              and a.status <> :cancelled
              and a.startTime < :end
              and a.endTime > :start
            """)
     List<Appointment> findResourceOverlap(
+            @Param("salonId") Long salonId,
             @Param("resourceId") Long resourceId,
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end,
             @Param("cancelled") AppointmentStatus cancelled);
 
-    List<Appointment> findByCustomerPhoneOrderByStartTimeDesc(String phone);
+    List<Appointment> findBySalonIdAndCustomerPhoneOrderByStartTimeDesc(Long salonId, String phone);
 
-    long countByCustomerPhone(String phone);
+    long countBySalonIdAndCustomerPhone(Long salonId, String phone);
 
-    long countByCustomerPhoneAndStartTimeAfter(String phone, LocalDateTime after);
+    long countBySalonIdAndCustomerPhoneAndStartTimeAfter(Long salonId, String phone, LocalDateTime after);
 
-    List<Appointment> findByCustomerPhoneAndStartTimeBeforeOrderByStartTimeDesc(String phone, java.time.LocalDateTime before);
+    List<Appointment> findBySalonIdAndCustomerPhoneAndStartTimeBeforeOrderByStartTimeDesc(
+            Long salonId, String phone, LocalDateTime before);
 
-    List<Appointment> findByCustomerPhoneAndStartTimeAfterOrderByStartTimeAsc(String phone, java.time.LocalDateTime after);
+    List<Appointment> findBySalonIdAndCustomerPhoneAndStartTimeAfterOrderByStartTimeAsc(
+            Long salonId, String phone, LocalDateTime after);
 
     @Query("""
             select a from Appointment a
-            where a.sessionGroupId is not null
+            where a.salonId = :salonId
+              and a.sessionGroupId is not null
               and a.status = 'SCHEDULED'
               and a.startTime >= :start
               and a.startTime < :end
             """)
     List<Appointment> findUpcomingSessionAppointments(
-            @Param("start") java.time.LocalDateTime start,
-            @Param("end")   java.time.LocalDateTime end);
+            @Param("salonId") Long salonId,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end);
 
     @Query("""
             select a from Appointment a
-            where a.customerPhone = :phone
+            where a.salonId = :salonId
+              and a.customerPhone = :phone
               and a.status in :statuses
             order by a.startTime asc
             """)
-    List<Appointment> findByCustomerPhoneAndStatusIn(
+    List<Appointment> findBySalonIdAndCustomerPhoneAndStatusIn(
+            @Param("salonId") Long salonId,
             @Param("phone") String phone,
             @Param("statuses") List<AppointmentStatus> statuses);
 
-    List<Appointment> findByCustomerPhoneOrderByStartTimeAsc(String phone);
+    List<Appointment> findBySalonIdAndCustomerPhoneOrderByStartTimeAsc(Long salonId, String phone);
 
-    long countByCustomerPhoneAndStatus(String phone, AppointmentStatus status);
+    long countBySalonIdAndCustomerPhoneAndStatus(Long salonId, String phone, AppointmentStatus status);
 }

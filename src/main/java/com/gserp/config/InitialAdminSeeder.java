@@ -49,10 +49,12 @@ public class InitialAdminSeeder implements CommandLineRunner {
             return;
         }
         User admin = User.builder()
+                .salonId(1L)
                 .username(initialUsername)
                 .passwordHash(passwordEncoder.encode(initialPassword))
                 .role(UserRole.ADMIN)
                 .enabled(true)
+                .mustChangePassword(true)
                 .createdAt(LocalDateTime.now())
                 .build();
         userRepository.save(admin);

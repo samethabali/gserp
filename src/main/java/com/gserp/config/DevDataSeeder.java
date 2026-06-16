@@ -31,6 +31,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class DevDataSeeder implements CommandLineRunner {
 
+    private static final Long DEFAULT_SALON_ID = 1L;
+
     private final StaffRepository staffRepository;
     private final ResourceRepository resourceRepository;
     private final ServiceDefinitionRepository serviceRepository;
@@ -73,7 +75,7 @@ public class DevDataSeeder implements CommandLineRunner {
     }
 
     private Staff build(String name, String phone, String email, StaffRole role, String color) {
-        return Staff.builder().name(name).phone(phone).email(email)
+        return Staff.builder().salonId(DEFAULT_SALON_ID).name(name).phone(phone).email(email)
                 .role(role).colorHex(color).active(true).build();
     }
 
@@ -92,7 +94,7 @@ public class DevDataSeeder implements CommandLineRunner {
     }
 
     private Resource res(String name, ResourceType type) {
-        return Resource.builder().name(name).resourceType(type).capacity(1).active(true).build();
+        return Resource.builder().salonId(DEFAULT_SALON_ID).name(name).resourceType(type).capacity(1).active(true).build();
     }
 
     private List<ServiceDefinition> seedServices(List<Resource> resources) {
@@ -121,6 +123,7 @@ public class DevDataSeeder implements CommandLineRunner {
     private ServiceDefinition svc(String name, int duration, String price, ServiceCategory cat,
                                    boolean requiresResource, List<Long> resourceIds) {
         return ServiceDefinition.builder()
+                .salonId(DEFAULT_SALON_ID)
                 .name(name).durationMinutes(duration).basePrice(new BigDecimal(price))
                 .category(cat).requiresResource(requiresResource).active(true)
                 .requiredResourceIds(new ArrayList<>(resourceIds))
@@ -141,7 +144,7 @@ public class DevDataSeeder implements CommandLineRunner {
     }
 
     private Customer cust(String fn, String ln, String phone, String email, String notes) {
-        return Customer.builder().firstName(fn).lastName(ln).phone(phone).email(email).notes(notes).build();
+        return Customer.builder().salonId(DEFAULT_SALON_ID).firstName(fn).lastName(ln).phone(phone).email(email).notes(notes).build();
     }
 
     private void seedWorkingHours(List<Staff> staff) {
@@ -152,6 +155,7 @@ public class DevDataSeeder implements CommandLineRunner {
             for (DayOfWeek dow : DayOfWeek.values()) {
                 boolean dayOff = (dow == DayOfWeek.SUNDAY);
                 all.add(WorkingHours.builder()
+                        .salonId(DEFAULT_SALON_ID)
                         .staffId(staffId).dayOfWeek(dow)
                         .startTime(LocalTime.of(9, 0))
                         .endTime(LocalTime.of(18, 0))
@@ -212,6 +216,7 @@ public class DevDataSeeder implements CommandLineRunner {
         BigDecimal bp = new BigDecimal(price);
         LocalDateTime now = LocalDateTime.now();
         Appointment a = Appointment.builder()
+                .salonId(DEFAULT_SALON_ID)
                 .customerName(customerName)
                 .customerPhone(customerPhone)
                 .staffId(staffId)

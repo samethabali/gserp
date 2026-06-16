@@ -10,6 +10,7 @@ import com.gserp.service.CampaignService.CouponValidationResult;
 import com.gserp.repository.AppointmentRepository;
 import com.gserp.repository.ServiceDefinitionRepository;
 import com.gserp.repository.StaffRepository;
+import com.gserp.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -37,6 +38,7 @@ public class AppointmentService {
     private final ResourceLockService resourceLockService;
     private final AuditService auditService;
     private final NotificationService notificationService;
+    private final com.gserp.notification.whatsapp.WhatsAppNotificationService whatsAppNotificationService;
 
     /**
      * Create appointment(s). If numberOfSessions > 1, creates multiple weekly appointments.
@@ -105,11 +107,12 @@ public class AppointmentService {
 
     private AppointmentResponse createSingle(AppointmentCreateRequest req,
                                               String sessionGroupId, Integer sessionNum, Integer totalSessions) {
-        ServiceDefinition service = serviceRepository.findById(req.getServiceId())
+        Long salonId = TenantContext.requireSalonId();
+        ServiceDefinition service = serviceRepository.findByIdAndSalonId(req.getServiceId(), salonId)
                 .orElseThrow(() -> new IllegalArgumentException("Hizmet bulunamadı: " + req.getServiceId()));
         LocalDateTime endTime = req.getStartTime().plusMinutes(service.getDurationMinutes());
 
-        Staff staff = staffRepository.findById(req.getStaffId())
+        Staff staff = staffRepository.findByIdAndSalonId(req.getStaffId(), salonId)
                 .orElseThrow(() -> new IllegalArgumentException("Uzman bulunamadı: " + req.getStaffId()));
 
         if (!schedulerService.isWithinWorkingHours(req.getStaffId(), req.getStartTime(), endTime)) {
@@ -127,7 +130,8 @@ public class AppointmentService {
 
     private AppointmentResponse createSingleForced(AppointmentCreateRequest req,
                                                      String sessionGroupId, Integer sessionNum, Integer totalSessions) {
-        ServiceDefinition service = serviceRepository.findById(req.getServiceId())
+        Long salonId = TenantContext.requireSalonId();
+        ServiceDefinition service = serviceRepository.findByIdAndSalonId(req.getServiceId(), salonId)
                 .orElseThrow(() -> new IllegalArgumentException("Hizmet bulunamadı: " + req.getServiceId()));
         LocalDateTime endTime = req.getStartTime().plusMinutes(service.getDurationMinutes());
 
@@ -148,7 +152,9 @@ public class AppointmentService {
                 : basePrice.add(adjustment);
 
         LocalDateTime now = LocalDateTime.now();
+        Long salonId = TenantContext.requireSalonId();
         Appointment appointment = Appointment.builder()
+                .salonId(salonId)
                 .customerName(req.getCustomerName())
                 .customerPhone(req.getCustomerPhone() != null ? req.getCustomerPhone() : "")
                 .staffId(req.getStaffId())
@@ -210,11 +216,12 @@ public class AppointmentService {
     public AppointmentResponse createRequest(AppointmentCreateRequest req,
                                              CouponValidationResult coupon,
                                              BigDecimal loyaltyDiscountPct) {
-        ServiceDefinition service = serviceRepository.findById(req.getServiceId())
+        Long salonId = TenantContext.requireSalonId();
+        ServiceDefinition service = serviceRepository.findByIdAndSalonId(req.getServiceId(), salonId)
                 .orElseThrow(() -> new IllegalArgumentException("Hizmet bulunamadı: " + req.getServiceId()));
         LocalDateTime endTime = req.getStartTime().plusMinutes(service.getDurationMinutes());
 
-        Staff staff = staffRepository.findById(req.getStaffId())
+        Staff staff = staffRepository.findByIdAndSalonId(req.getStaffId(), salonId)
                 .orElseThrow(() -> new IllegalArgumentException("Uzman bulunamadı: " + req.getStaffId()));
 
         if (!schedulerService.isWithinWorkingHours(req.getStaffId(), req.getStartTime(), endTime)) {
@@ -253,6 +260,7 @@ public class AppointmentService {
 
         LocalDateTime now = LocalDateTime.now();
         Appointment appointment = Appointment.builder()
+                .salonId(salonId)
                 .customerName(req.getCustomerName())
                 .customerPhone(req.getCustomerPhone() != null ? req.getCustomerPhone() : "")
                 .staffId(req.getStaffId())
@@ -279,6 +287,7 @@ public class AppointmentService {
         AppointmentResponse response = toResponse(saved);
         notificationService.broadcastAppointmentChange("CREATE", response);
         notificationService.broadcastDashboardRefresh();
+        whatsAppNotificationService.onRequestReceived(response);
 
         return response;
     }
@@ -288,20 +297,21 @@ public class AppointmentService {
      */
     @Transactional
     public AppointmentResponse move(AppointmentMoveRequest req) {
-        Appointment appointment = appointmentRepository.findById(req.getAppointmentId())
+        Long salonId = TenantContext.requireSalonId();
+        Appointment appointment = appointmentRepository.findByIdAndSalonId(req.getAppointmentId(), salonId)
                 .orElseThrow(() -> new IllegalArgumentException("Randevu bulunamadı: " + req.getAppointmentId()));
 
         if (appointment.getVersion() != req.getVersion()) {
             throw new ConflictException("Bu randevu başka birisi tarafından güncellendi. Lütfen sayfayı yenileyip tekrar deneyin.");
         }
 
-        ServiceDefinition service = serviceRepository.findById(appointment.getServiceId())
+        ServiceDefinition service = serviceRepository.findByIdAndSalonId(appointment.getServiceId(), salonId)
                 .orElseThrow(() -> new IllegalArgumentException("Hizmet bulunamadı"));
 
         Long newStaffId = req.getNewStaffId() != null ? req.getNewStaffId() : appointment.getStaffId();
         LocalDateTime newEnd = req.getNewStartTime().plusMinutes(service.getDurationMinutes());
 
-        Staff newStaff = staffRepository.findById(newStaffId)
+        Staff newStaff = staffRepository.findByIdAndSalonId(newStaffId, salonId)
                 .orElseThrow(() -> new IllegalArgumentException("Uzman bulunamadı"));
 
         if (!schedulerService.isWithinWorkingHours(newStaffId, req.getNewStartTime(), newEnd)) {
@@ -315,7 +325,7 @@ public class AppointmentService {
         List<Long> lockedResources = resourceLockService.validateAndLock(service, req.getNewStartTime(), newEnd, appointment.getId());
 
         String oldState = String.format("%s %s-%s",
-                staffRepository.findById(appointment.getStaffId()).map(Staff::getName).orElse("?"),
+                staffRepository.findByIdAndSalonId(appointment.getStaffId(), salonId).map(Staff::getName).orElse("?"),
                 appointment.getStartTime().toLocalTime(), appointment.getEndTime().toLocalTime());
 
         appointment.setStaffId(newStaffId);
@@ -344,7 +354,8 @@ public class AppointmentService {
      */
     @Transactional
     public AppointmentResponse changeStatus(Long id, AppointmentStatus newStatus, String reason) {
-        Appointment appointment = appointmentRepository.findById(id)
+        Long salonId = TenantContext.requireSalonId();
+        Appointment appointment = appointmentRepository.findByIdAndSalonId(id, salonId)
                 .orElseThrow(() -> new IllegalArgumentException("Randevu bulunamadı: " + id));
 
         String oldStatus = appointment.getStatus().name();
@@ -362,6 +373,12 @@ public class AppointmentService {
         notificationService.broadcastAppointmentChange("STATUS_CHANGE", response);
         notificationService.broadcastDashboardRefresh();
 
+        if (newStatus == AppointmentStatus.SCHEDULED && AppointmentStatus.valueOf(oldStatus) == AppointmentStatus.PENDING_APPROVAL) {
+            whatsAppNotificationService.onApproved(response);
+        } else if (newStatus == AppointmentStatus.CANCELLED) {
+            whatsAppNotificationService.onCancelled(response, reason);
+        }
+
         return response;
     }
 
@@ -370,7 +387,8 @@ public class AppointmentService {
      */
     @Transactional
     public AppointmentResponse update(Long id, AppointmentCreateRequest req) {
-        Appointment appointment = appointmentRepository.findById(id)
+        Long salonId = TenantContext.requireSalonId();
+        Appointment appointment = appointmentRepository.findByIdAndSalonId(id, salonId)
                 .orElseThrow(() -> new IllegalArgumentException("Randevu bulunamadı: " + id));
 
         if (req.getCustomerName() != null) appointment.setCustomerName(req.getCustomerName());
@@ -379,7 +397,7 @@ public class AppointmentService {
         if (req.getStaffId() != null) appointment.setStaffId(req.getStaffId());
         if (req.getServiceId() != null) {
             appointment.setServiceId(req.getServiceId());
-            ServiceDefinition service = serviceRepository.findById(req.getServiceId()).orElse(null);
+            ServiceDefinition service = serviceRepository.findByIdAndSalonId(req.getServiceId(), salonId).orElse(null);
             if (service != null && req.getStartTime() != null) {
                 appointment.setEndTime(req.getStartTime().plusMinutes(service.getDurationMinutes()));
                 appointment.setBasePrice(service.getBasePrice());
@@ -388,7 +406,7 @@ public class AppointmentService {
         if (req.getStartTime() != null) {
             appointment.setStartTime(req.getStartTime());
             if (appointment.getServiceId() != null) {
-                ServiceDefinition svc = serviceRepository.findById(appointment.getServiceId()).orElse(null);
+                ServiceDefinition svc = serviceRepository.findByIdAndSalonId(appointment.getServiceId(), salonId).orElse(null);
                 if (svc != null) {
                     appointment.setEndTime(req.getStartTime().plusMinutes(svc.getDurationMinutes()));
                 }
@@ -431,7 +449,8 @@ public class AppointmentService {
 
     @Transactional
     public void delete(Long id) {
-        Appointment appointment = appointmentRepository.findById(id)
+        Long salonId = TenantContext.requireSalonId();
+        Appointment appointment = appointmentRepository.findByIdAndSalonId(id, salonId)
                 .orElseThrow(() -> new IllegalArgumentException("Randevu bulunamadı: " + id));
 
         auditService.log(AuditAction.DELETE, "APPOINTMENT", id,
@@ -444,16 +463,31 @@ public class AppointmentService {
         notificationService.broadcastDashboardRefresh();
     }
 
+    public Appointment getEntity(Long id) {
+        return appointmentRepository.findByIdAndSalonId(id, TenantContext.requireSalonId())
+                .orElseThrow(() -> new IllegalArgumentException("Randevu bulunamadı: " + id));
+    }
+
     public List<AppointmentResponse> getByDate(LocalDate date) {
-        return appointmentRepository.findByStartTimeBetween(
-                        date.atStartOfDay(), date.plusDays(1).atStartOfDay()).stream()
+        return getByDate(date, null);
+    }
+
+    public List<AppointmentResponse> getByDate(LocalDate date, Long staffIdFilter) {
+        Long salonId = TenantContext.requireSalonId();
+        LocalDateTime start = date.atStartOfDay();
+        LocalDateTime end = date.plusDays(1).atStartOfDay();
+        List<Appointment> appointments = staffIdFilter != null
+                ? appointmentRepository.findBySalonIdAndStaffIdAndStartTimeBetween(salonId, staffIdFilter, start, end)
+                : appointmentRepository.findBySalonIdAndStartTimeBetween(salonId, start, end);
+        return appointments.stream()
                 .sorted((a, b) -> a.getStartTime().compareTo(b.getStartTime()))
                 .map(this::toResponse)
                 .toList();
     }
 
     public List<AppointmentResponse> getAll() {
-        return appointmentRepository.findAll().stream()
+        Long salonId = TenantContext.requireSalonId();
+        return appointmentRepository.findBySalonId(salonId).stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -462,18 +496,25 @@ public class AppointmentService {
      * Find appointments by customer phone (for history).
      */
     public List<AppointmentResponse> findByCustomerPhone(String phone) {
-        return appointmentRepository.findByCustomerPhoneOrderByStartTimeDesc(phone).stream()
+        Long salonId = TenantContext.requireSalonId();
+        return appointmentRepository.findBySalonIdAndCustomerPhoneOrderByStartTimeDesc(salonId, phone).stream()
                 .limit(10)
                 .map(this::toResponse)
                 .toList();
     }
 
     public AppointmentResponse toResponse(Appointment a) {
-        Staff staff = staffRepository.findById(a.getStaffId()).orElse(null);
-        ServiceDefinition service = serviceRepository.findById(a.getServiceId()).orElse(null);
+        Long salonId = a.getSalonId() != null ? a.getSalonId() : TenantContext.getSalonId();
+        Staff staff = salonId != null
+                ? staffRepository.findByIdAndSalonId(a.getStaffId(), salonId).orElse(null)
+                : staffRepository.findById(a.getStaffId()).orElse(null);
+        ServiceDefinition service = salonId != null
+                ? serviceRepository.findByIdAndSalonId(a.getServiceId(), salonId).orElse(null)
+                : serviceRepository.findById(a.getServiceId()).orElse(null);
 
         return AppointmentResponse.builder()
                 .id(a.getId())
+                .salonId(a.getSalonId())
                 .customerName(a.getCustomerName())
                 .customerPhone(a.getCustomerPhone())
                 .staffId(a.getStaffId())

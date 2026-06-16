@@ -46,6 +46,11 @@
 
         <button id="registerBtn" class="btn btn-primary" style="width:100%;margin-top:8px;">Kayıt Ol</button>
 
+        <label style="display:flex;gap:8px;align-items:flex-start;margin-top:14px;font-size:0.82rem;color:var(--color-text-muted);">
+            <input type="checkbox" id="kvkkConsent" required style="margin-top:3px;">
+            <span><a href="/privacy" target="_blank">KVKK aydınlatma metnini</a> okudum ve kabul ediyorum.</span>
+        </label>
+
         <p style="text-align:center;margin-top:16px;color:var(--color-text-muted);font-size:0.9rem;">
             Zaten hesabınız var mı?
             <a href="/customer/login" style="color:var(--color-accent);">Giriş Yapın</a>
@@ -69,6 +74,11 @@
 
         if (!payload.firstName || !payload.email || !payload.password) {
             errorMsg.textContent = '⚠️ Ad, e-posta ve parola zorunludur';
+            errorMsg.style.display = 'block';
+            return;
+        }
+        if (!document.getElementById('kvkkConsent').checked) {
+            errorMsg.textContent = '⚠️ KVKK onayı zorunludur';
             errorMsg.style.display = 'block';
             return;
         }

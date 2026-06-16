@@ -1,11 +1,14 @@
 package com.gserp.controller;
 
+import com.gserp.dto.request.ExpenseCreateRequest;
 import com.gserp.dto.response.ApiResponse;
 import com.gserp.model.Expense;
 import com.gserp.service.ExpenseService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -16,6 +19,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/expenses")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('ADMIN','RECEPTIONIST')")
 public class ExpenseController {
 
     private final ExpenseService expenseService;
@@ -39,13 +43,25 @@ public class ExpenseController {
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse<Expense>> create(@RequestBody Expense expense) {
+    public ResponseEntity<ApiResponse<Expense>> create(@Valid @RequestBody ExpenseCreateRequest request) {
+        Expense expense = Expense.builder()
+                .description(request.getDescription())
+                .amount(request.getAmount())
+                .expenseDate(request.getExpenseDate())
+                .category(request.getCategory())
+                .build();
         return ResponseEntity.ok(ApiResponse.ok("Gider eklendi", expenseService.create(expense)));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<Expense>> update(
-            @PathVariable Long id, @RequestBody Expense expense) {
+            @PathVariable Long id, @Valid @RequestBody ExpenseCreateRequest request) {
+        Expense expense = Expense.builder()
+                .description(request.getDescription())
+                .amount(request.getAmount())
+                .expenseDate(request.getExpenseDate())
+                .category(request.getCategory())
+                .build();
         return ResponseEntity.ok(ApiResponse.ok("Gider güncellendi", expenseService.update(id, expense)));
     }
 

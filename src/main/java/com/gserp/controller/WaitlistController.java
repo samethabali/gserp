@@ -5,6 +5,7 @@ import com.gserp.model.WaitlistEntry;
 import com.gserp.service.WaitlistService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -12,6 +13,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/waitlist")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('ADMIN','RECEPTIONIST')")
 public class WaitlistController {
 
     private final WaitlistService waitlistService;

@@ -16,23 +16,7 @@
             <div class="brand-icon">💅</div>
             <div><h1>GSERP</h1><span class="brand-sub">Salon Yönetim Sistemi</span></div>
         </div>
-        <nav class="sidebar-nav">
-            <span class="nav-section-title">Ana Menü</span>
-            <a href="/" class="nav-item"><span class="nav-icon">📅</span> Takvim</a>
-            <a href="/dashboard" class="nav-item"><span class="nav-icon">📊</span> Dashboard</a>
-            <span class="nav-section-title">Yönetim</span>
-
-            <a href="/services" class="nav-item"><span class="nav-icon">💇</span> Hizmetler</a>
-            <a href="/staff" class="nav-item"><span class="nav-icon">👩‍💼</span> Personel</a>
-            <a href="/resources" class="nav-item"><span class="nav-icon">🏠</span> Kaynaklar</a>
-            <a href="/expenses" class="nav-item"><span class="nav-icon">💸</span> Masraflar</a>
-            <a href="/products" class="nav-item"><span class="nav-icon">📦</span> Ürünler</a>
-            <a href="/customers" class="nav-item"><span class="nav-icon">👥</span> Müşteriler</a>
-            <a href="/campaigns" class="nav-item"><span class="nav-icon">🎁</span> Kampanyalar</a>
-            <span class="nav-section-title">Sistem</span>
-            <a href="/booking" class="nav-item" target="_blank"><span class="nav-icon">🔗</span> Booking Sayfası</a>
-            <a href="/audit" class="nav-item active"><span class="nav-icon">📋</span> İşlem Kütüğü</a>
-        </nav>
+        <nav th:replace="~{fragments/sidebar-nav :: nav('audit')}"></nav>
     </aside>
 
     <main class="main-content">

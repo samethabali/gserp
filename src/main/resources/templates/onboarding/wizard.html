@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GSERP — Kayıt</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body style="display:flex;align-items:center;justify-content:center;min-height:100vh;">
+<div style="max-width:480px;width:100%;padding:24px;">
+    <h1>Salon Kaydı</h1>
+    <p style="color:var(--text-muted);">14 günlük deneme ile başlayın.</p>
+    <form id="registerForm" style="display:grid;gap:12px;margin-top:16px;">
+        <input type="text" id="orgName" placeholder="Organizasyon / işletme adı" required>
+        <input type="text" id="salonName" placeholder="Salon adı" required>
+        <input type="text" id="salonSlug" placeholder="Subdomain slug" required>
+        <input type="email" id="contactEmail" placeholder="İletişim e-posta">
+        <input type="text" id="adminUser" placeholder="Yönetici kullanıcı adı" required>
+        <input type="password" id="adminPass" placeholder="Şifre (min 8)" required minlength="8">
+        <button type="submit" class="btn btn-primary">Kayıt Ol</button>
+    </form>
+    <p id="result" style="margin-top:16px;"></p>
+</div>
+<script>
+document.getElementById('registerForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const body = {
+        organizationName: document.getElementById('orgName').value,
+        salonName: document.getElementById('salonName').value,
+        salonSlug: document.getElementById('salonSlug').value.trim().toLowerCase(),
+        contactEmail: document.getElementById('contactEmail').value,
+        adminUsername: document.getElementById('adminUser').value,
+        adminPassword: document.getElementById('adminPass').value
+    };
+    const res = await fetch('/api/onboarding/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    });
+    const json = await res.json();
+    const el = document.getElementById('result');
+    if (json.success) {
+        el.innerHTML = `Kayıt tamam! Salon: <strong>${json.data.salonSlug}</strong>. <a href="/login">Giriş yap</a>`;
+    } else {
+        el.textContent = json.message || 'Kayıt başarısız';
+    }
+});
+</script>
+</body>
+</html>

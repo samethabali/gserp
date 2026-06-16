@@ -1,5 +1,6 @@
 package com.gserp.model;
 
+import com.gserp.tenant.TenantEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -13,10 +14,13 @@ import java.time.LocalDateTime;
         @Index(name = "idx_product_sale_customer", columnList = "customer_id")
 })
 @Data @Builder @NoArgsConstructor @AllArgsConstructor
-public class ProductSale {
+public class ProductSale implements TenantEntity {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "salon_id", nullable = false)
+    private Long salonId;
 
     @Column(name = "product_id", nullable = false)
     private Long productId;

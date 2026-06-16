@@ -36,8 +36,8 @@
 <div class="booking-card animate-fade-in">
     <!-- Başlık -->
     <div style="text-align:center;margin-bottom:28px;">
-        <div style="font-size:2.5rem;margin-bottom:8px;">💅</div>
-        <h1 style="font-size:1.5rem;font-weight:700;background:linear-gradient(135deg,var(--color-primary-light),var(--color-secondary));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Online Randevu</h1>
+        <div id="bookingLogo" style="font-size:2.5rem;margin-bottom:8px;">💅</div>
+        <h1 id="bookingTitle" style="font-size:1.5rem;font-weight:700;background:linear-gradient(135deg,var(--color-primary-light),var(--color-secondary));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Online Randevu</h1>
         <p style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">Randevunuzu kolayca oluşturun</p>
     </div>
 
@@ -104,6 +104,10 @@
             </div>
             <!-- Özet -->
             <div id="bookSummary" style="background:var(--bg-card);border:1px solid var(--border-glass);border-radius:var(--radius-md);padding:14px;margin-top:8px;font-size:0.85rem;line-height:1.8;"></div>
+            <label style="display:flex;gap:8px;align-items:flex-start;margin-top:12px;font-size:0.82rem;color:var(--text-muted);">
+                <input type="checkbox" id="bookKvkk" required style="margin-top:3px;">
+                <span><a href="/privacy" target="_blank">KVKK aydınlatma metnini</a> okudum, kişisel verilerimin işlenmesini kabul ediyorum.</span>
+            </label>
             <div style="margin-top:20px;display:flex;justify-content:space-between;">
                 <button class="btn btn-secondary" onclick="goStep(3)">← Geri</button>
                 <button class="btn btn-primary" onclick="submitBooking()">✅ Randevu Oluştur</button>
@@ -114,7 +118,7 @@
         <div class="step" id="step5">
             <div class="success-box">
                 <div style="font-size:4rem;margin-bottom:16px;">✅</div>
-                <h2 style="font-size:1.3rem;font-weight:700;color:var(--color-success);margin-bottom:8px;">Randevunuz Alındı!</h2>
+                <h2 style="font-size:1.3rem;font-weight:700;color:var(--color-success);margin-bottom:8px;">İsteğiniz Alındı!</h2>
                 <div id="confirmDetails" style="color:var(--text-secondary);font-size:0.9rem;line-height:1.8;"></div>
                 <button class="btn btn-secondary" style="margin-top:24px;" onclick="resetBooking()">🔄 Yeni Randevu</button>
             </div>

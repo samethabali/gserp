@@ -5,11 +5,13 @@ import com.gserp.model.Coupon;
 import com.gserp.model.CouponUsage;
 import com.gserp.model.LoyaltyTier;
 import com.gserp.model.enums.AppointmentStatus;
+import com.gserp.model.enums.CouponScope;
 import com.gserp.model.enums.DiscountType;
 import com.gserp.repository.AppointmentRepository;
 import com.gserp.repository.CouponRepository;
 import com.gserp.repository.CouponUsageRepository;
 import com.gserp.repository.LoyaltyTierRepository;
+import com.gserp.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -53,6 +55,8 @@ public class CampaignService {
         Coupon coupon = couponRepository.findByCodeIgnoreCase(code)
                 .orElseThrow(() -> new IllegalArgumentException("Geçersiz kupon kodu"));
 
+        assertCouponScope(coupon);
+
         if (!coupon.isActive()) {
             throw new IllegalArgumentException("Bu kupon artık aktif değil");
         }
@@ -69,8 +73,8 @@ public class CampaignService {
         }
 
         if (coupon.getMinAppointments() > 0 && customerPhone != null) {
-            long completed = appointmentRepository.countByCustomerPhoneAndStatus(
-                    customerPhone, AppointmentStatus.COMPLETED);
+            long completed = appointmentRepository.countBySalonIdAndCustomerPhoneAndStatus(
+                    TenantContext.requireSalonId(), customerPhone, AppointmentStatus.COMPLETED);
             if (completed < coupon.getMinAppointments()) {
                 throw new ConflictException("Bu kuponu kullanmak için en az "
                         + coupon.getMinAppointments() + " tamamlanan randevunuz olmalı");
@@ -102,8 +106,8 @@ public class CampaignService {
      */
     public Optional<LoyaltyTier> getApplicableTier(String customerPhone) {
         if (customerPhone == null || customerPhone.isBlank()) return Optional.empty();
-        long completed = appointmentRepository.countByCustomerPhoneAndStatus(
-                customerPhone, AppointmentStatus.COMPLETED);
+        long completed = appointmentRepository.countBySalonIdAndCustomerPhoneAndStatus(
+                TenantContext.requireSalonId(), customerPhone, AppointmentStatus.COMPLETED);
         return loyaltyTierRepository.findByActiveTrueOrderByMinCompletedDesc()
                 .stream()
                 .filter(t -> completed >= t.getMinCompleted())
@@ -115,7 +119,8 @@ public class CampaignService {
      */
     public LoyaltyInfo getLoyaltyInfo(String customerPhone) {
         long completed = customerPhone != null
-                ? appointmentRepository.countByCustomerPhoneAndStatus(customerPhone, AppointmentStatus.COMPLETED)
+                ? appointmentRepository.countBySalonIdAndCustomerPhoneAndStatus(
+                        TenantContext.requireSalonId(), customerPhone, AppointmentStatus.COMPLETED)
                 : 0;
 
         List<LoyaltyTier> tiers = loyaltyTierRepository.findByActiveTrueOrderByMinCompletedDesc();
@@ -196,5 +201,24 @@ public class CampaignService {
 
     public List<LoyaltyTier> getAllTiers() {
         return loyaltyTierRepository.findByActiveTrueOrderByMinCompletedDesc();
+    }
+
+    private void assertCouponScope(Coupon coupon) {
+        Long salonId = TenantContext.requireSalonId();
+        Long orgId = TenantContext.getOrgId();
+        CouponScope scope = CouponScope.valueOf(coupon.getScope() != null ? coupon.getScope() : "SALON");
+        switch (scope) {
+            case SALON -> {
+                if (!salonId.equals(coupon.getSalonId())) {
+                    throw new IllegalArgumentException("Bu kupon bu şubede geçerli değil");
+                }
+            }
+            case ORG -> {
+                if (orgId == null || coupon.getOrganizationId() == null || !orgId.equals(coupon.getOrganizationId())) {
+                    throw new IllegalArgumentException("Bu kupon bu organizasyonda geçerli değil");
+                }
+            }
+            case GLOBAL -> { /* platform-wide */ }
+        }
     }
 }

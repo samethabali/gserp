@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<body>
+<nav th:fragment="nav(active)" class="sidebar-nav">
+    <span class="nav-section-title">Ana Menü</span>
+    <a href="/" class="nav-item" th:classappend="${active == 'calendar'} ? ' active' : ''"><span class="nav-icon">📅</span> Takvim</a>
+    <a href="/dashboard" class="nav-item" th:classappend="${active == 'dashboard'} ? ' active' : ''"><span class="nav-icon">📊</span> Dashboard</a>
+    <span class="nav-section-title" sec:authorize="hasAnyRole('ORG_OWNER','PLATFORM_ADMIN')">Organizasyon</span>
+    <a href="/org/dashboard" class="nav-item" sec:authorize="hasAnyRole('ORG_OWNER','PLATFORM_ADMIN')" th:classappend="${active == 'org'} ? ' active' : ''"><span class="nav-icon">🏢</span> Org Özeti</a>
+    <span class="nav-section-title" sec:authorize="hasRole('PLATFORM_ADMIN')">Platform</span>
+    <a href="/platform/tenants" class="nav-item" sec:authorize="hasRole('PLATFORM_ADMIN')" th:classappend="${active == 'platform'} ? ' active' : ''"><span class="nav-icon">🌐</span> Tenants</a>
+    <span class="nav-section-title">Yönetim</span>
+    <a href="/services" class="nav-item" sec:authorize="hasAnyRole('ADMIN','BRANCH_MANAGER','RECEPTIONIST')" th:classappend="${active == 'services'} ? ' active' : ''"><span class="nav-icon">💇</span> Hizmetler</a>
+    <a href="/staff" class="nav-item" sec:authorize="hasAnyRole('ADMIN','BRANCH_MANAGER','RECEPTIONIST')" th:classappend="${active == 'staff'} ? ' active' : ''"><span class="nav-icon">👩‍💼</span> Personel</a>
+    <a href="/resources" class="nav-item" sec:authorize="hasAnyRole('ADMIN','BRANCH_MANAGER','RECEPTIONIST')" th:classappend="${active == 'resources'} ? ' active' : ''"><span class="nav-icon">🏠</span> Kaynaklar</a>
+    <a href="/expenses" class="nav-item" sec:authorize="hasAnyRole('ADMIN','BRANCH_MANAGER','RECEPTIONIST')" th:classappend="${active == 'expenses'} ? ' active' : ''"><span class="nav-icon">💸</span> Masraflar</a>
+    <a href="/products" class="nav-item" sec:authorize="hasAnyRole('ADMIN','BRANCH_MANAGER','RECEPTIONIST')" th:classappend="${active == 'products'} ? ' active' : ''"><span class="nav-icon">📦</span> Ürünler</a>
+    <a href="/customers" class="nav-item" sec:authorize="hasAnyRole('ADMIN','BRANCH_MANAGER','RECEPTIONIST')" th:classappend="${active == 'customers'} ? ' active' : ''"><span class="nav-icon">👥</span> Müşteriler</a>
+    <a href="/campaigns" class="nav-item" sec:authorize="hasAnyRole('ADMIN','BRANCH_MANAGER','RECEPTIONIST')" th:classappend="${active == 'campaigns'} ? ' active' : ''"><span class="nav-icon">🎁</span> Kampanyalar</a>
+    <span class="nav-section-title" sec:authorize="hasAnyRole('ADMIN','BRANCH_MANAGER')">Yönetim Paneli</span>
+    <a href="/settings" class="nav-item" sec:authorize="hasAnyRole('ADMIN','BRANCH_MANAGER')" th:classappend="${active == 'settings'} ? ' active' : ''"><span class="nav-icon">⚙️</span> Salon Ayarları</a>
+    <span class="nav-section-title" sec:authorize="hasAnyRole('ADMIN','BRANCH_MANAGER','RECEPTIONIST')">Sistem</span>
+    <a href="/booking" class="nav-item" target="_blank" sec:authorize="hasAnyRole('ADMIN','BRANCH_MANAGER','RECEPTIONIST')"><span class="nav-icon">🔗</span> Booking Sayfası</a>
+    <a href="/audit" class="nav-item" sec:authorize="hasAnyRole('ADMIN','BRANCH_MANAGER')" th:classappend="${active == 'audit'} ? ' active' : ''"><span class="nav-icon">📋</span> İşlem Kütüğü</a>
+    <a href="/users" class="nav-item" sec:authorize="hasAnyRole('ADMIN','BRANCH_MANAGER')" th:classappend="${active == 'users'} ? ' active' : ''"><span class="nav-icon">🔐</span> Kullanıcılar</a>
+</nav>
+</body>
+</html>

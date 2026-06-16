@@ -6,6 +6,7 @@ import com.gserp.model.enums.ServiceCategory;
 import com.gserp.model.enums.StaffRole;
 import com.gserp.repository.StaffRepository;
 import com.gserp.repository.WorkingHoursRepository;
+import com.gserp.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,7 +31,7 @@ public class StaffService {
     }
 
     public List<Staff> getActiveSpecialists() {
-        return staffRepository.findByActiveTrueAndRole(StaffRole.SPECIALIST);
+        return staffRepository.findBySalonIdAndActiveTrueAndRole(TenantContext.requireSalonId(), StaffRole.SPECIALIST);
     }
 
     public Optional<Staff> getById(Long id) {
@@ -71,7 +72,7 @@ public class StaffService {
     }
 
     public List<Staff> getBySpecialization(ServiceCategory category) {
-        return staffRepository.findActiveBySpecialization(category);
+        return staffRepository.findActiveBySalonIdAndSpecialization(TenantContext.requireSalonId(), category);
     }
 
     public List<WorkingHours> getWorkingHours(Long staffId) {

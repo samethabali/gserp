@@ -206,6 +206,32 @@ server {
     # Body boyutu (Spring Boot multipart default 1MB — istersen büyüt)
     client_max_body_size 10M;
 
+    # Public booking rate limit (nginx ikinci katman — uygulama içi BookingRateLimitFilter ile birlikte)
+    limit_req_zone $binary_remote_addr zone=booking_api:10m rate=10r/m;
+    limit_req_zone $binary_remote_addr zone=booking_get:10m rate=60r/m;
+
+    location /api/booking/request {
+        limit_req zone=booking_api burst=5 nodelay;
+        proxy_pass http://gserp_app;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+    }
+
+    location /api/booking/ {
+        limit_req zone=booking_get burst=20 nodelay;
+        proxy_pass http://gserp_app;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+    }
+
     # ───────── REST + sayfa trafiği ─────────
     location / {
         proxy_pass http://gserp_app;
@@ -430,3 +456,25 @@ docker compose logs --tail 200 app
 | Flyway "validation failed" | Migration dosyası deploy sonrası değişti | **Asla** üretimde uygulanmış migration'ı değiştirme; yeni V3, V4… ekle |
 | CORS hatası | `APP_CORS_ALLOWED_ORIGINS` domain'le eşleşmiyor | `.env`'i düzelt, `docker compose up -d` ile restart |
 | 5432 hostta dinleniyor | Yanlışlıkla docker-compose.dev.yml deploy edildi | Sadece `docker-compose.yml` (prod) kullan |
+
+---
+
+## 13. Multi-Tenant SaaS (wildcard subdomain)
+
+Tek `gserp-app` instance, shared PostgreSQL. Tenant `{slug}.gserp.avesitesi.xyz` ile çözülür.
+
+Detaylı nginx config: [`docs/saas/nginx-wildcard.md`](saas/nginx-wildcard.md)
+
+```bash
+# DNS
+*.gserp.avesitesi.xyz  →  VPS IP
+
+# Deploy (image_transfer önerilir — bkz. MCP deploy_kurallari.yaml)
+docker compose up -d --build
+
+# Smoke test
+curl -H "X-Salon-Slug: default" https://gserp.avesitesi.xyz/api/booking/services
+curl https://gserp.avesitesi.xyz/actuator/health
+```
+
+DR: [`docs/saas/dr-playbook.md`](saas/dr-playbook.md)

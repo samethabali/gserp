@@ -4,10 +4,11 @@ import com.gserp.dto.response.ApiResponse;
 import com.gserp.dto.response.DailyTrendDto;
 import com.gserp.dto.response.DashboardResponse;
 import com.gserp.service.DashboardService;
-import com.gserp.service.SessionReminderService;
+import com.gserp.service.AppointmentReminderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -17,10 +18,11 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/dashboard")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('ADMIN','RECEPTIONIST','SPECIALIST')")
 public class DashboardController {
 
     private final DashboardService dashboardService;
-    private final SessionReminderService sessionReminderService;
+    private final AppointmentReminderService appointmentReminderService;
 
     @GetMapping("/today")
     public ResponseEntity<ApiResponse<DashboardResponse>> getToday() {
@@ -37,7 +39,7 @@ public class DashboardController {
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getSessionProgress(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         return ResponseEntity.ok(ApiResponse.ok(
-                sessionReminderService.getActiveSessionProgress(date != null ? date : LocalDate.now())));
+                appointmentReminderService.getActiveSessionProgress(date != null ? date : LocalDate.now())));
     }
 
     @GetMapping("/trend")

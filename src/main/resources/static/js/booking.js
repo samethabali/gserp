@@ -12,17 +12,54 @@ const state = {
     time:        null,
 };
 
+let bookingInfo = { whatsappEnabled: false, salonPhone: null };
+let salonBranding = { name: 'Online Randevu', logoUrl: '', primaryColor: '#e91e8c' };
+
 const CAT_LABELS = { HAIR: '💇 Saç', NAIL: '💅 Tırnak', SKIN: '🧖 Cilt', LASER: '⚡ Lazer', OTHER: '✨ Diğer' };
 
 // ─── Boot ───
 document.addEventListener('DOMContentLoaded', async () => {
-    // min tarih = bugün
     const dateInput = document.getElementById('bookDate');
     dateInput.min = todayISO();
     dateInput.value = todayISO();
 
-    await Promise.all([loadServices(), loadStaff()]);
+    await Promise.all([loadServices(), loadStaff(), loadBookingInfo(), loadSalonBranding()]);
 });
+
+async function loadBookingInfo() {
+    try {
+        const json = await fetch('/api/booking/info').then(r => r.json());
+        bookingInfo = json.data || bookingInfo;
+    } catch (_) { /* public fallback */ }
+}
+
+async function loadSalonBranding() {
+    try {
+        const json = await fetch('/api/settings/public').then(r => r.json());
+        const s = json.data || {};
+        salonBranding = { name: s.name || salonBranding.name, logoUrl: s.logoUrl || '', primaryColor: s.primaryColor || salonBranding.primaryColor };
+        applySalonBranding();
+    } catch (_) { /* defaults */ }
+}
+
+function applySalonBranding() {
+    const titleEl = document.getElementById('bookingTitle');
+    if (titleEl) titleEl.textContent = salonBranding.name;
+    if (salonBranding.primaryColor) {
+        document.documentElement.style.setProperty('--color-primary', salonBranding.primaryColor);
+    }
+    const logoEl = document.getElementById('bookingLogo');
+    if (logoEl && salonBranding.logoUrl) {
+        logoEl.innerHTML = `<img src="${salonBranding.logoUrl}" alt="" style="max-height:64px;max-width:120px;border-radius:8px;">`;
+    }
+}
+
+function buildWaMeUrl(message) {
+    const phone = bookingInfo.salonPhone;
+    if (!phone) return null;
+    const digits = phone.replace(/[^0-9]/g, '');
+    return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+}
 
 // ─── Adım navigasyonu ───
 function goStep(n) {
@@ -135,6 +172,9 @@ async function submitBooking() {
 
     if (!name)  { showToast('Ad Soyad zorunludur', 'warning'); return; }
     if (!phone) { showToast('Telefon numarası zorunludur', 'warning'); return; }
+    if (!document.getElementById('bookKvkk')?.checked) {
+        showToast('KVKK onayı zorunludur', 'warning'); return;
+    }
 
     const startTime = `${state.date}T${state.time}:00`;
 
@@ -144,6 +184,7 @@ async function submitBooking() {
         staffId:       state.staffId,
         serviceId:     state.serviceId,
         startTime:     startTime,
+        consentTypes:  ['PRIVACY'],
     };
 
     const res  = await fetch('/api/booking/request', {
@@ -154,11 +195,23 @@ async function submitBooking() {
     const json = await res.json();
 
     if (json.success) {
+        let waHtml = '';
+        if (!bookingInfo.whatsappEnabled) {
+            const msg = `Merhaba, randevu isteğim var:\n${state.serviceName}\n${state.staffName}\n${formatDate(state.date + 'T00:00:00')} ${state.time}\nRef: #${json.data?.id || '-'}`;
+            const waUrl = buildWaMeUrl(msg);
+            if (waUrl) {
+                waHtml = `<a href="${waUrl}" target="_blank" rel="noopener" class="btn btn-primary" style="margin-top:16px;display:inline-block;">💬 WhatsApp'tan Yaz</a>`;
+            }
+        }
         document.getElementById('confirmDetails').innerHTML = `
             <div>💇 ${state.serviceName}</div>
             <div>👩‍💼 ${state.staffName}</div>
             <div>📅 ${formatDate(state.date + 'T00:00:00')} — ${state.time}</div>
-            <div style="margin-top:8px;color:var(--text-muted);font-size:0.8rem;">Randevu numaranız: <strong>#${json.data?.id || '-'}</strong></div>`;
+            <div style="margin-top:12px;padding:10px;background:rgba(241,196,15,0.15);border-radius:8px;font-size:0.85rem;">
+                ⏳ Randevu isteğiniz alındı. Salon onayından sonra kesinleşecektir.
+            </div>
+            <div style="margin-top:8px;color:var(--text-muted);font-size:0.8rem;">Referans: <strong>#${json.data?.id || '-'}</strong></div>
+            ${waHtml}`;
         goStep(5);
     } else {
         showToast(json.message || 'Randevu oluşturulamadı', 'error');

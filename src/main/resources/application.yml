@@ -29,3 +29,24 @@ app:
     refresh-ttl-days: 7
   cors:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:8989}
+  whatsapp:
+    enabled: ${WHATSAPP_ENABLED:false}
+    api-url: ${WHATSAPP_API_URL:https://graph.facebook.com/v21.0}
+    token: ${WHATSAPP_TOKEN:}
+    phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID:}
+    business-account-id: ${WHATSAPP_BUSINESS_ACCOUNT_ID:}
+    salon-phone-e164: ${WHATSAPP_SALON_PHONE:}
+    webhook-verify-token: ${WHATSAPP_WEBHOOK_VERIFY_TOKEN:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  metrics:
+    tags:
+      application: gserp
+  prometheus:
+    metrics:
+      export:
+        enabled: true

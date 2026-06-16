@@ -1,6 +1,7 @@
 package com.gserp.model;
 
 import com.gserp.model.enums.ExpenseCategory;
+import com.gserp.tenant.TenantEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -11,10 +12,13 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "expense", indexes = @Index(name = "idx_expense_date", columnList = "expense_date"))
 @Data @Builder @NoArgsConstructor @AllArgsConstructor
-public class Expense {
+public class Expense implements TenantEntity {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "salon_id", nullable = false)
+    private Long salonId;
 
     @Column(nullable = false)
     private String description;
