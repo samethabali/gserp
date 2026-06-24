@@ -60,12 +60,18 @@ mvn spring-boot:run
 |-------|-----|
 | **Giriş** | http://localhost:8989 |
 | **Randevu Sistemi** | http://localhost:8989/booking |
+| **Demo rehberi** | [docs/DEMO.md](docs/DEMO.md) |
 
-**Giriş bilgileri:**
+**Giriş bilgileri (dev mock veri — V7):**
 
 | Kullanıcı | Şifre | Rol |
 |-----------|-------|-----|
-| `admin` | `admin` | Admin |
+| `admin` | `admin` | Yönetici (BRANCH_MANAGER) |
+| `merve` | `admin` | Resepsiyon |
+| `ayse` | `admin` | Uzman |
+| `fatma` | `admin` | Uzman |
+
+Arkadaşlarla demo akışı için: [docs/DEMO.md](docs/DEMO.md)
 
 ---
 

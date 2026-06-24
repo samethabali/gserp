@@ -211,16 +211,16 @@ INSERT INTO working_hours (staff_id, day_of_week, start_time, end_time, day_off)
 SELECT id, 'SUNDAY',    NULL,    NULL,    true  FROM staff WHERE name = 'Elif Çelik';
 
 -- ============================================================
--- 8. KULLANICILAR (BCrypt hash: "admin123")
+-- 8. KULLANICILAR (BCrypt hash: "admin" — demo girişi ile uyumlu)
 -- ============================================================
 INSERT INTO users (username, password_hash, role, staff_id, enabled, created_at) VALUES
-    ('admin',    '$2a$10$xn3LI/AjqicFYZFruSwve.681477XaVNaUQbr1gioaWPn4t1KsnmG', 'ADMIN',
+    ('admin',    '$2b$10$Wp.klXzKqqMEYZZyHREduen3D/sIwYS2UxyLt8McfBuc88jmLTKhG', 'ADMIN',
      (SELECT id FROM staff WHERE name = 'Ahmet Öztürk'), true, NOW() - INTERVAL '90 days'),
-    ('merve',    '$2a$10$xn3LI/AjqicFYZFruSwve.681477XaVNaUQbr1gioaWPn4t1KsnmG', 'RECEPTIONIST',
+    ('merve',    '$2b$10$Wp.klXzKqqMEYZZyHREduen3D/sIwYS2UxyLt8McfBuc88jmLTKhG', 'RECEPTIONIST',
      (SELECT id FROM staff WHERE name = 'Merve Şahin'), true, NOW() - INTERVAL '90 days'),
-    ('ayse',     '$2a$10$xn3LI/AjqicFYZFruSwve.681477XaVNaUQbr1gioaWPn4t1KsnmG', 'SPECIALIST',
+    ('ayse',     '$2b$10$Wp.klXzKqqMEYZZyHREduen3D/sIwYS2UxyLt8McfBuc88jmLTKhG', 'SPECIALIST',
      (SELECT id FROM staff WHERE name = 'Ayşe Yılmaz'), true, NOW() - INTERVAL '90 days'),
-    ('fatma',    '$2a$10$xn3LI/AjqicFYZFruSwve.681477XaVNaUQbr1gioaWPn4t1KsnmG', 'SPECIALIST',
+    ('fatma',    '$2b$10$Wp.klXzKqqMEYZZyHREduen3D/sIwYS2UxyLt8McfBuc88jmLTKhG', 'SPECIALIST',
      (SELECT id FROM staff WHERE name = 'Fatma Demir'), true, NOW() - INTERVAL '90 days');
 
 -- ============================================================
