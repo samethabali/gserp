@@ -35,13 +35,13 @@ public class ServiceController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN')")
     public ResponseEntity<ApiResponse<ServiceDefinition>> create(@RequestBody ServiceDefinition sd) {
         return ResponseEntity.ok(ApiResponse.ok("Hizmet eklendi", serviceService.create(sd)));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN')")
     public ResponseEntity<ApiResponse<ServiceDefinition>> update(@PathVariable Long id, @RequestBody ServiceDefinition sd) {
         return ResponseEntity.ok(ApiResponse.ok("Hizmet güncellendi", serviceService.update(id, sd)));
     }

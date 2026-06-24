@@ -18,7 +18,7 @@ public class AuditController {
     private final AuditService auditService;
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN')")
     public ResponseEntity<ApiResponse<List<AuditLogEntry>>> getRecent(
             @RequestParam(defaultValue = "50") int limit) {
         return ResponseEntity.ok(ApiResponse.ok(auditService.getRecent(limit)));

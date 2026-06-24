@@ -13,7 +13,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/waitlist")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('ADMIN','RECEPTIONIST')")
+@PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN','RECEPTIONIST')")
 public class WaitlistController {
 
     private final WaitlistService waitlistService;

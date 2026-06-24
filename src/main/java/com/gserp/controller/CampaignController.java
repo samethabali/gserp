@@ -56,13 +56,13 @@ public class CampaignController {
     // ─── Admin: Kupon Yönetimi ───
 
     @GetMapping("/coupons")
-    @PreAuthorize("hasAnyRole('ADMIN','RECEPTIONIST')")
+    @PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN','RECEPTIONIST')")
     public ResponseEntity<ApiResponse<List<Coupon>>> listCoupons() {
         return ResponseEntity.ok(ApiResponse.ok(campaignService.getAllCoupons()));
     }
 
     @PostMapping("/coupons")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN')")
     public ResponseEntity<ApiResponse<Coupon>> createCoupon(@Valid @RequestBody CouponCreateRequest req) {
         Coupon coupon = Coupon.builder()
                 .code(req.code())
@@ -79,7 +79,7 @@ public class CampaignController {
     }
 
     @PutMapping("/coupons/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN')")
     public ResponseEntity<ApiResponse<Coupon>> updateCoupon(
             @PathVariable Long id,
             @RequestBody CouponCreateRequest req) {
@@ -96,7 +96,7 @@ public class CampaignController {
     }
 
     @PatchMapping("/coupons/{id}/deactivate")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deactivateCoupon(@PathVariable Long id) {
         Coupon patch = Coupon.builder().active(false).build();
         campaignService.updateCoupon(id, patch);
@@ -106,13 +106,13 @@ public class CampaignController {
     // ─── Admin: Sadakat Eşikleri ───
 
     @GetMapping("/loyalty-tiers")
-    @PreAuthorize("hasAnyRole('ADMIN','RECEPTIONIST')")
+    @PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN','RECEPTIONIST')")
     public ResponseEntity<ApiResponse<List<LoyaltyTier>>> listTiers() {
         return ResponseEntity.ok(ApiResponse.ok(campaignService.getAllTiers()));
     }
 
     @PostMapping("/loyalty-tiers")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN')")
     public ResponseEntity<ApiResponse<LoyaltyTier>> createTier(@Valid @RequestBody LoyaltyTierRequest req) {
         LoyaltyTier tier = LoyaltyTier.builder()
                 .name(req.name())
@@ -124,7 +124,7 @@ public class CampaignController {
     }
 
     @DeleteMapping("/loyalty-tiers/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deleteTier(@PathVariable Long id) {
         campaignService.deleteTier(id);
         return ResponseEntity.ok(ApiResponse.ok("Sadakat eşiği silindi", null));

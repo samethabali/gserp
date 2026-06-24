@@ -18,7 +18,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/dashboard")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('ADMIN','RECEPTIONIST','SPECIALIST')")
+@PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN','RECEPTIONIST','SPECIALIST')")
 public class DashboardController {
 
     private final DashboardService dashboardService;

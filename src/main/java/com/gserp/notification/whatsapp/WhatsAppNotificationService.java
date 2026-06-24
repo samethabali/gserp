@@ -1,6 +1,7 @@
 package com.gserp.notification.whatsapp;
 
 import com.gserp.dto.response.AppointmentResponse;
+import com.gserp.service.SalonWhatsAppService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -15,6 +16,7 @@ public class WhatsAppNotificationService {
 
     private final WhatsAppClient whatsAppClient;
     private final WhatsAppProperties properties;
+    private final SalonWhatsAppService salonWhatsAppService;
 
     public void onRequestReceived(AppointmentResponse appointment) {
         whatsAppClient.sendTemplate(
@@ -66,10 +68,14 @@ public class WhatsAppNotificationService {
     }
 
     public String waMeLink(String message) {
-        if (properties.getSalonPhoneE164() == null || properties.getSalonPhoneE164().isBlank()) {
+        String salonPhone = salonWhatsAppService.salonPhoneForCurrentSalon();
+        if (salonPhone == null || salonPhone.isBlank()) {
+            salonPhone = properties.getSalonPhoneE164();
+        }
+        if (salonPhone == null || salonPhone.isBlank()) {
             return null;
         }
-        String phone = properties.getSalonPhoneE164().replace("+", "");
+        String phone = salonPhone.replace("+", "");
         String encoded = java.net.URLEncoder.encode(message, java.nio.charset.StandardCharsets.UTF_8);
         return "https://wa.me/" + phone + "?text=" + encoded;
     }

@@ -6,7 +6,7 @@
     <meta name="_csrf" th:content="${_csrf.token}"/>
     <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
     <title>GSERP — Kullanıcılar</title>
-    <link rel="stylesheet" href="/css/style.css">
+    <link th:replace="~{fragments/assets :: styles}"/>
 </head>
 <body>
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -31,7 +31,8 @@
         </div>
     </main>
 </div>
-<script src="/js/app.js"></script>
+<script th:replace="~{fragments/assets :: app-js}"></script>
+<script th:replace="~{fragments/assets :: custom-select-js}"></script>
 <script>
 async function loadUsers() {
     const json = await api('GET', '/api/users');

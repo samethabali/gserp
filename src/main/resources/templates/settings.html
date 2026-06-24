@@ -6,7 +6,7 @@
     <meta name="_csrf" th:content="${_csrf.token}"/>
     <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
     <title>GSERP — Salon Ayarları</title>
-    <link rel="stylesheet" href="/css/style.css">
+    <link th:replace="~{fragments/assets :: styles}"/>
 </head>
 <body>
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -33,30 +33,175 @@
             </div>
         </header>
         <div class="page-content">
-            <div class="glass-card" style="padding:24px;max-width:560px;">
-                <h2 style="margin-bottom:20px;">White-label Görünüm</h2>
-                <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:20px;">
-                    Bu ayarlar booking sayfası ve müşteri portalında görünür.
-                </p>
-                <div class="form-group">
-                    <label class="form-label">Salon Adı</label>
-                    <input type="text" class="form-input" id="salonName" placeholder="Örn. Güzellik Merkezi">
+            <div class="settings-stack">
+
+                <!-- White-label -->
+                <div class="glass-card settings-card">
+                    <h2>White-label Görünüm</h2>
+                    <p class="settings-desc">
+                        Bu ayarlar booking sayfası ve müşteri portalında görünür.
+                    </p>
+                    <div class="form-group">
+                        <label class="form-label">Salon Adı</label>
+                        <input type="text" class="form-input" id="salonName" placeholder="Örn. Güzellik Merkezi">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Logo URL (opsiyonel)</label>
+                        <input type="url" class="form-input" id="logoUrl" placeholder="https://...">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Ana Renk (hex)</label>
+                        <input type="text" class="form-input" id="primaryColor" placeholder="#e91e8c">
+                    </div>
+                    <button class="btn btn-primary" onclick="saveSettings()">💾 Kaydet</button>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">Logo URL (opsiyonel)</label>
-                    <input type="url" class="form-input" id="logoUrl" placeholder="https://...">
+
+                <!-- WhatsApp -->
+                <div class="glass-card settings-card">
+                    <div class="settings-card-header">
+                        <h2>💬 WhatsApp Bildirimleri</h2>
+                        <span class="settings-badge" id="waStatusBadge">Yükleniyor…</span>
+                    </div>
+                    <p class="settings-desc">
+                        Randevu onayı, iptal ve 24 saat önce hatırlatma mesajları Meta WhatsApp Cloud API üzerinden gönderilir.
+                        API kapalıyken booking sayfasında <strong>WhatsApp'tan Yaz</strong> butonu için salon telefonu kullanılır.
+                    </p>
+
+                    <div class="form-group">
+                        <label class="form-label" style="display:flex;align-items:center;gap:10px;text-transform:none;letter-spacing:0;">
+                            <input type="checkbox" id="waEnabled" style="width:18px;height:18px;accent-color:var(--color-primary);">
+                            WhatsApp API bildirimlerini etkinleştir
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Access Token (System User)</label>
+                        <input type="password" class="form-input" id="waToken" placeholder="Token girin veya değiştirmek için yazın" autocomplete="new-password">
+                        <p class="form-hint" id="waTokenHint"></p>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Phone Number ID</label>
+                            <input type="text" class="form-input" id="waPhoneNumberId" placeholder="Meta API Setup">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Business Account ID (WABA)</label>
+                            <input type="text" class="form-input" id="waBusinessAccountId" placeholder="Opsiyonel — referans">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Salon WhatsApp Numarası (E.164)</label>
+                            <input type="tel" class="form-input" id="waSalonPhone" placeholder="+905xxxxxxxxx">
+                            <p class="form-hint">API kapalıyken wa.me linki ve müşteri iletişimi için.</p>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Webhook Verify Token</label>
+                            <input type="text" class="form-input" id="waWebhookToken" placeholder="Meta webhook doğrulama">
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="saveWhatsApp()">💾 WhatsApp Ayarlarını Kaydet</button>
+                    <p class="form-hint" id="waGlobalHint" style="margin-top:12px;display:none;"></p>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">Ana Renk (hex)</label>
-                    <input type="text" class="form-input" id="primaryColor" placeholder="#e91e8c">
-                </div>
-                <button class="btn btn-primary" onclick="saveSettings()">💾 Kaydet</button>
+
+                <!-- Kurulum rehberi -->
+                <details class="settings-guide glass-card">
+                    <summary>📖 WhatsApp Kurulum Rehberi — Adım adım nasıl yapılır?</summary>
+                    <div class="settings-guide-body">
+
+                        <h3>1. Meta Business hesabı</h3>
+                        <ol>
+                            <li><a href="https://business.facebook.com" target="_blank" rel="noopener">business.facebook.com</a> üzerinden işletme hesabınızı doğrulayın.</li>
+                            <li><a href="https://developers.facebook.com" target="_blank" rel="noopener">Meta Developers</a> → <strong>Uygulama oluştur</strong> → <strong>WhatsApp</strong> ürününü ekleyin.</li>
+                            <li>WhatsApp → <strong>API Setup</strong> sayfasından geçici token ile test edin; kalıcı kullanım için <strong>System User</strong> oluşturup kalıcı token alın.</li>
+                        </ol>
+
+                        <h3>2. Bu sayfadaki alanları doldurun</h3>
+                        <table class="settings-guide-table">
+                            <thead>
+                                <tr><th>Alan</th><th>Nereden bulunur?</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>Access Token</strong></td>
+                                    <td>Meta Developers → WhatsApp → API Setup veya System User token</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Phone Number ID</strong></td>
+                                    <td>API Setup sayfasında, test/gönderim numarasının altında</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Business Account ID</strong></td>
+                                    <td>WhatsApp Manager → Hesap ayarları (referans amaçlı)</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Salon WhatsApp Numarası</strong></td>
+                                    <td>Uluslararası format: <code>+905321112233</code></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Webhook Verify Token</strong></td>
+                                    <td>Sizin belirlediğiniz rastgele güçlü bir metin (Meta panelinde aynısını gireceksiniz)</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <h3>3. Webhook bağlantısı</h3>
+                        <ol>
+                            <li>Meta Developers → WhatsApp → <strong>Configuration</strong> → Webhook</li>
+                            <li>Callback URL: <code id="waWebhookUrl">https://&lt;salon-subdomain&gt;/api/webhooks/whatsapp</code></li>
+                            <li>Verify token: yukarıdaki <strong>Webhook Verify Token</strong> ile birebir aynı olmalı</li>
+                            <li>Abone olunacak alan: <code>messages</code> (teslimat durumu için opsiyonel)</li>
+                        </ol>
+
+                        <h3>4. Onaylı mesaj şablonları</h3>
+                        <p>Meta Business Manager → WhatsApp Manager → <strong>Message templates</strong> bölümünden aşağıdaki şablonları oluşturup onaylatın (genelde 1–24 saat):</p>
+                        <table class="settings-guide-table">
+                            <thead>
+                                <tr><th>Şablon adı</th><th>Kategori</th><th>Ne zaman gider?</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr><td><code>appointment_request_received</code></td><td>Utility</td><td>Müşteri online randevu isteği gönderdiğinde</td></tr>
+                                <tr><td><code>appointment_confirmed</code></td><td>Utility</td><td>Salon randevuyu onayladığında</td></tr>
+                                <tr><td><code>appointment_cancelled</code></td><td>Utility</td><td>Randevu iptal edildiğinde</td></tr>
+                                <tr><td><code>appointment_reminder</code></td><td>Utility</td><td>Randevudan 24 saat önce (her gün 09:00)</td></tr>
+                            </tbody>
+                        </table>
+                        <p class="form-hint">Her şablonda body parametreleri sırasıyla: müşteri adı, hizmet/uzman, tarih-saat (iptalde sebep). Dil: <strong>Türkçe (tr)</strong>.</p>
+
+                        <h3>5. Test</h3>
+                        <ol>
+                            <li>Bu sayfada ayarları kaydedin ve <strong>WhatsApp API bildirimlerini etkinleştir</strong> kutusunu işaretleyin.</li>
+                            <li>Public <code>/booking</code> sayfasından test randevu isteği gönderin.</li>
+                            <li>Veritabanında <code>notification_log</code> tablosunda <code>SENT</code> / <code>FAILED</code> kayıtlarını kontrol edin.</li>
+                            <li>Meta panel → Message insights ile teslimatı doğrulayın.</li>
+                        </ol>
+
+                        <h3>6. API kapalıyken (wa.me fallback)</h3>
+                        <p>WhatsApp API etkin değilse booking onay ekranında müşteriye <strong>WhatsApp'tan Yaz</strong> butonu gösterilir. Bunun için yalnızca <strong>Salon WhatsApp Numarası</strong> alanını doldurmanız yeterlidir.</p>
+
+                        <h3>7. Güvenlik ve kota</h3>
+                        <ul>
+                            <li>Access Token gizli bilgidir; kimseyle paylaşmayın ve ekran görüntüsü almayın.</li>
+                            <li>Abonelik planınıza göre aylık WhatsApp mesaj kotası uygulanır.</li>
+                            <li>Meta konuşma başına ücretlendirir; randevu bildirimleri genelde <em>utility</em> kategorisindedir.</li>
+                        </ul>
+
+                        <p class="form-hint">Detaylı teknik dokümantasyon: proje içi <code>docs/whatsapp-setup.md</code></p>
+                    </div>
+                </details>
+
             </div>
         </div>
     </main>
 </div>
-<script src="/js/app.js"></script>
+<script th:replace="~{fragments/assets :: app-js}"></script>
+<script th:replace="~{fragments/assets :: custom-select-js}"></script>
 <script>
+let waTokenConfigured = false;
+
 async function loadSettings() {
     const json = await api('GET', '/api/settings');
     const s = json.data || {};
@@ -64,6 +209,60 @@ async function loadSettings() {
     document.getElementById('logoUrl').value = s.logoUrl || '';
     document.getElementById('primaryColor').value = s.primaryColor || '#e91e8c';
 }
+
+async function loadWhatsApp() {
+    const json = await api('GET', '/api/settings/whatsapp');
+    const w = json.data || {};
+    waTokenConfigured = !!w.tokenConfigured;
+
+    document.getElementById('waEnabled').checked = !!w.enabled;
+    document.getElementById('waPhoneNumberId').value = w.phoneNumberId || '';
+    document.getElementById('waBusinessAccountId').value = w.businessAccountId || '';
+    document.getElementById('waSalonPhone').value = w.salonPhoneE164 || '';
+    document.getElementById('waWebhookToken').value = w.webhookVerifyToken || '';
+    document.getElementById('waToken').value = '';
+
+    const hint = document.getElementById('waTokenHint');
+    hint.textContent = waTokenConfigured
+        ? '✓ Token kayıtlı. Değiştirmek için yeni token girin; boş bırakırsanız mevcut korunur.'
+        : 'Henüz token kaydedilmedi. Meta System User token girin.';
+
+    updateWaStatusBadge(w);
+    updateWebhookUrl();
+}
+
+function updateWaStatusBadge(w) {
+    const badge = document.getElementById('waStatusBadge');
+    const globalHint = document.getElementById('waGlobalHint');
+
+    if (w.enabled && w.tokenConfigured) {
+        badge.textContent = 'Aktif — Salon API';
+        badge.className = 'settings-badge settings-badge--active';
+        globalHint.style.display = 'none';
+    } else if (w.globalFallbackEnabled) {
+        badge.textContent = 'Global fallback';
+        badge.className = 'settings-badge settings-badge--warn';
+        globalHint.style.display = 'block';
+        globalHint.textContent = 'Sunucu ortam değişkenlerinde (WHATSAPP_*) global yapılandırma aktif. Salon ayarları devreye girmesi için bu bölümü etkinleştirin.';
+    } else if (w.salonPhoneE164) {
+        badge.textContent = 'wa.me fallback';
+        badge.className = 'settings-badge settings-badge--muted';
+        globalHint.style.display = 'none';
+    } else {
+        badge.textContent = 'Pasif';
+        badge.className = 'settings-badge settings-badge--muted';
+        globalHint.style.display = 'none';
+    }
+}
+
+function updateWebhookUrl() {
+    const origin = window.location.origin;
+    const el = document.getElementById('waWebhookUrl');
+    if (el) {
+        el.textContent = origin + '/api/webhooks/whatsapp';
+    }
+}
+
 async function saveSettings() {
     const body = {
         name: document.getElementById('salonName').value.trim(),
@@ -73,7 +272,34 @@ async function saveSettings() {
     const json = await api('PUT', '/api/settings', body);
     showToast(json.message || 'Kaydedildi', json.success ? 'success' : 'error');
 }
-document.addEventListener('DOMContentLoaded', loadSettings);
+
+async function saveWhatsApp() {
+    const body = {
+        enabled: document.getElementById('waEnabled').checked,
+        phoneNumberId: document.getElementById('waPhoneNumberId').value.trim(),
+        businessAccountId: document.getElementById('waBusinessAccountId').value.trim(),
+        salonPhoneE164: document.getElementById('waSalonPhone').value.trim(),
+        webhookVerifyToken: document.getElementById('waWebhookToken').value.trim()
+    };
+    const token = document.getElementById('waToken').value.trim();
+    if (token) body.token = token;
+
+    const json = await api('PUT', '/api/settings/whatsapp', body);
+    showToast(json.message || 'Kaydedildi', json.success ? 'success' : 'error');
+    if (json.success && json.data) {
+        waTokenConfigured = !!json.data.tokenConfigured;
+        document.getElementById('waToken').value = '';
+        document.getElementById('waTokenHint').textContent = waTokenConfigured
+            ? '✓ Token kayıtlı. Değiştirmek için yeni token girin; boş bırakırsanız mevcut korunur.'
+            : 'Henüz token kaydedilmedi.';
+        updateWaStatusBadge(json.data);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadSettings();
+    loadWhatsApp();
+});
 </script>
 </body>
 </html>

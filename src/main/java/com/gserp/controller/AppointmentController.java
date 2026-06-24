@@ -68,7 +68,7 @@ public class AppointmentController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','RECEPTIONIST')")
+    @PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN','RECEPTIONIST')")
     public ResponseEntity<ApiResponse<AppointmentResponse>> update(
             @PathVariable Long id,
             @RequestBody AppointmentCreateRequest request) {
@@ -76,27 +76,27 @@ public class AppointmentController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','RECEPTIONIST')")
+    @PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN','RECEPTIONIST')")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         appointmentService.delete(id);
         return ResponseEntity.ok(ApiResponse.ok("Randevu silindi", null));
     }
 
     @GetMapping("/history")
-    @PreAuthorize("hasAnyRole('ADMIN','RECEPTIONIST')")
+    @PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN','RECEPTIONIST')")
     public ResponseEntity<ApiResponse<List<AppointmentResponse>>> getHistory(@RequestParam String phone) {
         return ResponseEntity.ok(ApiResponse.ok(appointmentService.findByCustomerPhone(phone)));
     }
 
     @PatchMapping("/{id}/approve")
-    @PreAuthorize("hasAnyRole('ADMIN','RECEPTIONIST')")
+    @PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN','RECEPTIONIST')")
     public ResponseEntity<ApiResponse<AppointmentResponse>> approve(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok("Randevu onaylandı",
                 appointmentService.changeStatus(id, AppointmentStatus.SCHEDULED, null)));
     }
 
     @PatchMapping("/{id}/reject")
-    @PreAuthorize("hasAnyRole('ADMIN','RECEPTIONIST')")
+    @PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN','RECEPTIONIST')")
     public ResponseEntity<ApiResponse<AppointmentResponse>> reject(
             @PathVariable Long id,
             @RequestBody(required = false) Map<String, String> body) {

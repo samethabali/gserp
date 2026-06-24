@@ -28,13 +28,13 @@ public class ResourceController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN')")
     public ResponseEntity<ApiResponse<Resource>> create(@RequestBody Resource resource) {
         return ResponseEntity.ok(ApiResponse.ok("Kaynak eklendi", resourceService.create(resource)));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN')")
     public ResponseEntity<ApiResponse<Resource>> update(@PathVariable Long id, @RequestBody Resource resource) {
         return ResponseEntity.ok(ApiResponse.ok("Kaynak güncellendi", resourceService.update(id, resource)));
     }

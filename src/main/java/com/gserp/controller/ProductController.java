@@ -17,7 +17,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/products")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('ADMIN','RECEPTIONIST')")
+@PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN','RECEPTIONIST')")
 public class ProductController {
 
     private final ProductService productService;

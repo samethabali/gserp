@@ -4,6 +4,7 @@ import com.gserp.dto.request.CustomerCreateRequest;
 import com.gserp.dto.response.ApiResponse;
 import com.gserp.dto.response.CustomerDetailResponse;
 import com.gserp.dto.response.CustomerResponse;
+import com.gserp.dto.response.RecentCustomerDto;
 import com.gserp.model.Customer;
 import com.gserp.model.ConsentRecord;
 import com.gserp.service.ConsentService;
@@ -21,7 +22,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/customers")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('ADMIN','RECEPTIONIST')")
+@PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN','RECEPTIONIST')")
 public class CustomerController {
 
     private final CustomerService customerService;
@@ -32,6 +33,12 @@ public class CustomerController {
     public ResponseEntity<ApiResponse<List<CustomerResponse>>> getAll(
             @RequestParam(required = false) String q) {
         return ResponseEntity.ok(ApiResponse.ok(customerService.getAll(q)));
+    }
+
+    @GetMapping("/recent")
+    public ResponseEntity<ApiResponse<List<RecentCustomerDto>>> recent(
+            @RequestParam(defaultValue = "8") int limit) {
+        return ResponseEntity.ok(ApiResponse.ok(customerService.getRecentCustomers(limit)));
     }
 
     @GetMapping("/{id}")

@@ -2,6 +2,7 @@ package com.gserp.repository;
 
 import com.gserp.model.Appointment;
 import com.gserp.model.enums.AppointmentStatus;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -15,6 +16,8 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
     Optional<Appointment> findByIdAndSalonId(Long id, Long salonId);
 
     List<Appointment> findBySalonId(Long salonId);
+
+    List<Appointment> findBySalonIdOrderByStartTimeDesc(Long salonId, Pageable pageable);
 
     List<Appointment> findBySalonIdAndStartTimeBetween(Long salonId, LocalDateTime start, LocalDateTime end);
 

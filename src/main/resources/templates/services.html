@@ -6,7 +6,7 @@
     <meta name="_csrf" th:content="${_csrf.token}"/>
     <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
     <title>GSERP — Hizmetler</title>
-    <link rel="stylesheet" href="/css/style.css">
+    <link th:replace="~{fragments/assets :: styles}"/>
 </head>
 <body>
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -91,7 +91,8 @@
 </div>
 
 <div class="toast-container" id="toastContainer"></div>
-<script src="/js/app.js"></script>
+<script th:replace="~{fragments/assets :: app-js}"></script>
+<script th:replace="~{fragments/assets :: custom-select-js}"></script>
 <script>
     let services = [];
     const categoryLabels = { HAIR: '💇 Saç', NAIL: '💅 Tırnak', SKIN: '🧴 Cilt', LASER: '⚡ Lazer', OTHER: '📦 Diğer' };

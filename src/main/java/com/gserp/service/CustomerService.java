@@ -4,6 +4,8 @@ import com.gserp.dto.response.AppointmentResponse;
 import com.gserp.dto.response.CustomerDetailResponse;
 import com.gserp.dto.response.CustomerResponse;
 import com.gserp.dto.response.PaymentResponse;
+import com.gserp.dto.response.RecentCustomerDto;
+import com.gserp.model.Appointment;
 import com.gserp.model.Customer;
 import com.gserp.repository.AppointmentRepository;
 import com.gserp.repository.CustomerRepository;
@@ -13,9 +15,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.domain.PageRequest;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -24,7 +31,6 @@ import com.gserp.model.Product;
 import com.gserp.model.ProductSale;
 import com.gserp.repository.ProductRepository;
 import com.gserp.repository.ProductSaleRepository;
-import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -139,6 +145,40 @@ public class CustomerService {
     public Optional<CustomerResponse> lookupByPhone(String phone) {
         Long salonId = TenantContext.requireSalonId();
         return customerRepository.findBySalonIdAndPhone(salonId, phone).map(this::toResponse);
+    }
+
+    public List<RecentCustomerDto> getRecentCustomers(int limit) {
+        Long salonId = TenantContext.requireSalonId();
+        int cappedLimit = Math.min(Math.max(limit, 1), 20);
+        List<Appointment> recent = appointmentRepository.findBySalonIdOrderByStartTimeDesc(
+                salonId, PageRequest.of(0, 50));
+
+        Map<String, RecentCustomerDto> seen = new LinkedHashMap<>();
+        for (Appointment appointment : recent) {
+            String phone = appointment.getCustomerPhone();
+            if (phone == null || phone.isBlank() || seen.containsKey(phone)) {
+                continue;
+            }
+
+            AppointmentResponse response = appointmentService.toResponse(appointment);
+            Long customerId = customerRepository.findBySalonIdAndPhone(salonId, phone)
+                    .map(Customer::getId)
+                    .orElse(null);
+
+            seen.put(phone, RecentCustomerDto.builder()
+                    .id(customerId)
+                    .fullName(appointment.getCustomerName())
+                    .phone(phone)
+                    .lastVisit(appointment.getStartTime())
+                    .lastServiceName(response.getServiceName())
+                    .lastStaffName(response.getStaffName())
+                    .build());
+
+            if (seen.size() >= cappedLimit) {
+                break;
+            }
+        }
+        return new ArrayList<>(seen.values());
     }
 
     private CustomerResponse toResponse(Customer c) {

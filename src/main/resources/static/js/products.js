@@ -76,6 +76,7 @@ function populateCategories() {
     select.innerHTML = '<option value="">📁 Tüm Kategoriler</option>' +
         categories.map(cat => `<option value="${cat.replace(/"/g, '&quot;')}">${cat}</option>`).join('');
     select.value = categories.includes(currentVal) ? currentVal : "";
+    if (typeof refreshCustomSelect === 'function') refreshCustomSelect(select);
 }
 
 function filterProducts() {

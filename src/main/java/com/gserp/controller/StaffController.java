@@ -38,19 +38,19 @@ public class StaffController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN')")
     public ResponseEntity<ApiResponse<Staff>> create(@RequestBody Staff staff) {
         return ResponseEntity.ok(ApiResponse.ok("Personel eklendi", staffService.create(staff)));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN')")
     public ResponseEntity<ApiResponse<Staff>> update(@PathVariable Long id, @RequestBody Staff staff) {
         return ResponseEntity.ok(ApiResponse.ok("Personel güncellendi", staffService.update(id, staff)));
     }
 
     @PutMapping("/{id}/specializations")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN')")
     public ResponseEntity<ApiResponse<Staff>> updateSpecializations(
             @PathVariable Long id,
             @RequestBody Set<ServiceCategory> categories) {
@@ -70,7 +70,7 @@ public class StaffController {
     }
 
     @PutMapping("/{id}/working-hours")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN')")
     public ResponseEntity<ApiResponse<List<WorkingHours>>> saveWorkingHours(
             @PathVariable Long id,
             @RequestBody List<WorkingHours> hours) {

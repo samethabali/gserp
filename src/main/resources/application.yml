@@ -22,6 +22,7 @@ spring:
     locations: classpath:db/migration
 
 app:
+  asset-version: "20260620-4"
   jwt:
     # Base64-encoded en az 256-bit secret. Prod'da ${JWT_SECRET} ile geçersiz kılınmalı.
     secret: ${JWT_SECRET:ZGV2LW9ubHktc2VjcmV0LWNoYW5nZS1tZS1kZXYtb25seS1zZWNyZXQtY2hhbmdlLW1l}
