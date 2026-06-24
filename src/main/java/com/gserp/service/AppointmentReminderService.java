@@ -67,6 +67,7 @@ public class AppointmentReminderService {
 
             for (Appointment a : upcoming) {
                 TenantContext.setSalonId(salonId);
+                TenantContext.setOrgId(salon.getOrganizationId());
                 try {
                     AppointmentResponse response = appointmentService.toResponse(a);
                     whatsAppNotificationService.onReminder(response);

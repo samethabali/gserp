@@ -2,9 +2,13 @@ package com.gserp.notification.whatsapp;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gserp.model.NotificationLog;
+import com.gserp.model.Salon;
 import com.gserp.model.SalonWhatsAppConfig;
 import com.gserp.repository.NotificationLogRepository;
+import com.gserp.repository.SalonRepository;
+import com.gserp.service.QuotaEnforcementService;
 import com.gserp.service.SalonWhatsAppService;
+import com.gserp.service.SubscriptionService;
 import com.gserp.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +30,9 @@ public class WhatsAppClient {
 
     private final WhatsAppProperties properties;
     private final SalonWhatsAppService salonWhatsAppService;
+    private final SalonRepository salonRepository;
+    private final QuotaEnforcementService quotaEnforcementService;
+    private final SubscriptionService subscriptionService;
     private final NotificationLogRepository notificationLogRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final HttpClient httpClient = HttpClient.newHttpClient();
@@ -59,6 +66,19 @@ public class WhatsAppClient {
             logAttempt(appointmentId, templateName, toE164, "SKIPPED", "Boş telefon");
             return;
         }
+
+        Long salonId = TenantContext.getSalonId();
+        Long orgId = resolveOrganizationId(salonId);
+        if (orgId != null) {
+            try {
+                quotaEnforcementService.assertWhatsAppQuota(orgId);
+            } catch (IllegalStateException e) {
+                log.warn("WhatsApp kotası doldu org {}: {}", orgId, e.getMessage());
+                logAttempt(appointmentId, templateName, toE164, "SKIPPED_QUOTA", e.getMessage());
+                return;
+            }
+        }
+
         try {
             String to = toE164.replace("+", "");
             Map<String, Object> body = Map.of(
@@ -86,6 +106,7 @@ public class WhatsAppClient {
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() >= 200 && response.statusCode() < 300) {
                 logAttempt(appointmentId, templateName, toE164, "SENT", null);
+                recordWhatsAppUsage(orgId, salonId);
             } else {
                 log.warn("WhatsApp API hata {}: {}", response.statusCode(), response.body());
                 logAttempt(appointmentId, templateName, toE164, "FAILED", response.body());
@@ -93,6 +114,23 @@ public class WhatsAppClient {
         } catch (Exception e) {
             log.error("WhatsApp gönderim hatası", e);
             logAttempt(appointmentId, templateName, toE164, "FAILED", e.getMessage());
+        }
+    }
+
+    private Long resolveOrganizationId(Long salonId) {
+        Long orgId = TenantContext.getOrgId();
+        if (orgId != null) {
+            return orgId;
+        }
+        if (salonId == null) {
+            return null;
+        }
+        return salonRepository.findById(salonId).map(Salon::getOrganizationId).orElse(null);
+    }
+
+    private void recordWhatsAppUsage(Long orgId, Long salonId) {
+        if (orgId != null && salonId != null) {
+            subscriptionService.incrementUsage(orgId, salonId, SubscriptionService.METRIC_WHATSAPP, 1);
         }
     }
 
