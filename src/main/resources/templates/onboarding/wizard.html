@@ -40,7 +40,7 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
     const json = await res.json();
     const el = document.getElementById('result');
     if (json.success) {
-        el.innerHTML = `Kayıt tamam! Salon: <strong>${json.data.salonSlug}</strong>. <a href="/login">Giriş yap</a>`;
+        el.innerHTML = `Kayıt tamam! Salon: <strong>${json.data.salonSlug}</strong>. <a href="/login">Giriş yap</a> ve ardından <a href="/onboarding/setup">kurulum sihirbazını</a> tamamlayın.`;
     } else {
         el.textContent = json.message || 'Kayıt başarısız';
     }

@@ -31,6 +31,7 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final BookingRateLimitFilter bookingRateLimitFilter;
+    private final SubscriptionReadOnlyFilter subscriptionReadOnlyFilter;
     private final MustChangePasswordSuccessHandler mustChangePasswordSuccessHandler;
     private final UserDetailsService userDetailsService;
 
@@ -101,6 +102,7 @@ public class SecurityConfig {
                     .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
             .authenticationProvider(authenticationProvider())
             .addFilterBefore(bookingRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(subscriptionReadOnlyFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
@@ -117,12 +119,13 @@ public class SecurityConfig {
                             "/webjars/**", "/favicon.ico",
                             "/actuator/health", "/actuator/info",
                             "/customer/login", "/customer/register",
-                            "/onboarding/**").permitAll()
+                            "/onboarding/wizard").permitAll()
+                    .requestMatchers("/onboarding/setup").hasAnyRole(MGMT)
                     .requestMatchers("/change-password").authenticated()
                     .requestMatchers("/customer/**").hasRole("CUSTOMER")
                     .requestMatchers("/platform/**").hasRole("PLATFORM_ADMIN")
                     .requestMatchers("/org/**").hasAnyRole("ORG_OWNER", "PLATFORM_ADMIN")
-                    .requestMatchers("/audit", "/settings", "/users").hasAnyRole(MGMT)
+                    .requestMatchers("/audit", "/settings", "/settings/billing", "/users").hasAnyRole(MGMT)
                     .requestMatchers("/campaigns", "/expenses", "/products",
                             "/staff", "/resources", "/services", "/customers").hasAnyRole(MGMT_RECEPTIONIST)
                     .requestMatchers("/ws-calendar/**").authenticated()

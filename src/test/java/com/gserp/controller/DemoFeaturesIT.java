@@ -9,7 +9,9 @@ import com.gserp.model.Staff;
 import com.gserp.model.enums.AppointmentStatus;
 import com.gserp.model.enums.ServiceCategory;
 import com.gserp.model.enums.StaffRole;
+import com.gserp.model.enums.UserRole;
 import com.gserp.repository.AppointmentRepository;
+import com.gserp.security.AuthenticatedUser;
 import com.gserp.repository.CustomerRepository;
 import com.gserp.repository.ServiceDefinitionRepository;
 import com.gserp.repository.StaffRepository;
@@ -19,6 +21,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -26,7 +29,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -139,6 +144,23 @@ class DemoFeaturesIT {
                 .andExpect(jsonPath("$.data.tokenConfigured").value(true))
                 .andExpect(jsonPath("$.data.phoneNumberId").value("phone-id-1"))
                 .andExpect(jsonPath("$.data.salonPhoneE164").value("+905551112233"));
+    }
+
+    @Test
+    void billingStatusReturnsPlanInfo() throws Exception {
+        AuthenticatedUser user = new AuthenticatedUser(
+                1L, "admin", "", true, UserRole.BRANCH_MANAGER,
+                null, null, 1L, 1L, false,
+                List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_BRANCH_MANAGER")));
+        var auth = new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
+
+        mockMvc.perform(get("/api/billing/status")
+                        .with(authentication(auth))
+                        .header("X-Salon-Slug", "default"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.status").exists())
+                .andExpect(jsonPath("$.data.readOnly").value(false));
     }
 
     private void saveAppointment(String name, String phone, LocalDateTime start) {

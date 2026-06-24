@@ -14,6 +14,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -35,20 +36,19 @@ public class SalonOnboardingController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getSteps() {
         Long salonId = TenantContext.requireSalonId();
-        OnboardingState state = onboardingStateRepository.findBySalonId(salonId)
-                .orElseThrow(() -> new IllegalArgumentException("Onboarding kaydı yok"));
+        OnboardingState state = requireOrCreateState(salonId);
         return ResponseEntity.ok(ApiResponse.ok(Map.of(
                 "salonId", salonId,
                 "currentStep", state.getCurrentStep(),
-                "completedAt", state.getCompletedAt())));
+                "completedAt", state.getCompletedAt(),
+                "steps", List.of("SALON_INFO", "SERVICES", "STAFF", "WHATSAPP", "COMPLETED"))));
     }
 
     @PutMapping("/steps")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<Map<String, Object>>> updateStep(@RequestBody Map<String, String> body) {
         Long salonId = TenantContext.requireSalonId();
-        OnboardingState state = onboardingStateRepository.findBySalonId(salonId)
-                .orElseThrow(() -> new IllegalArgumentException("Onboarding kaydı yok"));
+        OnboardingState state = requireOrCreateState(salonId);
         String step = body.get("currentStep");
         if (step != null && !step.isBlank()) {
             state.setCurrentStep(step);
@@ -61,5 +61,14 @@ public class SalonOnboardingController {
         return ResponseEntity.ok(ApiResponse.ok(Map.of(
                 "currentStep", state.getCurrentStep(),
                 "completedAt", state.getCompletedAt())));
+    }
+
+    private OnboardingState requireOrCreateState(Long salonId) {
+        return onboardingStateRepository.findBySalonId(salonId)
+                .orElseGet(() -> onboardingStateRepository.save(OnboardingState.builder()
+                        .salonId(salonId)
+                        .currentStep("COMPLETED")
+                        .updatedAt(LocalDateTime.now())
+                        .build()));
     }
 }

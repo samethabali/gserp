@@ -162,6 +162,39 @@ function initSidebar() {
     });
 }
 
-document.addEventListener('DOMContentLoaded', initSidebar);
+document.addEventListener('DOMContentLoaded', () => {
+    initSidebar();
+    initSubscriptionBanner();
+});
+
+async function initSubscriptionBanner() {
+    if (!document.querySelector('meta[name="_csrf"]')) return;
+    if (window.location.pathname.startsWith('/login') || window.location.pathname.startsWith('/onboarding/wizard')) return;
+
+    const json = await api('GET', '/api/billing/status');
+    if (!json.success || !json.data) return;
+
+    const d = json.data;
+    window.GSERP_READ_ONLY = !!d.readOnly;
+
+    let message = null;
+    let cls = 'subscription-banner--warn';
+    if (d.readOnly) {
+        message = 'Salt okunur mod — deneme süreniz doldu. <a href="/settings/billing">Abonelik</a> sayfasından planı yükseltin.';
+        cls = 'subscription-banner--danger';
+    } else if (d.status === 'TRIAL' && d.trialDaysRemaining != null && d.trialDaysRemaining <= 7) {
+        message = `Deneme süreniz ${d.trialDaysRemaining} gün içinde bitiyor. <a href="/settings/billing">Planı inceleyin</a>.`;
+    }
+    if (!message) return;
+
+    const main = document.querySelector('.main-content');
+    if (!main || document.getElementById('subscriptionBanner')) return;
+
+    const banner = document.createElement('div');
+    banner.id = 'subscriptionBanner';
+    banner.className = 'subscription-banner ' + cls;
+    banner.innerHTML = message;
+    main.insertBefore(banner, main.firstChild);
+}
 
 console.log('%c💅 GSERP — Güzellik Salonu ERP', 'font-size:16px;font-weight:bold;color:#9b59b6;');

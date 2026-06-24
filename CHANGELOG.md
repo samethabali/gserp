@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.1.0 — 2026-06-22
+
+### SaaS & Faturalandırma
+- Abonelik sayfası (`/settings/billing`) — plan, kota ve aylık WhatsApp kullanımı
+- Trial bitince salt okunur mod (`SubscriptionReadOnlyFilter`, HTTP 402)
+- Deneme uyarı banner'ı (7 gün kala) tüm yönetim sayfalarında
+- WhatsApp kotası org bazlı sayaç (`SubscriptionService.incrementUsage`)
+
+### Onboarding
+- 5 adımlı kurulum sihirbazı (`/onboarding/setup`) — salon, hizmet, personel, WhatsApp
+- Public kayıt sonrası kurulum yönlendirmesi
+
+### Demo & Test
+- `docs/DEMO.md`, dev kullanıcı şifreleri (`admin`)
+- Demo özellikleri integration testleri (`DemoFeaturesIT`, `SubscriptionServiceTest`)
+
 ## 1.0.0 — 2026-06-16
 
 ### Güvenlik

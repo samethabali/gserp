@@ -44,6 +44,9 @@ Diğer demo kullanıcıları (aynı parola `admin`):
 | Müşteriler | http://localhost:8989/customers |
 | Online booking (public) | http://localhost:8989/booking |
 | Salon ayarları | http://localhost:8989/settings |
+| Abonelik | http://localhost:8989/settings/billing |
+| Kurulum sihirbazı | http://localhost:8989/onboarding/setup |
+| Yeni salon kaydı (public) | http://localhost:8989/onboarding/wizard |
 
 ## 15 dakikalık demo akışı
 
@@ -73,11 +76,12 @@ Diğer demo kullanıcıları (aynı parola `admin`):
 2. Hizmet, uzman, tarih seç → randevu isteği gönder.
 3. Takvimde **PENDING_APPROVAL** olarak görünür; onaylayabilirsin.
 
-### 5. Ayarlar
+### 5. Ayarlar & abonelik
 
 1. **Salon Ayarları** → white-label (salon adı, renk).
 2. **WhatsApp Bildirimleri** bölümü: API kapalıyken **wa.me** fallback için salon telefonu.
-3. Kurulum için sayfadaki **WhatsApp Kurulum Rehberi** veya [whatsapp-setup.md](whatsapp-setup.md).
+3. **Abonelik** → plan, WhatsApp kotası, trial durumu.
+4. Kurulum için sayfadaki **WhatsApp Kurulum Rehberi** veya [whatsapp-setup.md](whatsapp-setup.md).
 
 ### 6. Ürünler ve kampanyalar
 
@@ -100,7 +104,19 @@ Diğer demo kullanıcıları (aynı parola `admin`):
 
 ### İnternet üzerinden (VDS)
 
-Prod/VDS deploy gerekir; bkz. [deploy-vps.md](deploy-vps.md). Demo verisi prod’da yoktur; onboarding veya manuel kurulum gerekir.
+Canlı ortam:
+
+| Sayfa | URL |
+|-------|-----|
+| Giriş | https://gserp.avesitesi.xyz/login |
+| Demo salon (subdomain) | https://default.gserp.avesitesi.xyz/login |
+| Public booking | https://default.gserp.avesitesi.xyz/booking |
+
+Deploy: `production-ready` push sonrası GitHub Actions **Deploy to VPS** veya [deploy-vps.md](deploy-vps.md).
+
+> Prod'da demo verisi yoksa `/onboarding/wizard` ile yeni tenant açın veya mevcut admin bilgilerini kullanın.
+
+Ürünleştirme planı: [PRODUCT_ROADMAP.md](PRODUCT_ROADMAP.md).
 
 ## Sorun giderme
 

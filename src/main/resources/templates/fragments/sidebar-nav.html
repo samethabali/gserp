@@ -19,6 +19,7 @@
     <a href="/campaigns" class="nav-item" sec:authorize="hasAnyRole('ADMIN','BRANCH_MANAGER','RECEPTIONIST')" th:classappend="${active == 'campaigns'} ? ' active' : ''"><span class="nav-icon">🎁</span> Kampanyalar</a>
     <span class="nav-section-title" sec:authorize="hasAnyRole('ADMIN','BRANCH_MANAGER')">Yönetim Paneli</span>
     <a href="/settings" class="nav-item" sec:authorize="hasAnyRole('ADMIN','BRANCH_MANAGER')" th:classappend="${active == 'settings'} ? ' active' : ''"><span class="nav-icon">⚙️</span> Salon Ayarları</a>
+    <a href="/settings/billing" class="nav-item" sec:authorize="hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER')" th:classappend="${active == 'billing'} ? ' active' : ''"><span class="nav-icon">💳</span> Abonelik</a>
     <span class="nav-section-title" sec:authorize="hasAnyRole('ADMIN','BRANCH_MANAGER','RECEPTIONIST')">Sistem</span>
     <a href="/booking" class="nav-item" target="_blank" sec:authorize="hasAnyRole('ADMIN','BRANCH_MANAGER','RECEPTIONIST')"><span class="nav-icon">🔗</span> Booking Sayfası</a>
     <a href="/audit" class="nav-item" sec:authorize="hasAnyRole('ADMIN','BRANCH_MANAGER')" th:classappend="${active == 'audit'} ? ' active' : ''"><span class="nav-icon">📋</span> İşlem Kütüğü</a>

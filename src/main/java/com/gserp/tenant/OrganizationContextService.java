@@ -1,0 +1,33 @@
+package com.gserp.tenant;
+
+import com.gserp.model.Salon;
+import com.gserp.repository.SalonRepository;
+import com.gserp.security.AuthenticatedUser;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+@Service
+@RequiredArgsConstructor
+public class OrganizationContextService {
+
+    private final SalonRepository salonRepository;
+
+    public Long resolveOrganizationId(AuthenticatedUser user) {
+        if (user != null && user.getOrganizationId() != null) {
+            return user.getOrganizationId();
+        }
+        if (TenantContext.getOrgId() != null) {
+            return TenantContext.getOrgId();
+        }
+        Long salonId = TenantContext.getSalonId();
+        if (salonId == null && user != null) {
+            salonId = user.getSalonId();
+        }
+        if (salonId != null) {
+            return salonRepository.findById(salonId)
+                    .map(Salon::getOrganizationId)
+                    .orElse(null);
+        }
+        return null;
+    }
+}

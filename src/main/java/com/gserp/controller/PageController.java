@@ -101,6 +101,11 @@ public class PageController {
         return "settings";
     }
 
+    @GetMapping("/settings/billing")
+    public String billing() {
+        return "billing";
+    }
+
     @GetMapping("/platform/tenants")
     public String platformTenants() {
         return "platform/tenants";
@@ -114,5 +119,10 @@ public class PageController {
     @GetMapping("/onboarding/wizard")
     public String onboardingWizard() {
         return "onboarding/wizard";
+    }
+
+    @GetMapping("/onboarding/setup")
+    public String onboardingSetup() {
+        return "onboarding/setup";
     }
 }

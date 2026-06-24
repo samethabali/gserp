@@ -1,47 +1,50 @@
-# GSERP — Sistem Özeti (v1.0.0)
+# GSERP — Sistem Özeti (v1.1.0)
 
-Güncel mimari ve modül referansı. Eski MockDataStore referansları kaldırıldı; kalıcı veri PostgreSQL + Flyway migration ile yönetilir.
+Güncel mimari ve modül referansı. Kalıcı veri PostgreSQL + Flyway migration ile yönetilir.
 
 ## Teknoloji
 
 - **Backend:** Java 21, Spring Boot 3.4, Spring Security (JWT + form login), JPA, Flyway
 - **Frontend:** Thymeleaf, Vanilla JS, FullCalendar, WebSocket (STOMP)
 - **Veritabanı:** PostgreSQL 16
-- **Deploy:** Docker Compose, nginx reverse proxy, salon başına izole instance
+- **Deploy:** Docker Compose, nginx reverse proxy, multi-tenant SaaS (`salon_id` izolasyonu)
 
-## Güvenlik (Faz 1)
+## Multi-tenant SaaS
 
-- Rol tabanlı erişim: ADMIN, RECEPTIONIST, SPECIALIST, CUSTOMER
+- **Organizasyon → salon (şube)** hiyerarşisi; tenant çözümleme: `X-Salon-Slug` veya subdomain
+- **Roller:** PLATFORM_ADMIN, ORG_OWNER, BRANCH_MANAGER, RECEPTIONIST, SPECIALIST, CUSTOMER
+- **Abonelik:** `organization_subscription`, planlar (SOLO / FRANCHISE), WhatsApp kotası
+- **Salt okunur mod:** trial süresi dolunca yazma API'leri engellenir; okuma devam eder
+
+## Güvenlik
+
+- Rol tabanlı API ve sayfa erişimi
 - `StaffScopeService`: SPECIALIST yalnızca kendi randevuları
-- Public booking → `PENDING_APPROVAL` + `BookingRateLimitFilter`
-- Parola değiştirme + ilk girişte zorunlu değişim (`must_change_password`)
-- KVKK: `/privacy`, `customer.consent_at`
+- Public booking → `PENDING_APPROVAL` + rate limit
+- KVKK: `/privacy`, müşteri onayı
 
-## Bildirimler (Faz 2)
+## Bildirimler
 
-- WhatsApp hibrit: Meta Cloud API şablonları + `notification_log`
+- WhatsApp Cloud API + org bazlı kota
 - `AppointmentReminderService`: 24 saat önce hatırlatma
-- wa.me fallback: API kapalıyken booking onay sayfası
-- Webhook: `POST /api/webhooks/whatsapp`
+- Salon ayarları: `/settings`, `/api/settings/whatsapp`
 
-## Ticari (Faz 3)
+## Ticari
 
-- Admin kullanıcı yönetimi (`/users`)
-- Salon white-label (`salon_settings`, `/settings`)
-- Sürüm: 1.0.0
+- Abonelik UI: `/settings/billing`
+- Onboarding: `/onboarding/wizard` (kayıt), `/onboarding/setup` (5 adım)
+- iyzico webhook iskeleti: `POST /api/webhooks/iyzico`
 
 ## Önemli dosyalar
 
 | Alan | Konum |
 |------|-------|
 | **Tam proje referansı** | `docs/PROJECT_REFERENCE.md` |
+| Demo rehberi | `docs/DEMO.md` |
 | Güvenlik | `src/main/java/com/gserp/security/` |
-| WhatsApp | `src/main/java/com/gserp/notification/whatsapp/` |
+| Abonelik | `src/main/java/com/gserp/service/SubscriptionService.java` |
 | Migration | `src/main/resources/db/migration/` |
 | Deploy | `docs/deploy-vps.md`, `docker-compose.yml` |
-| WhatsApp kurulum | `docs/whatsapp-setup.md` |
-| Yedek | `scripts/backup-db.sh` |
-| CI | `.github/workflows/ci.yml` |
 
 ## Modüller
 

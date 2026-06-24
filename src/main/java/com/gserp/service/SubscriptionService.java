@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -102,5 +103,61 @@ public class SubscriptionService {
 
     public String currentPeriod() {
         return YearMonth.now().format(DateTimeFormatter.ofPattern("yyyy-MM"));
+    }
+
+    public boolean isWriteAllowed(Long organizationId) {
+        if (organizationId == null) {
+            return true;
+        }
+        return subscriptionRepository.findByOrganizationId(organizationId)
+                .map(this::isSubscriptionWritable)
+                .orElse(true);
+    }
+
+    public Map<String, Object> getSubscriptionStatus(Long organizationId) {
+        Map<String, Object> result = new HashMap<>();
+        if (organizationId == null) {
+            result.put("readOnly", false);
+            result.put("status", "UNKNOWN");
+            return result;
+        }
+
+        OrganizationSubscription sub = subscriptionRepository.findByOrganizationId(organizationId)
+                .orElse(null);
+        if (sub == null) {
+            result.put("readOnly", false);
+            result.put("status", "NONE");
+            return result;
+        }
+
+        boolean writable = isSubscriptionWritable(sub);
+        result.put("readOnly", !writable);
+        result.put("status", sub.getStatus());
+        result.put("trialEnd", sub.getTrialEnd());
+        result.put("currentPeriodEnd", sub.getCurrentPeriodEnd());
+
+        if ("TRIAL".equals(sub.getStatus()) && sub.getTrialEnd() != null) {
+            long days = ChronoUnit.DAYS.between(LocalDateTime.now(), sub.getTrialEnd());
+            result.put("trialDaysRemaining", Math.max(0, days));
+        }
+
+        planRepository.findById(sub.getPlanId()).ifPresent(plan -> {
+            result.put("planCode", plan.getCode());
+            result.put("planName", plan.getName());
+        });
+
+        return result;
+    }
+
+    private boolean isSubscriptionWritable(OrganizationSubscription sub) {
+        String status = sub.getStatus();
+        if ("ACTIVE".equals(status)) {
+            return true;
+        }
+        if ("TRIAL".equals(status)) {
+            LocalDateTime trialEnd = sub.getTrialEnd();
+            return trialEnd == null || LocalDateTime.now().isBefore(trialEnd);
+        }
+        return false;
     }
 }

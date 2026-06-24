@@ -1413,3 +1413,160 @@ select.form-select option {
         max-width: 100%;
     }
 }
+
+/* ─── Billing ─── */
+.billing-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    max-width: 960px;
+}
+
+.billing-dl {
+    display: grid;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.billing-dl > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-glass);
+}
+
+.billing-dl dt {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.billing-dl dd {
+    margin: 0;
+    font-weight: 600;
+    text-align: right;
+}
+
+.billing-meter {
+    margin-top: 12px;
+}
+
+.billing-meter-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+}
+
+.billing-meter-bar {
+    height: 10px;
+    background: var(--bg-card);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.billing-meter-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-primary), #c471ed);
+    border-radius: 999px;
+    transition: width 0.3s ease;
+}
+
+.billing-meter-fill--warn {
+    background: linear-gradient(90deg, #f59e0b, #ef4444);
+}
+
+.billing-alert {
+    max-width: 960px;
+    margin-bottom: 20px;
+    padding: 14px 16px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-glass);
+    font-size: 0.95rem;
+}
+
+.billing-alert--warn {
+    background: rgba(245, 158, 11, 0.12);
+    border-color: rgba(245, 158, 11, 0.35);
+}
+
+.billing-alert--danger {
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.35);
+}
+
+.subscription-banner {
+    padding: 10px 16px;
+    font-size: 0.9rem;
+    text-align: center;
+    border-bottom: 1px solid var(--border-glass);
+}
+
+.subscription-banner--warn {
+    background: rgba(245, 158, 11, 0.15);
+    color: var(--text-primary);
+}
+
+.subscription-banner--danger {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--text-primary);
+}
+
+.subscription-banner a {
+    color: var(--color-primary);
+    font-weight: 600;
+}
+
+/* ─── Onboarding wizard ─── */
+.onboarding-shell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 24px;
+}
+
+.onboarding-card {
+    width: 100%;
+    max-width: 560px;
+    padding: 28px;
+}
+
+.onboarding-steps {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 24px 0;
+}
+
+.onboarding-step-dot {
+    flex: 1;
+    text-align: center;
+    padding: 10px 4px;
+    border-radius: var(--radius-md);
+    background: var(--bg-card);
+    opacity: 0.55;
+    font-size: 1.1rem;
+    border: 1px solid transparent;
+}
+
+.onboarding-step-dot.active {
+    opacity: 1;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 1px rgba(233, 30, 140, 0.2);
+}
+
+.onboarding-step-dot.done {
+    opacity: 0.85;
+}
+
+.onboarding-panel {
+    min-height: 200px;
+    margin-bottom: 20px;
+}
+
+.onboarding-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+}
