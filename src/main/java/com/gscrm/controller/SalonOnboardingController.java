@@ -5,6 +5,7 @@ import com.gscrm.dto.response.ApiResponse;
 import com.gscrm.dto.response.TenantProvisionResponse;
 import com.gscrm.model.OnboardingState;
 import com.gscrm.repository.OnboardingStateRepository;
+import com.gscrm.service.InviteCodeService;
 import com.gscrm.service.SalonProvisioningService;
 import com.gscrm.tenant.TenantContext;
 import jakarta.validation.Valid;
@@ -23,12 +24,13 @@ import java.util.Map;
 public class SalonOnboardingController {
 
     private final SalonProvisioningService provisioningService;
+    private final InviteCodeService inviteCodeService;
     private final OnboardingStateRepository onboardingStateRepository;
 
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<TenantProvisionResponse>> register(
             @Valid @RequestBody TenantProvisionRequest request) {
-        TenantProvisionResponse result = provisioningService.provision(request);
+        TenantProvisionResponse result = inviteCodeService.registerWithInvite(request);
         return ResponseEntity.ok(ApiResponse.ok("Kayıt tamamlandı", result));
     }
 
@@ -39,9 +41,9 @@ public class SalonOnboardingController {
         OnboardingState state = requireOrCreateState(salonId);
         return ResponseEntity.ok(ApiResponse.ok(Map.of(
                 "salonId", salonId,
-                "currentStep", state.getCurrentStep(),
+                "currentStep", productStep(state.getCurrentStep()),
                 "completedAt", state.getCompletedAt(),
-                "steps", List.of("SALON_INFO", "SERVICES", "STAFF", "WHATSAPP", "COMPLETED"))));
+                "steps", List.of("SALON_INFO", "SERVICES", "STAFF", "COMPLETED"))));
     }
 
     @PutMapping("/steps")
@@ -51,6 +53,9 @@ public class SalonOnboardingController {
         OnboardingState state = requireOrCreateState(salonId);
         String step = body.get("currentStep");
         if (step != null && !step.isBlank()) {
+            if ("WHATSAPP".equals(step)) {
+                step = "COMPLETED";
+            }
             state.setCurrentStep(step);
         }
         if ("COMPLETED".equals(step)) {
@@ -70,5 +75,10 @@ public class SalonOnboardingController {
                         .currentStep("COMPLETED")
                         .updatedAt(LocalDateTime.now())
                         .build()));
+    }
+
+    /** Eski kurulumlarda kalan WHATSAPP adımı üründen çıkarıldı. */
+    private static String productStep(String step) {
+        return "WHATSAPP".equals(step) ? "COMPLETED" : step;
     }
 }

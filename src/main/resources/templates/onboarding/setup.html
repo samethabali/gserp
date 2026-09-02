@@ -13,7 +13,7 @@
 <div class="onboarding-shell">
     <div class="glass-card onboarding-card">
         <h1>Salon Kurulumu</h1>
-        <p class="settings-desc">5 adımda salonunuzu kullanıma hazırlayın.</p>
+        <p class="settings-desc">4 adımda salonunuzu kullanıma hazırlayın.</p>
 
         <div class="onboarding-steps" id="stepIndicators"></div>
 
@@ -31,7 +31,6 @@ const STEPS = [
     { key: 'SALON_INFO', title: 'Salon bilgileri', icon: '🏪' },
     { key: 'SERVICES', title: 'Hizmetler', icon: '💇' },
     { key: 'STAFF', title: 'Personel', icon: '👩‍💼' },
-    { key: 'WHATSAPP', title: 'WhatsApp', icon: '💬' },
     { key: 'COMPLETED', title: 'Tamamlandı', icon: '✅' }
 ];
 
@@ -80,19 +79,6 @@ function panelStaff() {
         <a href="/staff" class="btn btn-secondary" target="_blank">Personel sayfasını aç →</a>`;
 }
 
-function panelWhatsapp() {
-    return `
-        <h2>WhatsApp bildirimleri</h2>
-        <p class="settings-desc">Opsiyonel — API token'ınızı daha sonra Ayarlar'dan da girebilirsiniz.</p>
-        <div class="form-group">
-            <label class="form-label" style="display:flex;align-items:center;gap:10px;text-transform:none;">
-                <input type="checkbox" id="obWaEnabled" style="width:18px;height:18px;">
-                WhatsApp API'yi etkinleştir
-            </label>
-        </div>
-        <a href="/settings" class="btn btn-secondary" target="_blank">Detaylı WhatsApp ayarları →</a>`;
-}
-
 function panelCompleted() {
     return `
         <h2>Kurulum tamamlandı 🎉</h2>
@@ -101,7 +87,7 @@ function panelCompleted() {
         <a href="/booking" class="btn btn-secondary" target="_blank" style="margin-left:8px;">Booking sayfası</a>`;
 }
 
-const PANELS = [panelSalonInfo, panelServices, panelStaff, panelWhatsapp, panelCompleted];
+const PANELS = [panelSalonInfo, panelServices, panelStaff, panelCompleted];
 
 function showStep(index) {
     currentIndex = index;
@@ -149,9 +135,6 @@ async function saveCurrentStep() {
             return false;
         }
     }
-    if (stepKey === 'WHATSAPP' && document.getElementById('obWaEnabled')?.checked) {
-        await api('PUT', '/api/settings/whatsapp', { enabled: true });
-    }
 
     const nextKey = currentIndex < STEPS.length - 1 ? STEPS[currentIndex + 1].key : 'COMPLETED';
     const json = await api('PUT', '/api/onboarding/steps', { currentStep: nextKey });
@@ -171,7 +154,7 @@ async function init() {
     const stepsRes = await api('GET', '/api/onboarding/steps');
     if (stepsRes.success && stepsRes.data) {
         const key = stepsRes.data.currentStep || 'SALON_INFO';
-        if (key === 'COMPLETED') {
+        if (key === 'COMPLETED' || key === 'WHATSAPP') {
             currentIndex = STEPS.length - 1;
         } else {
             currentIndex = stepIndex(key);

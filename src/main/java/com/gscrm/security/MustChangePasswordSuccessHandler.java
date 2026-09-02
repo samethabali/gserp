@@ -11,7 +11,10 @@ import java.io.IOException;
 @Component
 public class MustChangePasswordSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
-    public MustChangePasswordSuccessHandler() {
+    private final OnboardingRedirectService onboardingRedirectService;
+
+    public MustChangePasswordSuccessHandler(OnboardingRedirectService onboardingRedirectService) {
+        this.onboardingRedirectService = onboardingRedirectService;
         setDefaultTargetUrl("/");
         setAlwaysUseDefaultTargetUrl(false);
     }
@@ -19,8 +22,9 @@ public class MustChangePasswordSuccessHandler extends SimpleUrlAuthenticationSuc
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
                                         Authentication authentication) throws IOException, jakarta.servlet.ServletException {
-        if (authentication.getPrincipal() instanceof AuthenticatedUser user && user.isMustChangePassword()) {
-            getRedirectStrategy().sendRedirect(request, response, "/change-password");
+        if (authentication.getPrincipal() instanceof AuthenticatedUser user) {
+            String target = onboardingRedirectService.determinePostLoginUrl(user);
+            getRedirectStrategy().sendRedirect(request, response, target);
             return;
         }
         super.onAuthenticationSuccess(request, response, authentication);

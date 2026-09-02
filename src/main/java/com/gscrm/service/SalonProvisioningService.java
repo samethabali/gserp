@@ -26,6 +26,9 @@ public class SalonProvisioningService {
     private final OrganizationSubscriptionRepository organizationSubscriptionRepository;
 
     private final PasswordEncoder passwordEncoder;
+    private final ServiceTemplateService serviceTemplateService;
+    private final StaffRepository staffRepository;
+    private final CustomerRepository customerRepository;
 
     @Transactional
     public TenantProvisionResponse provision(TenantProvisionRequest request) {
@@ -52,11 +55,16 @@ public class SalonProvisioningService {
                 .name(request.getSalonName())
                 .timezone("Europe/Istanbul")
                 .active(true)
+                .showcase(request.isShowcase())
                 .createdAt(now)
                 .contactEmail(request.getContactEmail())
                 .build());
 
         seedDefaultSettings(salon, now);
+        serviceTemplateService.seedHairAndSkinMenu(salon.getId());
+        if (request.isShowcase()) {
+            seedShowcaseSample(salon.getId(), now);
+        }
 
         User admin = userRepository.save(User.builder()
                 .salonId(salon.getId())
@@ -96,6 +104,34 @@ public class SalonProvisioningService {
                 .onboardingStep(onboarding.getCurrentStep())
                 .trialEnd(trialEnd)
                 .build();
+    }
+
+    private void seedShowcaseSample(Long salonId, LocalDateTime now) {
+        staffRepository.save(Staff.builder()
+                .salonId(salonId)
+                .name("Örnek Uzman")
+                .role(com.gscrm.model.enums.StaffRole.SPECIALIST)
+                .colorHex("#9b59b6")
+                .active(true)
+                .createdAt(now)
+                .updatedAt(now)
+                .build());
+        customerRepository.save(Customer.builder()
+                .salonId(salonId)
+                .homeSalonId(salonId)
+                .firstName("Ayşe")
+                .lastName("Demir")
+                .phone("05551112233")
+                .createdAt(now)
+                .build());
+        customerRepository.save(Customer.builder()
+                .salonId(salonId)
+                .homeSalonId(salonId)
+                .firstName("Elif")
+                .lastName("Yılmaz")
+                .phone("05554445566")
+                .createdAt(now)
+                .build());
     }
 
     private void seedDefaultSettings(Salon salon, LocalDateTime now) {

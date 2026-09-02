@@ -9,8 +9,9 @@
 <body style="display:flex;align-items:center;justify-content:center;min-height:100vh;">
 <div style="max-width:480px;width:100%;padding:24px;">
     <h1>Salon Kaydı</h1>
-    <p style="color:var(--text-muted);">14 günlük deneme ile başlayın.</p>
+    <p style="color:var(--text-muted);">Davet kodunuz ile 14 günlük denemeye başlayın.</p>
     <form id="registerForm" style="display:grid;gap:12px;margin-top:16px;">
+        <input type="text" id="inviteCode" placeholder="Davet kodu (GSCRM-XXXX-XXXX)" required autocomplete="off">
         <input type="text" id="orgName" placeholder="Organizasyon / işletme adı" required>
         <input type="text" id="salonName" placeholder="Salon adı" required>
         <input type="text" id="salonSlug" placeholder="Subdomain slug" required>
@@ -20,11 +21,17 @@
         <button type="submit" class="btn btn-primary">Kayıt Ol</button>
     </form>
     <p id="result" style="margin-top:16px;"></p>
+    <p style="margin-top:12px;"><a href="/login">Girişe dön</a></p>
 </div>
 <script>
+const params = new URLSearchParams(window.location.search);
+if (params.get('code')) {
+    document.getElementById('inviteCode').value = params.get('code');
+}
 document.getElementById('registerForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const body = {
+        inviteCode: document.getElementById('inviteCode').value.trim(),
         organizationName: document.getElementById('orgName').value,
         salonName: document.getElementById('salonName').value,
         salonSlug: document.getElementById('salonSlug').value.trim().toLowerCase(),

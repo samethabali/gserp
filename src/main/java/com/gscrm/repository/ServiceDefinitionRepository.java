@@ -11,4 +11,6 @@ public interface ServiceDefinitionRepository extends JpaRepository<ServiceDefini
     Optional<ServiceDefinition> findByIdAndSalonId(Long id, Long salonId);
 
     List<ServiceDefinition> findBySalonIdAndActiveTrue(Long salonId);
+
+    boolean existsBySalonId(Long salonId);
 }
