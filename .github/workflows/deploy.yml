@@ -59,20 +59,28 @@ jobs:
             docker compose -f "$COMPOSE_FILE" build app
             docker compose -f "$COMPOSE_FILE" up -d
 
-            echo "[*] App healthy bekleniyor (max 120s)..."
+            # Konteyner adı compose dosyasından çözülür; marka/ad değişimlerinde kırılmaz.
+            APP_CID=$(docker compose -f "$COMPOSE_FILE" ps -q app)
+            if [ -z "$APP_CID" ]; then
+              echo "[x] app servisi bulunamadı ($COMPOSE_FILE)"
+              docker compose -f "$COMPOSE_FILE" ps
+              exit 1
+            fi
+
+            echo "[*] App healthy bekleniyor (max 120s) — cid=${APP_CID:0:12}"
             DEADLINE=$(( $(date +%s) + 120 ))
             STATUS=missing
             while [ "$(date +%s)" -lt "$DEADLINE" ]; do
-              STATUS=$(docker inspect --format='{{.State.Health.Status}}' gserp-app 2>/dev/null || echo missing)
+              STATUS=$(docker inspect --format='{{.State.Health.Status}}' "$APP_CID" 2>/dev/null || echo missing)
               if [ "$STATUS" = "healthy" ]; then
-                echo "[+] gserp-app healthy"
+                echo "[+] app healthy"
                 break
               fi
               sleep 5
             done
 
             if [ "$STATUS" != "healthy" ]; then
-              echo "[x] gserp-app healthy olmadı (durum: $STATUS). Son loglar:"
+              echo "[x] app healthy olmadı (durum: $STATUS). Son loglar:"
               docker compose -f "$COMPOSE_FILE" logs --tail 80 app
               exit 1
             fi
