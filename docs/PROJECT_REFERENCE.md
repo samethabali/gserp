@@ -20,15 +20,14 @@
 10. [Web Arayüzü (Thymeleaf)](#10-web-arayüzü-thymeleaf)
 11. [WebSocket / Canlı Takvim](#11-websocket--canlı-takvim)
 12. [İş Modülleri (Servis Katmanı)](#12-iş-modülleri-servis-katmanı)
-13. [Bildirimler (WhatsApp)](#13-bildirimler-whatsapp)
-14. [Ticari Katman (Abonelik / Billing)](#14-ticari-katman-abonelik--billing)
-15. [KVKK ve Uyumluluk](#15-kvkk-ve-uyumluluk)
-16. [Platform / Franchise / Onboarding](#16-platform--franchise--onboarding)
-17. [Konfigürasyon ve Ortam Değişkenleri](#17-konfigürasyon-ve-ortam-değişkenleri)
-18. [Deploy ve Operasyon](#18-deploy-ve-operasyon)
-19. [Test Stratejisi](#19-test-stratejisi)
-20. [Dokümantasyon Haritası](#20-dokümantasyon-haritası)
-21. [Geliştirme Kuralları ve Sık Yapılan Hatalar](#21-geliştirme-kuralları-ve-sık-yapılan-hatalar)
+13. [Ticari Katman (Abonelik / Billing)](#13-ticari-katman-abonelik--billing)
+14. [KVKK ve Uyumluluk](#14-kvkk-ve-uyumluluk)
+15. [Platform / Franchise / Onboarding](#15-platform--franchise--onboarding)
+16. [Konfigürasyon ve Ortam Değişkenleri](#16-konfigürasyon-ve-ortam-değişkenleri)
+17. [Deploy ve Operasyon](#17-deploy-ve-operasyon)
+18. [Test Stratejisi](#18-test-stratejisi)
+19. [Dokümantasyon Haritası](#19-dokümantasyon-haritası)
+20. [Geliştirme Kuralları ve Sık Yapılan Hatalar](#20-geliştirme-kuralları-ve-sık-yapılan-hatalar)
 
 ---
 
@@ -81,7 +80,6 @@ gscrm/
 ├── docs/
 │   ├── PROJECT_REFERENCE.md    # ← BU DOSYA
 │   ├── deploy-vps.md           # VPS kurulum rehberi
-│   ├── whatsapp-setup.md       # WhatsApp (ürün dışı / ertelenmiş)
 │   └── saas/                   # SLA, DPA, pricing, DR, nginx wildcard
 ├── scripts/
 │   ├── backup-db.sh            # pg_dump yedek
@@ -93,7 +91,6 @@ gscrm/
 │   ├── dto/                    # request/ response
 │   ├── exception/              # GlobalExceptionHandler
 │   ├── model/                  # JPA entity + enums
-│   ├── notification/whatsapp/  # Meta Cloud API (kod duruyor, ürün yüzeyi kapalı)
 │   ├── repository/             # Spring Data JPA
 │   ├── security/               # JWT, filters, RBAC
 │   ├── service/                # Business logic + RetentionJob
@@ -211,12 +208,12 @@ Platform (PLATFORM_ADMIN)
 | V10 | `V10__campaigns_and_loyalty.sql` | coupon, loyalty_tier, coupon_usage |
 | V11 | `V11__user_password_flags.sql` | must_change_password |
 | V12 | `V12__salon_settings_and_consent.sql` | salon_settings, customer.consent_at |
-| V13 | `V13__notification_log.sql` | WhatsApp gönderim logu |
+| V13 | `V13__notification_log.sql` | Bildirim logu (V28'de kaldırıldı) |
 | V14 | `V14__organization_and_salon.sql` | organization + salon master, default seed |
 | V15 | `V15__salon_id_columns.sql` | tüm tablolara salon_id + backfill |
 | V16 | `V16__salon_composite_unique_indexes.sql` | per-salon unique/index |
 | V17 | `V17__user_salon_role.sql` | user_salon_role, organization_owner |
-| V18 | `V18__branch_overrides.sql` | branch_service_price, branch_holiday, salon_whatsapp_config |
+| V18 | `V18__branch_overrides.sql` | branch_service_price, branch_holiday |
 | V19 | `V19__coupon_scope.sql` | coupon scope SALON/ORG/GLOBAL |
 | V20 | `V20__branch_stock.sql` | branch_stock, home_salon_id |
 | V21 | `V21__loyalty_policy.sql` | organization.loyalty_policy SALON/ORG |
@@ -253,13 +250,11 @@ Tüm operasyonel entity’ler `TenantEntity` implement eder (`getSalonId()`).
 | `SalonSetting` | salon_settings | Key-value white-label |
 | `BranchServicePrice` | branch_service_price | Şube fiyat override |
 | `BranchStock` | branch_stock | Şube bazlı stok |
-| `SalonWhatsAppConfig` | salon_whatsapp_config | Tenant WhatsApp credential |
 | `ConsentRecord` | consent_record | KVKK rıza kaydı |
-| `NotificationLog` | notification_log | Bildirim denemeleri |
 | `AuditLogEntry` | audit_log_entry | Randevu audit (genişletilebilir) |
 | `SubscriptionPlan` | subscription_plan | SOLO, FRANCHISE_STARTER, … |
 | `OrganizationSubscription` | organization_subscription | Trial/active, trial_end |
-| `UsageMeter` | usage_meter | whatsapp_sent vb. aylık sayaç |
+| `UsageMeter` | usage_meter | Aylık kullanım sayacı |
 | `OnboardingState` | onboarding_state | Kurulum sihirbazı adımı |
 
 ### Önemli enum’lar
@@ -375,9 +370,6 @@ Standart CRUD pattern — bkz. controller sınıfları: `PaymentController`, `Ex
 ### Stok — `/api/inventory`
 | POST | `/transfer` | Şubeler arası stok transfer |
 
-### Webhook
-| POST | `/api/webhooks/iyzico` | Ödeme webhook (log) |
-
 ### Actuator
 `/actuator/health`, `/actuator/info`, `/actuator/prometheus`
 
@@ -439,30 +431,19 @@ nginx’de WebSocket proxy upgrade gerekir (`docs/deploy-vps.md`).
 | `BranchPricingService` | Şube fiyat override |
 | `StaffService` | Personel, uzmanlık, working_hours |
 | `SalonSettingsService` | White-label key-value (salon scoped) |
-| `SalonWhatsAppService` | WhatsApp config (ürün yüzeyi kapalı) |
 | `DashboardService` | KPI + `getOrgSummary` |
 | `UserService` | Staff kullanıcı + kota kontrolü |
 | `SalonProvisioningService` | Yeni tenant: org, salon, admin, plan, onboarding |
 | `ConsentService` | Booking/portal rıza kaydı |
 | `GdprService` | Export + anonimleştirme |
-| `SubscriptionService` | Plan, usage, iyzico webhook log |
+| `SubscriptionService` | Plan, usage, abonelik aktifleştirme |
 | `QuotaEnforcementService` | Seat, salon kotası |
 | `AuditService` | Randevu değişiklik logu |
 | `AppointmentReminderService` | 24h cron hatırlatma |
-| `RetentionJob` | Eski audit/notification log silme (90 gün) |
+| `RetentionJob` | Eski audit log silme (90 gün) |
 | `NotificationService` | WebSocket broadcast |
 
----
-
-## 13. Bildirimler (WhatsApp) — ürün dışı
-
-**2026-08:** WhatsApp ürün yüzeyi kapatıldı. Salon UI, booking `wa.me`, ayar API’si ve otomatik gönderim yok. Kod (`notification/whatsapp`, `salon_whatsapp_config`) sonraki sürüm için duruyor; `WHATSAPP_ENABLED` varsayılan `false`, webhook yalnızca bu flag `true` iken yüklenir.
-
-Eski `GET/PUT /api/settings/whatsapp` 404 döner. Kurulum sihirbazı: `SALON_INFO` → `SERVICES` → `STAFF` → `COMPLETED`.
-
----
-
-## 14. Ticari Katman (Abonelik / Billing)
+## 13. Ticari Katman (Abonelik / Billing)
 
 ### Planlar (V23 seed)
 
@@ -476,13 +457,13 @@ Eski `GET/PUT /api/settings/whatsapp` 404 döner. Kurulum sihirbazı: `SALON_INF
 
 1. Provision / onboarding → `organization_subscription` TRIAL (14 gün)
 2. `UserService.create` → `QuotaEnforcementService.assertCanAddUser`
-3. `POST /api/webhooks/iyzico` → `billing_event` kaydı (outbound iyzico SDK yok — webhook log aşaması)
+3. `POST /api/billing/activate` (PLATFORM_ADMIN) → abonelik `ACTIVE` + `billing_event` kaydı
 
 **Fiyatlandırma dokümanı:** `docs/saas/pricing.md`
 
 ---
 
-## 15. KVKK ve Uyumluluk
+## 14. KVKK ve Uyumluluk
 
 | Özellik | Uygulama |
 |---------|----------|
@@ -497,7 +478,7 @@ Eski `GET/PUT /api/settings/whatsapp` 404 döner. Kurulum sihirbazı: `SALON_INF
 
 ---
 
-## 16. Platform / Franchise / Onboarding
+## 15. Platform / Franchise / Onboarding
 
 ### Bağımsız salon (STANDALONE)
 
@@ -518,7 +499,7 @@ Eski `GET/PUT /api/settings/whatsapp` 404 döner. Kurulum sihirbazı: `SALON_INF
 
 ---
 
-## 17. Konfigürasyon ve Ortam Değişkenleri
+## 16. Konfigürasyon ve Ortam Değişkenleri
 
 ### Profiller
 
@@ -547,7 +528,7 @@ SPRING_PROFILES_ACTIVE=prod
 
 ---
 
-## 18. Deploy ve Operasyon
+## 17. Deploy ve Operasyon
 
 ### Yerel geliştirme
 
@@ -582,7 +563,7 @@ curl http://127.0.0.1:8989/actuator/health
 
 ---
 
-## 19. Test Stratejisi
+## 18. Test Stratejisi
 
 | Test | Kapsam |
 |------|--------|
@@ -592,7 +573,6 @@ curl http://127.0.0.1:8989/actuator/health
 | `TenantIsolationIT` | Cross-tenant staff reddi |
 | `SecurityConfigIT` | Platform auth, public booking |
 | `JwtServiceTest` | Access/refresh ayrımı |
-| `WhatsAppNotificationServiceTest` | Telefon normalize |
 
 **Çalıştırma:** `mvn verify` (Surefire: `*Test.java`, `*IT.java`)
 
@@ -600,7 +580,7 @@ curl http://127.0.0.1:8989/actuator/health
 
 ---
 
-## 20. Dokümantasyon Haritası
+## 19. Dokümantasyon Haritası
 
 | Dosya | Ne zaman oku |
 |-------|--------------|
@@ -608,13 +588,12 @@ curl http://127.0.0.1:8989/actuator/health
 | README.md | Hızlı başlangıç |
 | system.txt | Kısa modül listesi |
 | docs/deploy-vps.md | VPS/nginx/SSL |
-| docs/whatsapp-setup.md | WhatsApp (ürün dışı; ertelenmiş) |
 | docs/saas/* | SaaS iş/hukuk/ops |
 | CHANGELOG.md | Sürüm geçmişi |
 
 ---
 
-## 21. Geliştirme Kuralları ve Sık Yapılan Hatalar
+## 20. Geliştirme Kuralları ve Sık Yapılan Hatalar
 
 ### Yapılması gerekenler
 

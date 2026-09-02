@@ -14,10 +14,9 @@ Bu doküman demo hazırlığı, deploy ve SaaS ürünleştirme adımlarını tek
 
 | Madde | Durum |
 |-------|--------|
-| UX paketi (WhatsApp ayarları, custom select, takvim, müşteri seçici) | ✅ |
+| UX paketi (custom select, takvim, müşteri seçici) | ✅ |
 | Demo rehberi (`docs/DEMO.md`) + `admin`/`admin` | ✅ |
 | Demo testleri (`DemoFeaturesIT`, unit testler) | ✅ |
-| WhatsApp kota wiring | ✅ |
 | Billing UI (`/settings/billing`) | ✅ |
 | Trial salt okunur mod | ✅ |
 | 5 adımlı onboarding (`/onboarding/setup`) | ✅ |
@@ -77,13 +76,13 @@ Prod DB'de demo kullanıcı yoksa:
 
 | # | İş | Öncelik | Efor | Bağımlılık |
 |---|-----|---------|------|------------|
-| A1 | iyzico checkout + webhook → `ACTIVE` abonelik | P0 | L | Billing UI ✅ | ✅ mock checkout |
+| A1 | Elle abonelik aktifleştirme (`POST /api/billing/activate`) → `ACTIVE` | P0 | S | Billing UI ✅ | ✅ |
 | A2 | Trial bitiş e-postası / banner iyileştirme | P1 | S | A1 | ✅ `TrialExpiryNotifier` |
 | A3 | Pilot seed Senaryo A (`DevDataSeeder`) | P1 | M | Onboarding ✅ | ✅ `PilotScenarioSeeder` |
 | A4 | Onboarding sonrası otomatik yönlendirme (login → setup) | P2 | S | A3 | ✅ |
 | A5 | Hizmet şablonu (Saç + Cilt) provisioning'de | P2 | M | A3 | ✅ |
 
-**Kabul kriteri:** Yeni salon kayıt → 14 gün trial → ödeme → yazma devam; kota aşımında WhatsApp durur.
+**Kabul kriteri:** Yeni salon kayıt → 14 gün trial → ödeme → yazma devam; kota aşımında yazma durur.
 
 ### Dalga B — Franchise & multi-şube
 
@@ -107,14 +106,14 @@ Prod DB'de demo kullanıcı yoksa:
 | C1 | `BranchPricingService` → randevu fiyatlandırma | P1 | M | ✅ |
 | C2 | `branch_holiday` model + UI + scheduler entegrasyonu | P1 | L | API ✅, UI kısmi |
 | C3 | Kullanıcı / şube kotası UI uyarıları | P2 | S | ✅ billing quotas |
-| C4 | Usage meter dashboard (WhatsApp, aktif kullanıcı) | P2 | M |
+| C4 | Usage meter dashboard (aktif kullanıcı) | P2 | M |
 | C5 | Faturalandırma olayları admin görünümü | P2 | M | ✅ billing events |
 
 ### Dalga D — Güvenlik & ölçek (prod sertleştirme)
 
 | # | İş | Öncelik | Efor | Referans |
 |---|-----|---------|------|----------|
-| D1 | WhatsApp token encryption (at rest) | P0 | M | `salon_settings` | ✅ (+ `APP_ENCRYPTION_KEY` ile JWT'den bağımsız anahtar) |
+| D1 | Sır şifreleme (at rest) | P0 | M | `salon_settings` | ✅ (+ `APP_ENCRYPTION_KEY` ile JWT'den bağımsız anahtar) |
 | D2 | JWT secret rotation playbook | P1 | S | `docs/saas/dr-playbook.md` | ✅ `docs/saas/jwt-rotation.md` (+ prod fail-fast guard) |
 | D3 | Redis rate limit + session (booking dışı) | P1 | L | — |
 | D4 | MFA (ORG_OWNER, PLATFORM_ADMIN) | P2 | L | — |
@@ -140,14 +139,13 @@ Prod DB'de demo kullanıcı yoksa:
 
 | Alan | Mevcut | Eksik |
 |------|--------|-------|
-| Abonelik | API + UI + read-only | iyzico ödeme, fatura PDF |
-| Kota | WhatsApp sayaç wired | Kullanıcı/şube kotası UI enforcement |
+| Abonelik | API + UI + read-only + elle aktifleştirme | Fatura PDF |
+| Kota | Kullanıcı/şube sayacı | Kota UI enforcement |
 | Onboarding | 5 adım wizard | Login redirect, hizmet şablonu |
 | Franchise | Org API, branch scope | Switcher, impersonation, seed B |
 | Tenant | `X-Salon-Slug`, subdomain, ✅ cross-tenant erişim engeli (`TenantAccessFilter`), ✅ JWT-tenant bağı | Custom domain (CNAME), veri katmanı RLS |
-| Bildirim | WhatsApp + log | SMS fallback, e-posta transactional |
+| Bildirim | Uygulama içi (WebSocket) | SMS, e-posta transactional |
 | Audit | `audit_log` API | Platform-wide arama, export |
-| Billing webhook | iyzico log + ✅ idempotency + ✅ HMAC signature verify (`IyzicoWebhookVerifier`) | Gerçek ödeme akışı (3DS, iade) |
 
 ---
 
@@ -156,9 +154,9 @@ Prod DB'de demo kullanıcı yoksa:
 ```
 Sprint 1 (demo + deploy)     → ✅ commit, push, VDS smoke
 Sprint 2 (pilot A)           → ✅ A3 seed, A4 redirect, A5 şablon (+ Senaryo B seed)
-Sprint 3 (ödeme)             → ✅ A1 mock iyzico, A2 trial uyarıları
+Sprint 3 (ödeme)             → ✅ A1 elle aktifleştirme, A2 trial uyarıları
 Sprint 4 (franchise pilot)   → ✅ B2 switcher, B3 org dashboard, B5–B6 testler
-Sprint 5 (güvenlik)          → ✅ D1 token encryption, D5 backup verify script
+Sprint 5 (güvenlik)          → ✅ D1 sır şifreleme, D5 backup verify script
 ```
 
 ---
@@ -182,6 +180,5 @@ Sprint 5 (güvenlik)          → ✅ D1 token encryption, D5 backup verify scri
 |--------|--------|
 | Onboarding tamamlama | > %80 kayıt → COMPLETED |
 | Trial → paid dönüşüm | > %20 (ilk 3 pilot) |
-| WhatsApp kota aşımı | 0 sessiz aşım (log + skip) |
 | Cross-tenant ihlal | 0 (otomatik test yeşil) |
 | Deploy süresi | < 5 dk, health UP |

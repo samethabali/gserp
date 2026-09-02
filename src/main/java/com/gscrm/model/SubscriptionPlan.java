@@ -31,10 +31,6 @@ public class SubscriptionPlan {
     @Builder.Default
     private int maxUsers = 5;
 
-    @Column(name = "whatsapp_quota", nullable = false)
-    @Builder.Default
-    private int whatsappQuota = 500;
-
     @Column(name = "price_monthly", nullable = false, precision = 10, scale = 2)
     @Builder.Default
     private BigDecimal priceMonthly = BigDecimal.ZERO;

@@ -154,7 +154,7 @@ async function init() {
     const stepsRes = await api('GET', '/api/onboarding/steps');
     if (stepsRes.success && stepsRes.data) {
         const key = stepsRes.data.currentStep || 'SALON_INFO';
-        if (key === 'COMPLETED' || key === 'WHATSAPP') {
+        if (key === 'COMPLETED') {
             currentIndex = STEPS.length - 1;
         } else {
             currentIndex = stepIndex(key);

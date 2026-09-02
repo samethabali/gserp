@@ -22,7 +22,6 @@ public class QuotaEnforcementService {
     private final SubscriptionPlanRepository planRepository;
     private final UserRepository userRepository;
     private final SalonRepository salonRepository;
-    private final SubscriptionService subscriptionService;
 
     public void assertCanAddUser(Long organizationId) {
         SubscriptionPlan plan = resolvePlan(organizationId);
@@ -38,15 +37,6 @@ public class QuotaEnforcementService {
         long current = salonRepository.findByOrganizationIdAndActiveTrue(organizationId).size();
         if (current >= plan.getMaxSalons()) {
             throw new IllegalStateException("Şube kotası doldu (max " + plan.getMaxSalons() + ")");
-        }
-    }
-
-    public void assertWhatsAppQuota(Long organizationId) {
-        SubscriptionPlan plan = resolvePlan(organizationId);
-        var usage = subscriptionService.getUsage(organizationId);
-        int used = (int) usage.get("whatsappSent");
-        if (used >= plan.getWhatsappQuota()) {
-            throw new IllegalStateException("WhatsApp kotası doldu (max " + plan.getWhatsappQuota() + ")");
         }
     }
 

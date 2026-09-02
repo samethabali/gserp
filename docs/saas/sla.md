@@ -28,5 +28,4 @@
 ## Hariç Tutulanlar
 
 - Müşteri internet/VDS dışı kesintiler
-- Meta WhatsApp API kesintileri
 - Force majeure

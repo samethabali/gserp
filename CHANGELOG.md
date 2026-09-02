@@ -3,13 +3,12 @@
 ## 1.1.0 — 2026-06-22
 
 ### SaaS & Faturalandırma
-- Abonelik sayfası (`/settings/billing`) — plan, kota ve aylık WhatsApp kullanımı
+- Abonelik sayfası (`/settings/billing`) — plan ve kota kullanımı
 - Trial bitince salt okunur mod (`SubscriptionReadOnlyFilter`, HTTP 402)
 - Deneme uyarı banner'ı (7 gün kala) tüm yönetim sayfalarında
-- WhatsApp kotası org bazlı sayaç (`SubscriptionService.incrementUsage`)
 
 ### Onboarding
-- 5 adımlı kurulum sihirbazı (`/onboarding/setup`) — salon, hizmet, personel, WhatsApp
+- Kurulum sihirbazı (`/onboarding/setup`) — salon, hizmet, personel
 - Public kayıt sonrası kurulum yönlendirmesi
 
 ### Demo & Test
@@ -29,7 +28,6 @@
 - Personel kullanıcı yönetimi (admin)
 - KVKK onay checkbox ve gizlilik sayfası
 - Salon white-label ayarları (`salon_settings`)
-- WhatsApp bildirim altyapısı (onay, hatırlatma, iptal — API ile)
 
 ### Operasyon
 - CI workflow (`mvn verify`)

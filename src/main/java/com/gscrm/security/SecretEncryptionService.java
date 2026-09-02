@@ -25,7 +25,7 @@ public class SecretEncryptionService {
 
     /**
      * Şifreleme anahtarı, JWT secret'ından BAĞIMSIZ olmalıdır: aksi halde JWT secret
-     * rotasyonu, depoda şifreli tutulan tüm sırları (WhatsApp token vb.) çözülemez hale
+     * rotasyonu, depoda şifreli tutulan tüm sırları çözülemez hale
      * getirir. Bu yüzden önce {@code app.encryption.key} kullanılır; tanımsızsa geriye
      * uyumluluk için JWT secret'a düşülür (uyarı loglanır).
      */

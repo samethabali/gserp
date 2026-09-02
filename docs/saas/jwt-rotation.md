@@ -5,5 +5,3 @@
 3. `docker compose up -d` ile uygulamayı yeniden başlatın.
 4. Tüm oturumlar yeniden giriş gerektirir — kullanıcılara duyuru yapın.
 5. 24 saat sonra `JWT_SECRET_PREVIOUS` kaldırın.
-
-WhatsApp token encryption `app.jwt.secret` türetir; rotation sonrası salon token'larını Ayarlar'dan yeniden kaydedin.

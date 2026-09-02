@@ -11,7 +11,7 @@ class SecretEncryptionServiceTest {
 
     @Test
     void encryptDecrypt_roundTrip() {
-        String plain = "EAAxxxxx-whatsapp-token";
+        String plain = "sk-live-0123456789-secret-token";
         String enc = service.encrypt(plain);
         assertThat(enc).startsWith("enc:v1:");
         assertThat(service.decrypt(enc)).isEqualTo(plain);

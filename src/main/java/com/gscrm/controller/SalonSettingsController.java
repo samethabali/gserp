@@ -3,7 +3,6 @@ package com.gscrm.controller;
 import com.gscrm.dto.response.ApiResponse;
 import com.gscrm.service.SalonSettingsService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -35,12 +34,5 @@ public class SalonSettingsController {
         if (body.containsKey("logoUrl")) salonSettingsService.set("salon.logo_url", body.get("logoUrl"));
         if (body.containsKey("primaryColor")) salonSettingsService.set("salon.primary_color", body.get("primaryColor"));
         return ResponseEntity.ok(ApiResponse.ok("Ayarlar kaydedildi", null));
-    }
-
-    @RequestMapping(path = "/whatsapp", method = {RequestMethod.GET, RequestMethod.PUT})
-    @PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN')")
-    public ResponseEntity<ApiResponse<Void>> whatsappUnavailable() {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ApiResponse.error("WhatsApp bildirimleri şu an üründe yok"));
     }
 }

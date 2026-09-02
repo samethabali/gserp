@@ -4,7 +4,6 @@ import com.gscrm.dto.response.ApiResponse;
 import com.gscrm.security.AuthenticatedUser;
 import com.gscrm.security.StaffScopeService;
 import com.gscrm.tenant.OrganizationContextService;
-import com.gscrm.service.IyzicoCheckoutService;
 import com.gscrm.service.SubscriptionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -19,7 +18,6 @@ import java.util.Map;
 public class BillingController {
 
     private final SubscriptionService subscriptionService;
-    private final IyzicoCheckoutService iyzicoCheckoutService;
     private final StaffScopeService staffScopeService;
     private final OrganizationContextService organizationContextService;
 
@@ -58,21 +56,23 @@ public class BillingController {
         return ResponseEntity.ok(ApiResponse.ok(subscriptionService.getQuotaStatus(orgId)));
     }
 
-    @PostMapping("/checkout")
+    /**
+     * Aboneliği elle aktifleştirir. Ödeme, ürün dışındaki bir kanaldan (havale,
+     * fatura) tahsil edildikten sonra platform yöneticisi bu ucu çağırır;
+     * {@code reference} dekont ya da fatura numarasıdır ve billing event'ine yazılır.
+     */
+    @PostMapping("/activate")
     @PreAuthorize("hasRole('PLATFORM_ADMIN')")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> checkout() {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> activate(@RequestBody Map<String, String> body) {
         AuthenticatedUser user = staffScopeService.requireAuthenticatedUser();
         Long orgId = requireOrganizationId(user);
-        return ResponseEntity.ok(ApiResponse.ok(iyzicoCheckoutService.initiateCheckout(orgId)));
-    }
-
-    @PostMapping("/checkout/complete-mock")
-    @PreAuthorize("hasRole('PLATFORM_ADMIN')")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> completeMock(@RequestBody Map<String, String> body) {
-        AuthenticatedUser user = staffScopeService.requireAuthenticatedUser();
-        Long orgId = requireOrganizationId(user);
-        iyzicoCheckoutService.completeMockCheckout(orgId, body.get("paymentToken"));
-        return ResponseEntity.ok(ApiResponse.ok(subscriptionService.getSubscriptionStatus(orgId)));
+        String reference = body.get("reference");
+        if (reference == null || reference.isBlank()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Ödeme referansı girilmelidir"));
+        }
+        subscriptionService.activateSubscription(orgId, reference.trim());
+        return ResponseEntity.ok(ApiResponse.ok("Abonelik aktifleştirildi",
+                subscriptionService.getSubscriptionStatus(orgId)));
     }
 
     private Long requireOrganizationId(AuthenticatedUser user) {

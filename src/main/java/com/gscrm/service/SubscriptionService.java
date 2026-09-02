@@ -2,7 +2,6 @@ package com.gscrm.service;
 
 import com.gscrm.model.*;
 import com.gscrm.repository.*;
-import com.gscrm.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,7 +20,6 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class SubscriptionService {
 
-    public static final String METRIC_WHATSAPP = "whatsapp_sent";
     public static final String METRIC_USERS = "active_users";
 
     private final OrganizationSubscriptionRepository subscriptionRepository;
@@ -44,7 +42,6 @@ public class SubscriptionService {
         result.put("planName", plan.getName());
         result.put("maxSalons", plan.getMaxSalons());
         result.put("maxUsers", plan.getMaxUsers());
-        result.put("whatsappQuota", plan.getWhatsappQuota());
         result.put("priceMonthly", plan.getPriceMonthly());
         result.put("trialEnd", sub.getTrialEnd());
         result.put("currentPeriodEnd", sub.getCurrentPeriodEnd());
@@ -55,12 +52,9 @@ public class SubscriptionService {
         String period = currentPeriod();
         // Org+dönem'e scope'lu sorgu (tüm tablo taranmaz).
         List<UsageMeter> meters = usageMeterRepository.findByOrganizationIdAndPeriod(organizationId, period);
-        // WhatsApp toplamı DB tarafında SUM ile hesaplanır.
-        int whatsappUsed = (int) usageMeterRepository.sumCount(organizationId, METRIC_WHATSAPP, period);
 
         Map<String, Object> result = new HashMap<>();
         result.put("period", period);
-        result.put("whatsappSent", whatsappUsed);
         result.put("metrics", meters);
         return result;
     }
@@ -89,15 +83,6 @@ public class SubscriptionService {
                 .payload(payload)
                 .createdAt(LocalDateTime.now())
                 .build());
-    }
-
-    @Transactional
-    public void handleIyzicoWebhook(String payload) {
-        Long orgId = TenantContext.getOrgId();
-        if (orgId == null) {
-            orgId = 1L;
-        }
-        recordBillingEvent(orgId, "IYZICO_WEBHOOK", payload);
     }
 
     public boolean hasBillingEvent(Long organizationId, String eventType) {
@@ -143,18 +128,12 @@ public class SubscriptionService {
         }
         int salonCount = salonRepository.findByOrganizationIdAndActiveTrue(organizationId).size();
         long userCount = userRepository.countByOrganizationIdAndEnabledTrue(organizationId);
-        Map<String, Object> usage = getUsage(organizationId);
-        int whatsappUsed = (Integer) usage.getOrDefault("whatsappSent", 0);
-
         result.put("salonsUsed", salonCount);
         result.put("salonsMax", plan.getMaxSalons());
         result.put("usersUsed", userCount);
         result.put("usersMax", plan.getMaxUsers());
-        result.put("whatsappUsed", whatsappUsed);
-        result.put("whatsappMax", plan.getWhatsappQuota());
         result.put("salonQuotaWarning", salonCount >= plan.getMaxSalons());
         result.put("userQuotaWarning", userCount >= plan.getMaxUsers());
-        result.put("whatsappQuotaWarning", whatsappUsed >= plan.getWhatsappQuota() * 0.9);
         return result;
     }
 

@@ -41,7 +41,7 @@ public class SalonOnboardingController {
         OnboardingState state = requireOrCreateState(salonId);
         return ResponseEntity.ok(ApiResponse.ok(Map.of(
                 "salonId", salonId,
-                "currentStep", productStep(state.getCurrentStep()),
+                "currentStep", state.getCurrentStep(),
                 "completedAt", state.getCompletedAt(),
                 "steps", List.of("SALON_INFO", "SERVICES", "STAFF", "COMPLETED"))));
     }
@@ -53,9 +53,6 @@ public class SalonOnboardingController {
         OnboardingState state = requireOrCreateState(salonId);
         String step = body.get("currentStep");
         if (step != null && !step.isBlank()) {
-            if ("WHATSAPP".equals(step)) {
-                step = "COMPLETED";
-            }
             state.setCurrentStep(step);
         }
         if ("COMPLETED".equals(step)) {
@@ -75,10 +72,5 @@ public class SalonOnboardingController {
                         .currentStep("COMPLETED")
                         .updatedAt(LocalDateTime.now())
                         .build()));
-    }
-
-    /** Eski kurulumlarda kalan WHATSAPP adımı üründen çıkarıldı. */
-    private static String productStep(String step) {
-        return "WHATSAPP".equals(step) ? "COMPLETED" : step;
     }
 }

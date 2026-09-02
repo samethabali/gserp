@@ -111,15 +111,6 @@ class DemoFeaturesIT {
     }
 
     @Test
-    @WithMockUser(username = "admin", roles = "BRANCH_MANAGER")
-    void whatsAppSettingsAreNotExposed() throws Exception {
-        mockMvc.perform(get("/api/settings/whatsapp")
-                        .header("X-Salon-Slug", "default"))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.success").value(false));
-    }
-
-    @Test
     void billingStatusReturnsPlanInfo() throws Exception {
         AuthenticatedUser user = new AuthenticatedUser(
                 1L, "admin", "", true, UserRole.BRANCH_MANAGER,

@@ -40,26 +40,11 @@ karşılaştırır (salon-bağımsız roller için claim yoksa atlanır).
 
 **Test:** `JwtServiceTest.tokenRejectedWhenSalonMismatch`, `tokenValidWhenSalonMatches`.
 
-### P0.3 — iyzico webhook imza doğrulaması
-
-**Açık:** `/api/webhooks/iyzico` `permitAll` ve imzasızdı. Herhangi biri
-`{"organizationId":X,"status":"SUCCESS"}` POST'layarak ücretsiz abonelik
-aktifleştirebilirdi.
-
-**Çözüm:** [IyzicoWebhookVerifier.java](../../src/main/java/com/gscrm/service/IyzicoWebhookVerifier.java)
-— ham gövdenin HMAC-SHA256 imzasını `X-IYZ-SIGNATURE-V3` header'ı ile sabit-zamanlı
-karşılaştırır (hex + base64 kabul eder). Mock/disabled modda imza aranmaz (dev/demo).
-Geçersiz imza → `401`. [IyzicoWebhookController.java](../../src/main/java/com/gscrm/controller/IyzicoWebhookController.java)
-imzayı doğrulamadan payload'ı işlemez.
-
-**Test:** `IyzicoWebhookVerifierTest` — 6 senaryo (mock skip, eksik/yanlış imza red,
-geçerli hex/base64 kabul, secret eksik red).
-
-### P0.4 — Zayıf secret'lara karşı fail-fast + encryption key ayrımı
+### P0.3 — Zayıf secret'lara karşı fail-fast + encryption key ayrımı
 
 **Açıklar:**
 1. Prod'da repo'daki dev JWT secret'ı kullanılırsa engel yoktu.
-2. `SecretEncryptionService`, WhatsApp token'larını JWT secret'ından türetilen
+2. `SecretEncryptionService`, depodaki şifreli sırları JWT secret'ından türetilen
    anahtarla şifreliyordu → JWT rotasyonu tüm şifreli sırları bozardı.
 
 **Çözümler:**
@@ -81,7 +66,6 @@ git takibinden çıkarıldı. `.gitignore`'a debug artık kalıpları eklendi
 
 ### P1.1 — Test kapsamı
 - `TenantAccessFilterIT` (cross-tenant list-endpoint)
-- `IyzicoWebhookVerifierTest` (webhook güvenliği)
 - `JwtServiceTest` (salonId claim doğrulaması)
 
 ### P1.2 / P1.3 — Kota sayımında `findAll()` kaldırma
@@ -104,17 +88,11 @@ APP_ENCRYPTION_KEY=<...>
 `docker-compose.yml` artık `APP_ENCRYPTION_KEY`'i zorunlu kılar (`:?`). Ayrıca
 prod'da `JWT_SECRET` repo'daki dev değeri OLAMAZ (fail-fast).
 
-iyzico gerçek moda geçerken (`IYZICO_ENABLED=true`, `IYZICO_MOCK_MODE=false`):
-```bash
-IYZICO_WEBHOOK_SECRET=<iyzico webhook gizli anahtarı>
-```
-
 ---
 
 ## Kalan işler (bu güncelleme kapsamı DIŞINDA)
 
 Bkz. [PRODUCT_ROADMAP.md](../PRODUCT_ROADMAP.md):
-- Gerçek iyzico ödeme akışı (3DS, iade, fatura PDF) — hâlâ mock.
 - Veri katmanı izolasyonu (Hibernate `@Filter` / PostgreSQL RLS) — servis-seviyesi
   manuel `salonId` filtresi hâlâ birincil savunma.
 - Redis (rate limit + session + WebSocket) çok-instance ölçek için.
