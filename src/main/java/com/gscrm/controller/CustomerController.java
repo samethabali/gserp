@@ -7,6 +7,7 @@ import com.gscrm.dto.response.CustomerResponse;
 import com.gscrm.dto.response.RecentCustomerDto;
 import com.gscrm.model.Customer;
 import com.gscrm.model.ConsentRecord;
+import com.gscrm.service.ActivityEventService;
 import com.gscrm.service.ConsentService;
 import com.gscrm.service.CustomerService;
 import com.gscrm.service.GdprService;
@@ -28,6 +29,7 @@ public class CustomerController {
     private final CustomerService customerService;
     private final GdprService gdprService;
     private final ConsentService consentService;
+    private final ActivityEventService activityEventService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<CustomerResponse>>> getAll(
@@ -104,5 +106,15 @@ public class CustomerController {
     @GetMapping("/{id}/consent")
     public ResponseEntity<ApiResponse<List<ConsentRecord>>> listConsents(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok(consentService.listConsents(id)));
+    }
+
+    @GetMapping("/{id}/activity")
+    public ResponseEntity<ApiResponse<List<com.gscrm.model.ActivityEvent>>> activity(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "50") int limit) {
+        if (customerService.getDetail(id).isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(ApiResponse.ok(activityEventService.listForCustomer(id, limit)));
     }
 }

@@ -1,8 +1,8 @@
 package com.gscrm.controller;
 
 import com.gscrm.dto.response.ApiResponse;
-import com.gscrm.model.AuditLogEntry;
-import com.gscrm.service.AuditService;
+import com.gscrm.model.ActivityEvent;
+import com.gscrm.service.ActivityEventService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -15,12 +15,12 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AuditController {
 
-    private final AuditService auditService;
+    private final ActivityEventService activityEventService;
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN')")
-    public ResponseEntity<ApiResponse<List<AuditLogEntry>>> getRecent(
+    public ResponseEntity<ApiResponse<List<ActivityEvent>>> getRecent(
             @RequestParam(defaultValue = "50") int limit) {
-        return ResponseEntity.ok(ApiResponse.ok(auditService.getRecent(limit)));
+        return ResponseEntity.ok(ApiResponse.ok(activityEventService.listRecent(limit)));
     }
 }

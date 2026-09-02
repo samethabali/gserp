@@ -14,7 +14,7 @@
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-brand">
             <div class="brand-icon">💅</div>
-            <div><h1>GSCRM</h1><span class="brand-sub">Salon Yönetim Sistemi</span></div>
+            <div><h1>GSCRM</h1><span class="brand-sub">Salon CRM</span></div>
         </div>
         <nav th:replace="~{fragments/sidebar-nav :: nav('audit')}"></nav>
     </aside>
@@ -38,7 +38,7 @@
             <div class="glass-card" style="padding:0;overflow:hidden;">
                 <table class="data-table">
                     <thead>
-                        <tr><th>Zaman</th><th>İşlem</th><th>Tür</th><th>ID</th><th>Eski Değer</th><th>Yeni Değer</th></tr>
+                        <tr><th>Zaman</th><th>İşlem</th><th>Tür</th><th>Özet</th><th>Kullanıcı</th></tr>
                     </thead>
                     <tbody id="auditTableBody"></tbody>
                 </table>
@@ -60,9 +60,8 @@
                 <td style="font-variant-numeric:tabular-nums;font-size:0.8rem;">${l.createdAt ? new Date(l.createdAt).toLocaleString('tr-TR') : '-'}</td>
                 <td>${actionLabels[l.action] || l.action}</td>
                 <td><span class="badge badge-scheduled">${l.entityType}</span></td>
-                <td>#${l.entityId}</td>
-                <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;" title="${l.oldValue || ''}">${l.oldValue || '—'}</td>
-                <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;" title="${l.newValue || ''}">${l.newValue || '—'}</td>
+                <td style="max-width:320px;">${l.summary || '—'}</td>
+                <td>${l.actorUsername || '—'}</td>
             </tr>
         `).join('');
     }

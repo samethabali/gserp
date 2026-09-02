@@ -30,6 +30,7 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final AppointmentRepository appointmentRepository;
     private final CustomerRepository customerRepository;
+    private final ActivityEventService activityEventService;
 
     @Transactional
     public PaymentResponse collect(PaymentCreateRequest req) {
@@ -55,6 +56,8 @@ public class PaymentService {
         if (appt.getCustomerPhone() != null && !appt.getCustomerPhone().isBlank()) {
             updateCustomerBalance(appt.getCustomerPhone(), appt.getFinalPrice(), req.getAmount(), req.getStatus());
         }
+        activityEventService.recordForCustomerPhone("PAYMENT", "PAYMENT", saved.getId(),
+                appt.getCustomerPhone(), "Tahsilat: " + saved.getAmount());
 
         return toResponse(saved);
     }

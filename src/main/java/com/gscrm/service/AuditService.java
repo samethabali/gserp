@@ -4,6 +4,7 @@ import com.gscrm.model.AuditLogEntry;
 import com.gscrm.model.enums.AuditAction;
 import com.gscrm.repository.AuditLogEntryRepository;
 import com.gscrm.security.AuthenticatedUser;
+import com.gscrm.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -26,6 +27,7 @@ public class AuditService {
     public void log(Long userId, AuditAction action, String entityType, Long entityId,
                     String oldValue, String newValue) {
         AuditLogEntry entry = AuditLogEntry.builder()
+                .salonId(TenantContext.getSalonId() != null ? TenantContext.getSalonId() : 0L)
                 .userId(userId)
                 .action(action)
                 .entityType(entityType)

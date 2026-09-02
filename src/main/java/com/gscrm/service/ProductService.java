@@ -27,6 +27,7 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final ProductSaleRepository productSaleRepository;
     private final CustomerRepository customerRepository;
+    private final ActivityEventService activityEventService;
 
     public List<Product> getAll() { return productRepository.findAll(); }
     public List<Product> getActive() { return productRepository.findByActiveTrue(); }
@@ -85,7 +86,10 @@ public class ProductService {
                 .customerName(customerName)
                 .staffId(staffId)
                 .build();
-        return productSaleRepository.save(sale);
+        ProductSale saved = productSaleRepository.save(sale);
+        activityEventService.record("PAYMENT", "PRODUCT_SALE", saved.getId(), resolvedCustomerId,
+                "Ürün satışı: " + product.getName() + " x" + quantity);
+        return saved;
     }
 
     @Transactional

@@ -43,6 +43,7 @@ public class CustomerService {
     private final AppointmentService appointmentService;
     private final ProductRepository productRepository;
     private final ProductSaleRepository productSaleRepository;
+    private final ActivityEventService activityEventService;
 
     public List<CustomerResponse> getAll(String query) {
         Long salonId = TenantContext.requireSalonId();
@@ -125,7 +126,10 @@ public class CustomerService {
         customer.setCreatedAt(LocalDateTime.now());
         customer.setUpdatedAt(LocalDateTime.now());
         if (customer.getBalance() == null) customer.setBalance(BigDecimal.ZERO);
-        return customerRepository.save(customer);
+        Customer saved = customerRepository.save(customer);
+        activityEventService.record("CREATE", "CUSTOMER", saved.getId(), saved.getId(),
+                "Müşteri kaydı: " + saved.getFirstName());
+        return saved;
     }
 
     @Transactional
@@ -139,7 +143,10 @@ public class CustomerService {
         existing.setEmail(updated.getEmail());
         existing.setNotes(updated.getNotes());
         existing.setUpdatedAt(LocalDateTime.now());
-        return customerRepository.save(existing);
+        Customer saved = customerRepository.save(existing);
+        activityEventService.record("UPDATE", "CUSTOMER", saved.getId(), saved.getId(),
+                "Müşteri güncellendi: " + saved.getFirstName());
+        return saved;
     }
 
     public Optional<CustomerResponse> lookupByPhone(String phone) {

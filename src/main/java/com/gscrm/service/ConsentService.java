@@ -18,6 +18,7 @@ public class ConsentService {
 
     private final ConsentRecordRepository consentRecordRepository;
     private final CustomerRepository customerRepository;
+    private final ActivityEventService activityEventService;
 
     @Transactional
     public void recordBookingConsents(Long customerId, List<String> types) {
@@ -41,6 +42,10 @@ public class ConsentService {
                 customerRepository.save(c);
             }
         });
+        if (customerId != null) {
+            activityEventService.record("CONSENT", "CONSENT", customerId, customerId,
+                    "Rıza kaydı: " + String.join(", ", types));
+        }
     }
 
     @Transactional
@@ -72,6 +77,8 @@ public class ConsentService {
                 .ifPresent(record -> {
                     record.setRevokedAt(LocalDateTime.now());
                     consentRecordRepository.save(record);
+                    activityEventService.record("CONSENT", "CONSENT", record.getId(), customerId,
+                            "Rıza geri çekildi: " + consentType);
                 });
     }
 

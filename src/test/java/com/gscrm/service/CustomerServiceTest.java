@@ -49,6 +49,8 @@ class CustomerServiceTest {
     private ProductRepository productRepository;
     @Mock
     private ProductSaleRepository productSaleRepository;
+    @Mock
+    private ActivityEventService activityEventService;
 
     @InjectMocks
     private CustomerService customerService;
