@@ -26,9 +26,12 @@ public class ProductionSecretGuard {
     private static final int MIN_SECRET_LENGTH = 32;
 
     private final String jwtSecret;
+    private final String encryptionKey;
 
-    public ProductionSecretGuard(@Value("${app.jwt.secret}") String jwtSecret) {
+    public ProductionSecretGuard(@Value("${app.jwt.secret}") String jwtSecret,
+                                 @Value("${app.encryption.key:}") String encryptionKey) {
         this.jwtSecret = jwtSecret;
+        this.encryptionKey = encryptionKey;
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -44,7 +47,32 @@ public class ProductionSecretGuard {
             fail("JWT secret çok kısa (< " + MIN_SECRET_LENGTH + " karakter). "
                     + "En az 256-bit base64 secret kullanın.");
         }
-        log.info("Prod secret guard: JWT secret doğrulaması geçti.");
+        validateEncryptionKey();
+        log.info("Prod secret guard: JWT secret ve şifreleme anahtarı doğrulaması geçti.");
+    }
+
+    /**
+     * Şifreleme anahtarı prod'da zorunludur.
+     *
+     * <p>Tanımsız bırakıldığında {@code SecretEncryptionService} anahtarı JWT
+     * secret'ından türetiyor ve yalnızca uyarı logluyordu. Bu, JWT rotasyonunun
+     * depodaki tüm şifreli sırları çözülemez hale getirmesi demek — log satırı
+     * gözden kaçtığında fark edilmesi haftalar sürebilecek bir veri kaybı.
+     * Aynı sebeple anahtarın JWT secret'ıyla aynı olması da reddedilir.
+     */
+    private void validateEncryptionKey() {
+        if (encryptionKey == null || encryptionKey.isBlank()) {
+            fail("Şifreleme anahtarı (APP_ENCRYPTION_KEY) tanımsız. Prod'da zorunludur; "
+                    + "openssl rand -base64 48 ile üretin.");
+        }
+        if (encryptionKey.equals(jwtSecret)) {
+            fail("APP_ENCRYPTION_KEY, JWT_SECRET ile aynı olamaz. JWT rotasyonu tüm şifreli "
+                    + "sırları çözülemez hale getirir; bağımsız bir anahtar tanımlayın.");
+        }
+        if (encryptionKey.length() < MIN_SECRET_LENGTH) {
+            fail("Şifreleme anahtarı çok kısa (< " + MIN_SECRET_LENGTH + " karakter). "
+                    + "En az 256-bit anahtar kullanın.");
+        }
     }
 
     private void fail(String message) {
