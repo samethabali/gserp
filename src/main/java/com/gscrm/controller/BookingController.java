@@ -2,6 +2,7 @@ package com.gscrm.controller;
 
 import com.gscrm.dto.request.AppointmentCreateRequest;
 import com.gscrm.dto.response.ApiResponse;
+import com.gscrm.dto.response.PublicStaffResponse;
 import com.gscrm.dto.response.AppointmentResponse;
 import com.gscrm.model.ServiceDefinition;
 import com.gscrm.model.Staff;
@@ -42,9 +43,12 @@ public class BookingController {
     }
 
     @GetMapping("/staff")
-    public ResponseEntity<ApiResponse<List<Staff>>> getStaff() {
+    public ResponseEntity<ApiResponse<List<PublicStaffResponse>>> getStaff() {
         Long salonId = TenantContext.requireSalonId();
-        return ResponseEntity.ok(ApiResponse.ok(staffRepository.findBySalonIdAndActiveTrue(salonId)));
+        List<PublicStaffResponse> staff = staffRepository.findBySalonIdAndActiveTrue(salonId).stream()
+                .map(PublicStaffResponse::from)
+                .toList();
+        return ResponseEntity.ok(ApiResponse.ok(staff));
     }
 
     @GetMapping("/availability")
