@@ -18,6 +18,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 @Configuration
@@ -31,7 +32,6 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final TenantAccessFilter tenantAccessFilter;
-    private final BookingRateLimitFilter bookingRateLimitFilter;
     private final ShowcaseAccessFilter showcaseAccessFilter;
     private final ActivityAuditFilter activityAuditFilter;
     private final MustChangePasswordSuccessHandler mustChangePasswordSuccessHandler;
@@ -100,10 +100,32 @@ public class SecurityConfig {
                     .requestMatchers("/api/resources/**").hasAnyRole(MGMT)
                     .requestMatchers("/api/users/**").hasAnyRole(MGMT)
                     .anyRequest().authenticated())
+            .headers(headers -> headers
+                    .referrerPolicy(rp -> rp.policy(
+                            ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
+                    .httpStrictTransportSecurity(hsts -> hsts
+                            .includeSubDomains(true)
+                            .maxAgeInSeconds(31536000))
+                    .permissionsPolicyHeader(pp -> pp.policy(
+                            "camera=(), microphone=(), geolocation=(), payment=()"))
+                    // CSP once RAPOR MODUNDA: sablonlarda 16 inline <script> blogu ve
+                    // 112 inline olay isleyicisi var; zorunlu kilmak uygulamayi kirar.
+                    // Ihlaller olculup inline isleyiciler tasindiktan sonra
+                    // contentSecurityPolicy(...) ile zorunlu hale getirilmelidir.
+                    .contentSecurityPolicy(csp -> csp.policyDirectives(
+                            "default-src 'self'; "
+                            + "script-src 'self' 'unsafe-inline'; "
+                            + "style-src 'self' 'unsafe-inline'; "
+                            + "img-src 'self' data: https:; "
+                            + "font-src 'self' data:; "
+                            + "connect-src 'self'; "
+                            + "frame-ancestors 'none'; "
+                            + "base-uri 'self'; "
+                            + "form-action 'self'"))
+                    .frameOptions(frame -> frame.deny()))
             .exceptionHandling(ex -> ex
                     .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
             .authenticationProvider(authenticationProvider())
-            .addFilterBefore(bookingRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
             // Kimlik yerleştikten hemen sonra tenant erişim doğrulaması yapılmalı.
             .addFilterAfter(tenantAccessFilter, JwtAuthenticationFilter.class)
@@ -135,6 +157,29 @@ public class SecurityConfig {
                             "/staff", "/resources", "/services", "/customers").hasAnyRole(MGMT_RECEPTIONIST)
                     .requestMatchers("/ws-calendar/**").authenticated()
                     .anyRequest().authenticated())
+            .headers(headers -> headers
+                    .referrerPolicy(rp -> rp.policy(
+                            ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
+                    .httpStrictTransportSecurity(hsts -> hsts
+                            .includeSubDomains(true)
+                            .maxAgeInSeconds(31536000))
+                    .permissionsPolicyHeader(pp -> pp.policy(
+                            "camera=(), microphone=(), geolocation=(), payment=()"))
+                    // CSP once RAPOR MODUNDA: sablonlarda 16 inline <script> blogu ve
+                    // 112 inline olay isleyicisi var; zorunlu kilmak uygulamayi kirar.
+                    // Ihlaller olculup inline isleyiciler tasindiktan sonra
+                    // contentSecurityPolicy(...) ile zorunlu hale getirilmelidir.
+                    .contentSecurityPolicy(csp -> csp.policyDirectives(
+                            "default-src 'self'; "
+                            + "script-src 'self' 'unsafe-inline'; "
+                            + "style-src 'self' 'unsafe-inline'; "
+                            + "img-src 'self' data: https:; "
+                            + "font-src 'self' data:; "
+                            + "connect-src 'self'; "
+                            + "frame-ancestors 'none'; "
+                            + "base-uri 'self'; "
+                            + "form-action 'self'"))
+                    .frameOptions(frame -> frame.deny()))
             .formLogin(form -> form
                     .loginPage("/login")
                     .loginProcessingUrl("/login")

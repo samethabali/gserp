@@ -11,7 +11,9 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.authentication.AccountStatusUserDetailsChecker;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsChecker;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +32,9 @@ public class AuthController {
     private final JwtService jwtService;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+
+    /** Devre dışı/kilitli hesapların token yenilemesini engeller. */
+    private final UserDetailsChecker accountStatusChecker = new AccountStatusUserDetailsChecker();
 
     public record LoginRequest(@NotBlank String username, @NotBlank String password) {}
     public record RefreshRequest(@NotBlank String refreshToken) {}
@@ -57,6 +62,8 @@ public class AuthController {
         try {
             String username = jwtService.extractUsername(req.refreshToken());
             UserDetails user = userDetailsService.loadUserByUsername(username);
+            // Hesap bu arada devre dışı bırakılmış olabilir; yenileme onu diriltmemeli.
+            accountStatusChecker.check(user);
             if (!jwtService.validateRefreshToken(req.refreshToken(), user)) {
                 return ResponseEntity.status(401).body(ApiResponse.error("Geçersiz refresh token"));
             }
@@ -81,6 +88,8 @@ public class AuthController {
         user.setPasswordHash(passwordEncoder.encode(req.newPassword()));
         user.setMustChangePassword(false);
         user.setPasswordChangedAt(LocalDateTime.now());
+        // Eski parolayla üretilmiş tüm token'ları geçersiz kıl.
+        user.setTokenVersion(user.getTokenVersion() + 1);
         userRepository.save(user);
         return ResponseEntity.ok(ApiResponse.ok("Parola güncellendi", null));
     }

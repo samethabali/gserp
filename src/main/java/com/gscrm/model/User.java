@@ -50,6 +50,14 @@ public class User implements TenantEntity {
     @Column(name = "password_changed_at")
     private LocalDateTime passwordChangedAt;
 
+    /**
+     * Token iptal sayacı. Parola değişimi ve hesabın devre dışı bırakılması bu
+     * değeri artırır; artıştan önce üretilmiş erişim/yenileme token'ları geçersiz olur.
+     */
+    @Column(name = "token_version", nullable = false)
+    @Builder.Default
+    private int tokenVersion = 0;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 }

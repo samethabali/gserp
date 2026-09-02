@@ -72,7 +72,7 @@ class TenantAccessFilterIT {
     private UsernamePasswordAuthenticationToken receptionistOfSalonA() {
         AuthenticatedUser user = new AuthenticatedUser(
                 501L, "reception@a", "", true, UserRole.RECEPTIONIST,
-                null, null, salonAId, null, false,
+                null, null, salonAId, null, false, 0,
                 List.of(new SimpleGrantedAuthority("ROLE_RECEPTIONIST")));
         return new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
     }

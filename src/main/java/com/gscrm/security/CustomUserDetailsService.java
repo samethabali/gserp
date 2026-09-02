@@ -40,6 +40,7 @@ public class CustomUserDetailsService implements UserDetailsService {
                 user.getSalonId(),
                 user.getOrganizationId(),
                 user.isMustChangePassword(),
+                user.getTokenVersion(),
                 List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
         );
     }

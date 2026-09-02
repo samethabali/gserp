@@ -52,7 +52,7 @@ class OnboardingRedirectServiceTest {
     private AuthenticatedUser user(Long salonId, boolean mustChangePassword) {
         return new AuthenticatedUser(
                 1L, "demo", "hash", true, UserRole.BRANCH_MANAGER,
-                null, null, salonId, 1L, mustChangePassword,
+                null, null, salonId, 1L, mustChangePassword, 0,
                 List.of(new SimpleGrantedAuthority("ROLE_BRANCH_MANAGER")));
     }
 }

@@ -20,7 +20,7 @@ class JwtServiceTest {
     void accessTokenHasTypAccess() {
         UserDetails user = new AuthenticatedUser(
                 1L, "admin", "hash", true, UserRole.BRANCH_MANAGER,
-                null, null, 1L, 1L, false,
+                null, null, 1L, 1L, false, 0,
                 List.of(new SimpleGrantedAuthority("ROLE_BRANCH_MANAGER")));
         String token = jwtService.generateToken(user);
         assertEquals(JwtService.TYP_ACCESS, jwtService.extractTokenType(token));
@@ -31,7 +31,7 @@ class JwtServiceTest {
     void refreshTokenNotValidAsAccess() {
         UserDetails user = new AuthenticatedUser(
                 1L, "admin", "hash", true, UserRole.BRANCH_MANAGER,
-                null, null, 1L, 1L, false,
+                null, null, 1L, 1L, false, 0,
                 List.of(new SimpleGrantedAuthority("ROLE_BRANCH_MANAGER")));
         String refresh = jwtService.generateRefreshToken(user);
         assertFalse(jwtService.validateToken(refresh, user));
@@ -42,7 +42,7 @@ class JwtServiceTest {
     void tokenValidWhenSalonMatches() {
         AuthenticatedUser user = new AuthenticatedUser(
                 1L, "reception", "hash", true, UserRole.RECEPTIONIST,
-                null, null, 7L, 3L, false,
+                null, null, 7L, 3L, false, 0,
                 List.of(new SimpleGrantedAuthority("ROLE_RECEPTIONIST")));
         String token = jwtService.generateToken(user);
         assertTrue(jwtService.validateToken(token, user));
@@ -52,14 +52,14 @@ class JwtServiceTest {
     void tokenRejectedWhenSalonMismatch() {
         AuthenticatedUser salon7User = new AuthenticatedUser(
                 1L, "reception", "hash", true, UserRole.RECEPTIONIST,
-                null, null, 7L, 3L, false,
+                null, null, 7L, 3L, false, 0,
                 List.of(new SimpleGrantedAuthority("ROLE_RECEPTIONIST")));
         String tokenForSalon7 = jwtService.generateToken(salon7User);
 
         // Aynı kullanıcı adı, farklı salon bağlamında yüklenmiş (salonId=9).
         AuthenticatedUser salon9User = new AuthenticatedUser(
                 1L, "reception", "hash", true, UserRole.RECEPTIONIST,
-                null, null, 9L, 4L, false,
+                null, null, 9L, 4L, false, 0,
                 List.of(new SimpleGrantedAuthority("ROLE_RECEPTIONIST")));
 
         assertFalse(jwtService.validateToken(tokenForSalon7, salon9User));

@@ -8,7 +8,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.authentication.AccountStatusUserDetailsChecker;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsChecker;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
@@ -22,6 +25,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String HEADER = "Authorization";
     private static final String PREFIX = "Bearer ";
+
+    /**
+     * Hesabın devre dışı / kilitli / süresi dolmuş olup olmadığını doğrular.
+     *
+     * <p>Form girişinde bu kontrolü {@code DaoAuthenticationProvider} yapar; JWT
+     * yolunda kimlik elle kurulduğu için burada açıkça çağrılmalıdır. Aksi halde
+     * devre dışı bırakılan bir kullanıcı, elindeki token'la çalışmaya devam eder.
+     */
+    private final UserDetailsChecker accountStatusChecker = new AccountStatusUserDetailsChecker();
 
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
@@ -46,7 +58,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+            UserDetails userDetails;
+            try {
+                userDetails = userDetailsService.loadUserByUsername(username);
+                accountStatusChecker.check(userDetails);
+            } catch (AuthenticationException e) {
+                // Kullanıcı yok, devre dışı veya kilitli — kimlik kurulmadan devam edilir,
+                // istek korumalı bir uca gidiyorsa 401 ile sonuçlanır.
+                chain.doFilter(request, response);
+                return;
+            }
             if (jwtService.validateToken(token, userDetails)) {
                 UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
                         userDetails, null, userDetails.getAuthorities());

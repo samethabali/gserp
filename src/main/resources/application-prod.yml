@@ -16,6 +16,14 @@ spring:
     suffix: .html
 
 server:
+  servlet:
+    session:
+      cookie:
+        # Oturum cerezi yalnizca HTTPS uzerinden ve yalnizca kendi sitemize gonderilsin.
+        # Varsayilanlara guvenmek yerine acikca tanimlanir.
+        secure: true
+        http-only: true
+        same-site: lax
   error:
     include-message: never
     include-stacktrace: never

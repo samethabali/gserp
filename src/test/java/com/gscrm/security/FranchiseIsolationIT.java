@@ -154,7 +154,7 @@ class FranchiseIsolationIT {
     void branchManagerCannotChangeStatusOfOtherBranchAppointment() throws Exception {
         AuthenticatedUser manager = new AuthenticatedUser(
                 99L, "manager@kadikoy", "", true, UserRole.BRANCH_MANAGER,
-                null, null, kadikoySalonId, null, false,
+                null, null, kadikoySalonId, null, false, 0,
                 List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_BRANCH_MANAGER")));
         var auth = new UsernamePasswordAuthenticationToken(manager, null, manager.getAuthorities());
 

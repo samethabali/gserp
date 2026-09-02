@@ -24,6 +24,7 @@ public class JwtService {
     public static final String CLAIM_ROLE = "role";
     public static final String CLAIM_STAFF_ID = "staffId";
     public static final String CLAIM_CUSTOMER_ID = "customerId";
+    public static final String CLAIM_TOKEN_VERSION = "tv";
     public static final String TYP_ACCESS = "access";
     public static final String TYP_REFRESH = "refresh";
 
@@ -50,12 +51,18 @@ public class JwtService {
             claims.put(CLAIM_ROLE, au.getRole().name());
             if (au.getStaffId() != null) claims.put(CLAIM_STAFF_ID, au.getStaffId());
             if (au.getCustomerId() != null) claims.put(CLAIM_CUSTOMER_ID, au.getCustomerId());
+            claims.put(CLAIM_TOKEN_VERSION, au.getTokenVersion());
         }
         return buildToken(claims, userDetails.getUsername(), accessTtlMillis);
     }
 
     public String generateRefreshToken(UserDetails userDetails) {
-        return buildToken(Map.of(CLAIM_TYP, TYP_REFRESH), userDetails.getUsername(), refreshTtlMillis);
+        Map<String, Object> claims = new HashMap<>();
+        claims.put(CLAIM_TYP, TYP_REFRESH);
+        if (userDetails instanceof AuthenticatedUser au) {
+            claims.put(CLAIM_TOKEN_VERSION, au.getTokenVersion());
+        }
+        return buildToken(claims, userDetails.getUsername(), refreshTtlMillis);
     }
 
     public String extractUsername(String token) {
@@ -74,6 +81,29 @@ public class JwtService {
         });
     }
 
+    public Integer extractTokenVersion(String token) {
+        return extractClaim(token, claims -> {
+            Object v = claims.get(CLAIM_TOKEN_VERSION);
+            if (v instanceof Number n) return n.intValue();
+            return null;
+        });
+    }
+
+    /**
+     * Token, kullanıcının güncel iptal sayacıyla uyumlu mu?
+     *
+     * <p>Sayaç uyuşmuyorsa token, parola değişimi veya hesabın devre dışı
+     * bırakılmasından önce üretilmiştir ve kabul edilmemelidir. Sürüm claim'i
+     * taşımayan eski token'lar da reddedilir — aksi halde iptal atlanabilirdi.
+     */
+    private boolean tokenVersionMatches(String token, UserDetails userDetails) {
+        if (!(userDetails instanceof AuthenticatedUser au)) {
+            return true;
+        }
+        Integer tokenVersion = extractTokenVersion(token);
+        return tokenVersion != null && tokenVersion == au.getTokenVersion();
+    }
+
     public boolean validateToken(String token, UserDetails userDetails) {
         try {
             String username = extractUsername(token);
@@ -81,6 +111,7 @@ public class JwtService {
             return username.equals(userDetails.getUsername())
                     && TYP_ACCESS.equals(typ)
                     && !isExpired(token)
+                    && tokenVersionMatches(token, userDetails)
                     && salonClaimMatches(token, userDetails);
         } catch (Exception e) {
             return false;
@@ -112,7 +143,8 @@ public class JwtService {
             String typ = extractTokenType(token);
             return username.equals(userDetails.getUsername())
                     && TYP_REFRESH.equals(typ)
-                    && !isExpired(token);
+                    && !isExpired(token)
+                    && tokenVersionMatches(token, userDetails);
         } catch (Exception e) {
             return false;
         }

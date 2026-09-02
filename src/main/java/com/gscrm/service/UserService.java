@@ -16,6 +16,7 @@ import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class UserService {
 
     private final UserRepository userRepository;
@@ -73,6 +74,8 @@ public class UserService {
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         user.setMustChangePassword(true);
         user.setPasswordChangedAt(null);
+        // Yönetici parolayı sıfırladıysa, eski parolayla açılmış oturumlar kapanmalı.
+        user.setTokenVersion(user.getTokenVersion() + 1);
         return userRepository.save(user);
     }
 
@@ -82,6 +85,11 @@ public class UserService {
         User user = userRepository.findByIdAndSalonId(id, salonId)
                 .orElseThrow(() -> new IllegalArgumentException("Kullanıcı bulunamadı"));
         user.setEnabled(enabled);
+        if (!enabled) {
+            // Devre dışı bırakma, dağıtılmış token'ları da anında geçersizleştirmeli;
+            // aksi halde kullanıcı yenileme token'ıyla günlerce erişmeye devam eder.
+            user.setTokenVersion(user.getTokenVersion() + 1);
+        }
         return userRepository.save(user);
     }
 }

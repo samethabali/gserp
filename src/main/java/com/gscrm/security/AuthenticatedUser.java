@@ -17,10 +17,12 @@ public class AuthenticatedUser extends User {
     private final Long salonId;
     private final Long organizationId;
     private final boolean mustChangePassword;
+    private final int tokenVersion;
 
     public AuthenticatedUser(Long id, String username, String password, boolean enabled,
                              UserRole role, Long staffId, Long customerId,
                              Long salonId, Long organizationId, boolean mustChangePassword,
+                             int tokenVersion,
                              Collection<? extends GrantedAuthority> authorities) {
         super(username, password, enabled, true, true, true, authorities);
         this.id = id;
@@ -30,5 +32,6 @@ public class AuthenticatedUser extends User {
         this.salonId = salonId;
         this.organizationId = organizationId;
         this.mustChangePassword = mustChangePassword;
+        this.tokenVersion = tokenVersion;
     }
 }
