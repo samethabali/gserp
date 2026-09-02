@@ -25,6 +25,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class PaymentService {
 
     private final PaymentRepository paymentRepository;
@@ -40,6 +41,7 @@ public class PaymentService {
                 .orElseThrow(() -> new IllegalArgumentException("Randevu bulunamadı: " + appointmentId));
 
         Payment payment = Payment.builder()
+                .salonId(salonId)
                 .appointmentId(req.getAppointmentId())
                 .customerName(appt.getCustomerName())
                 .customerPhone(appt.getCustomerPhone())

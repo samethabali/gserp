@@ -2,6 +2,7 @@ package com.gscrm.service;
 
 import com.gscrm.model.Resource;
 import com.gscrm.repository.ResourceRepository;
+import com.gscrm.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +32,9 @@ public class ResourceService {
 
     @Transactional
     public Resource create(Resource resource) {
+        // Uçlar ham entity kabul ettiği için istemci gövdeye salonId koyabilir;
+        // tenant sunucu tarafında zorlanır (mass assignment koruması).
+        resource.setSalonId(TenantContext.requireSalonId());
         resource.setCreatedAt(LocalDateTime.now());
         return resourceRepository.save(resource);
     }

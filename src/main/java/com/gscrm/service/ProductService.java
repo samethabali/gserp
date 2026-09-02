@@ -38,7 +38,12 @@ public class ProductService {
     }
 
     @Transactional
-    public Product create(Product product) { return productRepository.save(product); }
+    public Product create(Product product) {
+        // Uçlar ham entity kabul ettiği için istemci gövdeye salonId koyabilir;
+        // tenant sunucu tarafında zorlanır (mass assignment koruması).
+        product.setSalonId(TenantContext.requireSalonId());
+        return productRepository.save(product);
+    }
 
     @Transactional
     public Product update(Long id, Product updated) {

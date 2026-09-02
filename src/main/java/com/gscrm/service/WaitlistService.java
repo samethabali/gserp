@@ -2,6 +2,7 @@ package com.gscrm.service;
 
 import com.gscrm.model.WaitlistEntry;
 import com.gscrm.repository.WaitlistEntryRepository;
+import com.gscrm.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,9 @@ public class WaitlistService {
 
     @Transactional
     public WaitlistEntry add(WaitlistEntry entry) {
+        // Uçlar ham entity kabul ettiği için istemci gövdeye salonId koyabilir;
+        // tenant sunucu tarafında zorlanır (mass assignment koruması).
+        entry.setSalonId(TenantContext.requireSalonId());
         entry.setCreatedAt(LocalDateTime.now());
         entry.setFulfilled(false);
         return waitlistRepository.save(entry);

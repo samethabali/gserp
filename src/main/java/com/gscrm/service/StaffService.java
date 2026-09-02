@@ -40,6 +40,9 @@ public class StaffService {
 
     @Transactional
     public Staff create(Staff staff) {
+        // Uçlar ham entity kabul ettiği için istemci gövdeye salonId koyabilir;
+        // tenant sunucu tarafında zorlanır (mass assignment koruması).
+        staff.setSalonId(TenantContext.requireSalonId());
         LocalDateTime now = LocalDateTime.now();
         staff.setCreatedAt(now);
         staff.setUpdatedAt(now);

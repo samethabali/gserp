@@ -33,6 +33,9 @@ public class ServiceDefinitionService {
 
     @Transactional
     public ServiceDefinition create(ServiceDefinition sd) {
+        // Uçlar ham entity kabul ettiği için istemci gövdeye salonId koyabilir;
+        // tenant sunucu tarafında zorlanır (mass assignment koruması).
+        sd.setSalonId(TenantContext.requireSalonId());
         sd.setCreatedAt(LocalDateTime.now());
         if (sd.getRequiredResourceIds() == null) {
             sd.setRequiredResourceIds(new ArrayList<>());

@@ -3,6 +3,7 @@ package com.gscrm.service;
 import com.gscrm.model.Expense;
 import com.gscrm.model.enums.ExpenseCategory;
 import com.gscrm.repository.ExpenseRepository;
+import com.gscrm.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +36,11 @@ public class ExpenseService {
 
     @Transactional
     public Expense create(Expense expense) {
+        // Gider, oluşturulduğu şubeye bağlanmalıdır. V15 salon_id'yi NOT NULL yaptı
+        // ama yazma yolu güncellenmediği için bu alan boş kalıyordu.
+        if (expense.getSalonId() == null) {
+            expense.setSalonId(TenantContext.requireSalonId());
+        }
         return expenseRepository.save(expense);
     }
 
