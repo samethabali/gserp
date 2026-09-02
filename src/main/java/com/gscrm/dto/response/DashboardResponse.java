@@ -19,7 +19,9 @@ public class DashboardResponse {
     private int cancelledAppointments;
     private int noShows;
 
-    private BigDecimal totalRevenue;      // Gerçekleşen (completed)
+    private BigDecimal totalRevenue;      // Tahakkuk: tamamlanan randevuların tutarı
+    private BigDecimal collectedRevenue;  // Tahsilat: payment tablosuna işlenen tutar
+    private BigDecimal uncollectedRevenue; // Tamamlandı ama tahsil edilmedi (tahakkuk − tahsilat)
     private BigDecimal expectedRevenue;   // Tüm randevuların toplamı
 
     private List<StaffPerformance> staffPerformance;

@@ -11,6 +11,7 @@ import com.gscrm.model.Staff;
 import com.gscrm.model.enums.AppointmentStatus;
 import com.gscrm.repository.AppointmentRepository;
 import com.gscrm.repository.OrganizationRepository;
+import com.gscrm.repository.PaymentRepository;
 import com.gscrm.repository.SalonRepository;
 import com.gscrm.repository.ServiceDefinitionRepository;
 import com.gscrm.repository.StaffRepository;
@@ -37,6 +38,7 @@ public class DashboardService {
     private final ServiceDefinitionRepository serviceDefinitionRepository;
     private final SalonRepository salonRepository;
     private final OrganizationRepository organizationRepository;
+    private final PaymentRepository paymentRepository;
     private final TenantFilterSupport tenantFilterSupport;
 
     public DashboardResponse getDailySummary(LocalDate date) {
@@ -62,6 +64,13 @@ public class DashboardService {
                 .map(Appointment::getFinalPrice)
                 .filter(p -> p != null)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // Tahakkuk (tamamlanan randevu tutarı) ile tahsilatı ayrı raporla: randevuyu
+        // "tamamlandı" işaretlemek parayı kasaya sokmuyor, ödeme kaydı gerekiyor.
+        // İkisi tek rakama karışınca tahsil edilmemiş tutar görünmez oluyordu.
+        BigDecimal collectedRevenue = paymentRepository.sumCollectedInRange(
+                date.atStartOfDay(), date.plusDays(1).atStartOfDay());
+        BigDecimal uncollectedRevenue = totalRevenue.subtract(collectedRevenue).max(BigDecimal.ZERO);
 
         // Hizmet adlarını tek seferde yükle (N+1 önlemi)
         Map<Long, String> serviceNames = serviceDefinitionRepository.findAll().stream()
@@ -120,6 +129,8 @@ public class DashboardService {
                 .cancelledAppointments(cancelled)
                 .noShows(noShow)
                 .totalRevenue(totalRevenue)
+                .collectedRevenue(collectedRevenue)
+                .uncollectedRevenue(uncollectedRevenue)
                 .expectedRevenue(expectedRevenue)
                 .staffPerformance(staffPerf)
                 .build();

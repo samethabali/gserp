@@ -30,4 +30,14 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
             @Param("from") LocalDateTime from,
             @Param("to") LocalDateTime to,
             @Param("method") PaymentMethod method);
+
+    @Query("""
+            select coalesce(sum(p.amount), 0)
+            from Payment p
+            where p.collectedAt >= :from and p.collectedAt < :to
+              and p.status = 'PAID'
+            """)
+    BigDecimal sumCollectedInRange(
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to);
 }
