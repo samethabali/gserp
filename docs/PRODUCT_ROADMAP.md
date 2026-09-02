@@ -1,6 +1,6 @@
 # GSCRM — Ürünleştirme & SaaS Yol Haritası
 
-**Son güncelleme:** 2026-06-22  
+**Son güncelleme:** 2026-06-24  
 **Branch:** `production-ready`  
 **Canlı:** `https://gscrm.avesitesi.xyz` · tenant: `https://default.gscrm.avesitesi.xyz`
 
@@ -24,7 +24,7 @@ Bu doküman demo hazırlığı, deploy ve SaaS ürünleştirme adımlarını tek
 
 ### Demo öncesi kontrol listesi
 
-- [ ] `mvn verify` yeşil
+- [x] `mvn verify` yeşil
 - [ ] `.\start-dev.ps1` → lokal smoke (15 dk akış, `docs/DEMO.md`)
 - [ ] Commit + push `production-ready`
 - [ ] VDS deploy healthy (`/actuator/health`)
@@ -77,11 +77,11 @@ Prod DB'de demo kullanıcı yoksa:
 
 | # | İş | Öncelik | Efor | Bağımlılık |
 |---|-----|---------|------|------------|
-| A1 | iyzico checkout + webhook → `ACTIVE` abonelik | P0 | L | Billing UI ✅ |
-| A2 | Trial bitiş e-postası / banner iyileştirme | P1 | S | A1 |
-| A3 | Pilot seed Senaryo A (`DevDataSeeder`) | P1 | M | Onboarding ✅ |
-| A4 | Onboarding sonrası otomatik yönlendirme (login → setup) | P2 | S | A3 |
-| A5 | Hizmet şablonu (Saç + Cilt) provisioning'de | P2 | M | A3 |
+| A1 | iyzico checkout + webhook → `ACTIVE` abonelik | P0 | L | Billing UI ✅ | ✅ mock checkout |
+| A2 | Trial bitiş e-postası / banner iyileştirme | P1 | S | A1 | ✅ `TrialExpiryNotifier` |
+| A3 | Pilot seed Senaryo A (`DevDataSeeder`) | P1 | M | Onboarding ✅ | ✅ `PilotScenarioSeeder` |
+| A4 | Onboarding sonrası otomatik yönlendirme (login → setup) | P2 | S | A3 | ✅ |
+| A5 | Hizmet şablonu (Saç + Cilt) provisioning'de | P2 | M | A3 | ✅ |
 
 **Kabul kriteri:** Yeni salon kayıt → 14 gün trial → ödeme → yazma devam; kota aşımında WhatsApp durur.
 
@@ -91,12 +91,12 @@ Prod DB'de demo kullanıcı yoksa:
 
 | # | İş | Öncelik | Efor |
 |---|-----|---------|------|
-| B1 | Pilot seed Senaryo B (Belleza Chain) | P0 | M |
-| B2 | Salon switcher UI (ORG_OWNER / çok şubeli kullanıcı) | P0 | L |
-| B3 | Org dashboard KPI iyileştirme (şube karşılaştırma) | P1 | M |
-| B4 | Platform impersonation (support) | P1 | M |
-| B5 | Franchise kupon org scope doğrulama testleri | P1 | S |
-| B6 | Cross-tenant erişim audit + otomatik test | P1 | M |
+| B1 | Pilot seed Senaryo B (Belleza Chain) | P0 | M | ✅ |
+| B2 | Salon switcher UI (ORG_OWNER / çok şubeli kullanıcı) | P0 | L | ✅ |
+| B3 | Org dashboard KPI iyileştirme (şube karşılaştırma) | P1 | M | ✅ |
+| B4 | Platform impersonation (support) | P1 | M | ✅ |
+| B5 | Franchise kupon org scope doğrulama testleri | P1 | S | ✅ `CampaignOrgScopeIT` |
+| B6 | Cross-tenant erişim audit + otomatik test | P1 | M | ✅ `FranchiseIsolationIT` |
 
 **Kabul kriteri:** Kadıköy manager Beşiktaş randevusuna 403; org owner iki şubeyi görebilir.
 
@@ -104,21 +104,21 @@ Prod DB'de demo kullanıcı yoksa:
 
 | # | İş | Öncelik | Efor |
 |---|-----|---------|------|
-| C1 | `BranchPricingService` → randevu fiyatlandırma | P1 | M |
-| C2 | `branch_holiday` model + UI + scheduler entegrasyonu | P1 | L |
-| C3 | Kullanıcı / şube kotası UI uyarıları | P2 | S |
+| C1 | `BranchPricingService` → randevu fiyatlandırma | P1 | M | ✅ |
+| C2 | `branch_holiday` model + UI + scheduler entegrasyonu | P1 | L | API ✅, UI kısmi |
+| C3 | Kullanıcı / şube kotası UI uyarıları | P2 | S | ✅ billing quotas |
 | C4 | Usage meter dashboard (WhatsApp, aktif kullanıcı) | P2 | M |
-| C5 | Faturalandırma olayları admin görünümü | P2 | M |
+| C5 | Faturalandırma olayları admin görünümü | P2 | M | ✅ billing events |
 
 ### Dalga D — Güvenlik & ölçek (prod sertleştirme)
 
 | # | İş | Öncelik | Efor | Referans |
 |---|-----|---------|------|----------|
-| D1 | WhatsApp token encryption (at rest) | P0 | M | `salon_settings` |
-| D2 | JWT secret rotation playbook | P1 | S | `docs/saas/dr-playbook.md` |
+| D1 | WhatsApp token encryption (at rest) | P0 | M | `salon_settings` | ✅ (+ `APP_ENCRYPTION_KEY` ile JWT'den bağımsız anahtar) |
+| D2 | JWT secret rotation playbook | P1 | S | `docs/saas/dr-playbook.md` | ✅ `docs/saas/jwt-rotation.md` (+ prod fail-fast guard) |
 | D3 | Redis rate limit + session (booking dışı) | P1 | L | — |
 | D4 | MFA (ORG_OWNER, PLATFORM_ADMIN) | P2 | L | — |
-| D5 | DR: PG backup otomasyonu + restore testi | P1 | M | `scripts/backup-db.sh` |
+| D5 | DR: PG backup otomasyonu + restore testi | P1 | M | `scripts/backup-db.sh` | ✅ `scripts/verify-backup.sh` |
 | D6 | KVKK DPA imza akışı / veri export API | P2 | L | `docs/saas/dpa.md` |
 | D7 | SLA monitoring + uptime raporu | P2 | M | `docs/saas/sla.md` |
 
@@ -144,21 +144,21 @@ Prod DB'de demo kullanıcı yoksa:
 | Kota | WhatsApp sayaç wired | Kullanıcı/şube kotası UI enforcement |
 | Onboarding | 5 adım wizard | Login redirect, hizmet şablonu |
 | Franchise | Org API, branch scope | Switcher, impersonation, seed B |
-| Tenant | `X-Salon-Slug`, subdomain | Custom domain (CNAME) |
+| Tenant | `X-Salon-Slug`, subdomain, ✅ cross-tenant erişim engeli (`TenantAccessFilter`), ✅ JWT-tenant bağı | Custom domain (CNAME), veri katmanı RLS |
 | Bildirim | WhatsApp + log | SMS fallback, e-posta transactional |
 | Audit | `audit_log` API | Platform-wide arama, export |
-| Billing webhook | iyzico log only | Signature verify, idempotency |
+| Billing webhook | iyzico log + ✅ idempotency + ✅ HMAC signature verify (`IyzicoWebhookVerifier`) | Gerçek ödeme akışı (3DS, iade) |
 
 ---
 
 ## 5. Öncelik sırası (önerilen sprint)
 
 ```
-Sprint 1 (demo + deploy)     → commit, push, VDS smoke, DEMO.md paylaş
-Sprint 2 (pilot A)           → A3 seed, A4 redirect, A5 şablon
-Sprint 3 (ödeme)             → A1 iyzico, A2 trial uyarıları
-Sprint 4 (franchise pilot)   → B1–B3
-Sprint 5 (güvenlik)          → D1 token encryption, D5 backup test
+Sprint 1 (demo + deploy)     → ✅ commit, push, VDS smoke
+Sprint 2 (pilot A)           → ✅ A3 seed, A4 redirect, A5 şablon (+ Senaryo B seed)
+Sprint 3 (ödeme)             → ✅ A1 mock iyzico, A2 trial uyarıları
+Sprint 4 (franchise pilot)   → ✅ B2 switcher, B3 org dashboard, B5–B6 testler
+Sprint 5 (güvenlik)          → ✅ D1 token encryption, D5 backup verify script
 ```
 
 ---

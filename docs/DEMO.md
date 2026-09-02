@@ -29,11 +29,17 @@ Manuel başlatma: [DEVELOPMENT.md](../DEVELOPMENT.md)
 
 Diğer demo kullanıcıları (aynı parola `admin`):
 
-| Kullanıcı | Rol |
-|-----------|-----|
-| `merve` | Resepsiyon |
-| `ayse` | Uzman |
-| `fatma` | Uzman |
+| Kullanıcı | Rol | Tenant slug |
+|-----------|-----|-------------|
+| `merve` | Resepsiyon | `default` |
+| `ayse` | Uzman | `default` |
+| `fatma` | Uzman | `default` |
+| `admin@guzellik-atolyesi` | Şube yöneticisi | `guzellik-atolyesi` |
+| `owner@belleza` | Org sahibi | `belleza-kadikoy` (header) |
+| `mgr-kadikoy` | Şube yöneticisi | `belleza-kadikoy` |
+| `mgr-besiktas` | Şube yöneticisi | `belleza-besiktas` |
+
+> Pilot senaryolar dev profilinde `PilotScenarioSeeder` ile yüklenir. Lokalde tenant header: `X-Salon-Slug: <slug>` veya subdomain.
 
 ## URL’ler
 
@@ -79,20 +85,12 @@ Diğer demo kullanıcıları (aynı parola `admin`):
 ### 5. Ayarlar & abonelik
 
 1. **Salon Ayarları** → white-label (salon adı, renk).
-2. **WhatsApp Bildirimleri** bölümü: API kapalıyken **wa.me** fallback için salon telefonu.
-3. **Abonelik** → plan, WhatsApp kotası, trial durumu.
-4. Kurulum için sayfadaki **WhatsApp Kurulum Rehberi** veya [whatsapp-setup.md](whatsapp-setup.md).
+2. **Abonelik** → plan, şube/kullanıcı kotası, trial durumu.
 
 ### 6. Ürünler ve kampanyalar
 
 - **Ürünler**: stok listesi, kategori filtresi (koyu tema dropdown).
 - **Kampanyalar**: kupon ve sadakat eşikleri.
-
-## WhatsApp
-
-- Dev ortamında API genelde kapalıdır; mesaj gitmez, akış loglanır.
-- Booking onayında **WhatsApp’tan Yaz** butonu salon telefonu ile wa.me açar.
-- Gerçek API için: Ayarlar → WhatsApp veya [whatsapp-setup.md](whatsapp-setup.md).
 
 ## Arkadaşların erişimi
 

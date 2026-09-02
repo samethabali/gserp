@@ -34,11 +34,11 @@
 
 ## 1. Proje Özeti
 
-**GSCRM** (Güzellik Salonu ERP), güzellik/kuaför salonları için geliştirilmiş **multi-tenant SaaS** uygulamasıdır.
+**GSCRM** (Güzellik Salonu CRM), güzellik/kuaför salonları için geliştirilmiş **multi-tenant SaaS** uygulamasıdır.
 
 | Boyut | Açıklama |
 |-------|----------|
-| **Ne yapar?** | Randevu, personel, müşteri, ödeme, gider, ürün stoku, kampanya/sadakat, public online booking, müşteri portalı, WhatsApp bildirimleri |
+| **Ne yapar?** | Randevu, personel, müşteri, ödeme, gider, ürün stoku, kampanya/sadakat, public online booking, müşteri portalı |
 | **Kim kullanır?** | Bağımsız salonlar (STANDALONE) ve franchise zincirleri (FRANCHISE) |
 | **Deploy modeli** | Tek Spring Boot instance + shared PostgreSQL; tenant `{slug}.gscrm.domain` subdomain ile ayrılır |
 | **Monolit mi?** | Evet — tek JAR, Thymeleaf UI + REST API + WebSocket |
@@ -81,7 +81,7 @@ gscrm/
 ├── docs/
 │   ├── PROJECT_REFERENCE.md    # ← BU DOSYA
 │   ├── deploy-vps.md           # VPS kurulum rehberi
-│   ├── whatsapp-setup.md       # Meta WhatsApp kurulumu
+│   ├── whatsapp-setup.md       # WhatsApp (ürün dışı / ertelenmiş)
 │   └── saas/                   # SLA, DPA, pricing, DR, nginx wildcard
 ├── scripts/
 │   ├── backup-db.sh            # pg_dump yedek
@@ -93,7 +93,7 @@ gscrm/
 │   ├── dto/                    # request/ response
 │   ├── exception/              # GlobalExceptionHandler
 │   ├── model/                  # JPA entity + enums
-│   ├── notification/whatsapp/  # Meta Cloud API
+│   ├── notification/whatsapp/  # Meta Cloud API (kod duruyor, ürün yüzeyi kapalı)
 │   ├── repository/             # Spring Data JPA
 │   ├── security/               # JWT, filters, RBAC
 │   ├── service/                # Business logic + RetentionJob
@@ -331,7 +331,7 @@ Tüm operasyonel entity’ler `TenantEntity` implement eder (`getSalonId()`).
 | POST | `/register`, `/login` | Müşteri portal JWT |
 
 ### Public booking — `/api/booking`
-| GET | `/info`, `/services`, `/staff`, `/availability` | Müsaitlik |
+| GET | `/services`, `/staff`, `/availability` | Müsaitlik |
 | POST | `/request` | Randevu isteği → PENDING_APPROVAL + consent |
 
 ### Randevu — `/api/appointments`
@@ -376,7 +376,6 @@ Standart CRUD pattern — bkz. controller sınıfları: `PaymentController`, `Ex
 | POST | `/transfer` | Şubeler arası stok transfer |
 
 ### Webhook
-| POST | `/api/webhooks/whatsapp` | Meta verify + inbound |
 | POST | `/api/webhooks/iyzico` | Ödeme webhook (log) |
 
 ### Actuator
@@ -440,14 +439,14 @@ nginx’de WebSocket proxy upgrade gerekir (`docs/deploy-vps.md`).
 | `BranchPricingService` | Şube fiyat override |
 | `StaffService` | Personel, uzmanlık, working_hours |
 | `SalonSettingsService` | White-label key-value (salon scoped) |
-| `SalonWhatsAppService` | Tenant WhatsApp config |
+| `SalonWhatsAppService` | WhatsApp config (ürün yüzeyi kapalı) |
 | `DashboardService` | KPI + `getOrgSummary` |
 | `UserService` | Staff kullanıcı + kota kontrolü |
 | `SalonProvisioningService` | Yeni tenant: org, salon, admin, plan, onboarding |
 | `ConsentService` | Booking/portal rıza kaydı |
 | `GdprService` | Export + anonimleştirme |
 | `SubscriptionService` | Plan, usage, iyzico webhook log |
-| `QuotaEnforcementService` | Seat, salon, WhatsApp kotası |
+| `QuotaEnforcementService` | Seat, salon kotası |
 | `AuditService` | Randevu değişiklik logu |
 | `AppointmentReminderService` | 24h cron hatırlatma |
 | `RetentionJob` | Eski audit/notification log silme (90 gün) |
@@ -455,30 +454,11 @@ nginx’de WebSocket proxy upgrade gerekir (`docs/deploy-vps.md`).
 
 ---
 
-## 13. Bildirimler (WhatsApp)
+## 13. Bildirimler (WhatsApp) — ürün dışı
 
-### Mimari
+**2026-08:** WhatsApp ürün yüzeyi kapatıldı. Salon UI, booking `wa.me`, ayar API’si ve otomatik gönderim yok. Kod (`notification/whatsapp`, `salon_whatsapp_config`) sonraki sürüm için duruyor; `WHATSAPP_ENABLED` varsayılan `false`, webhook yalnızca bu flag `true` iken yüklenir.
 
-- **Global fallback:** `app.whatsapp.*` env (`WhatsAppProperties`)
-- **Tenant config:** `salon_whatsapp_config` tablosu (`SalonWhatsAppService`)
-- **Client:** `WhatsAppClient` → Meta Graph API
-- **Servis:** `WhatsAppNotificationService` — şablon mesajları
-- **Log:** `notification_log` — SENT/FAILED/SKIPPED
-- **Kota:** `QuotaEnforcementService.assertWhatsAppQuota` → usage_meter
-
-### Şablonlar (örnek)
-
-`appointment_request_received`, `appointment_confirmed`, `appointment_cancelled`, `appointment_reminder`
-
-### Webhook
-
-`GET/POST /api/webhooks/whatsapp` — Meta verify; `phone_number_id` ile salon resolve
-
-### Fallback
-
-API kapalıyken booking sayfasında `wa.me` linki
-
-**Kurulum:** `docs/whatsapp-setup.md`
+Eski `GET/PUT /api/settings/whatsapp` 404 döner. Kurulum sihirbazı: `SALON_INFO` → `SERVICES` → `STAFF` → `COMPLETED`.
 
 ---
 
@@ -486,18 +466,17 @@ API kapalıyken booking sayfasında `wa.me` linki
 
 ### Planlar (V23 seed)
 
-| Kod | Salon | User | WhatsApp/ay |
-|-----|-------|------|-------------|
-| SOLO | 1 | 5 | 500 |
-| FRANCHISE_STARTER | 5 | 20 | 2000 |
-| FRANCHISE_PRO | 999 | 999 | custom |
+| Kod | Salon | User |
+|-----|-------|------|
+| SOLO | 1 | 5 |
+| FRANCHISE_STARTER | 5 | 20 |
+| FRANCHISE_PRO | 999 | 999 |
 
 ### Akış
 
 1. Provision / onboarding → `organization_subscription` TRIAL (14 gün)
 2. `UserService.create` → `QuotaEnforcementService.assertCanAddUser`
-3. WhatsApp gönderim → kota kontrolü + `usage_meter` artışı
-4. `POST /api/webhooks/iyzico` → `billing_event` kaydı (outbound iyzico SDK yok — webhook log aşaması)
+3. `POST /api/webhooks/iyzico` → `billing_event` kaydı (outbound iyzico SDK yok — webhook log aşaması)
 
 **Fiyatlandırma dokümanı:** `docs/saas/pricing.md`
 
@@ -524,7 +503,7 @@ API kapalıyken booking sayfasında `wa.me` linki
 
 1. `POST /api/onboarding/register` veya platform admin `POST /api/platform/tenants`
 2. `SalonProvisioningService` → org + salon + BRANCH_MANAGER + settings + trial
-3. `/onboarding/wizard` — hizmet, personel, saat adımları
+3. `/onboarding/setup` — salon, hizmet, personel
 
 ### Franchise (FRANCHISE)
 
@@ -555,7 +534,6 @@ API kapalıyken booking sayfasında `wa.me` linki
 DB_PASSWORD, SPRING_DATASOURCE_*
 JWT_SECRET
 APP_CORS_ALLOWED_ORIGINS
-WHATSAPP_* (6 değişken)
 GSCRM_INITIAL_ADMIN_USERNAME/PASSWORD
 SPRING_PROFILES_ACTIVE=prod
 ```
@@ -630,7 +608,7 @@ curl http://127.0.0.1:8989/actuator/health
 | README.md | Hızlı başlangıç |
 | system.txt | Kısa modül listesi |
 | docs/deploy-vps.md | VPS/nginx/SSL |
-| docs/whatsapp-setup.md | WhatsApp Meta |
+| docs/whatsapp-setup.md | WhatsApp (ürün dışı; ertelenmiş) |
 | docs/saas/* | SaaS iş/hukuk/ops |
 | CHANGELOG.md | Sürüm geçmişi |
 

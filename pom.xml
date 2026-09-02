@@ -15,7 +15,7 @@
     <artifactId>gscrm</artifactId>
     <version>1.0.0</version>
     <name>GSCRM</name>
-    <description>Güzellik Salonu ERP - Banko Yönetim Sistemi</description>
+    <description>Güzellik Salonu CRM - Banko Yönetim Sistemi</description>
 
     <properties>
         <java.version>21</java.version>

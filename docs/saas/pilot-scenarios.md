@@ -15,8 +15,7 @@
 1. Self-service onboarding → org + salon + admin
 2. Hizmet menüsü şablonu (Saç + Cilt)
 3. Public booking → randevu → consent kaydı
-4. WhatsApp hatırlatma (test numarası)
-5. Günlük dashboard KPI
+4. Günlük dashboard KPI
 
 ## Senaryo B: Franchise (2 şube)
 
@@ -41,4 +40,4 @@
 
 ## Test Verisi Seed (dev profil)
 
-`DevDataSeeder` genişletmesi: Senaryo A + B minimal dataset (Faz 4 sonrası onboarding test)
+`PilotScenarioSeeder` (dev profil, `@Order(11)`): Senaryo A + B minimal dataset — idempotent, slug yoksa seed eder.

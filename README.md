@@ -1,4 +1,4 @@
-# GSCRM — Güzellik Salonu ERP
+# GSCRM — Güzellik Salonu CRM
 
 Spring Boot 3.4 + Java 21 üzerinde çalışan, randevu / kaynak / personel yönetimi sunan monolitik web uygulaması. Thymeleaf ile sunucu-render, STOMP/WebSocket ile canlı takvim güncellemesi.
 
