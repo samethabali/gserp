@@ -1,9 +1,11 @@
 package com.gscrm.tenant;
 
+import com.gscrm.config.TenantProperties;
 import com.gscrm.model.Salon;
 import com.gscrm.repository.SalonRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +25,7 @@ public class TenantFilter extends OncePerRequestFilter {
     private static final String SALON_SLUG_HEADER = "X-Salon-Slug";
 
     private final SalonRepository salonRepository;
+    private final TenantProperties tenantProperties;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -58,6 +61,10 @@ public class TenantFilter extends OncePerRequestFilter {
         TenantContext.setSalonId(salon.getId());
         TenantContext.setOrgId(salon.getOrganizationId());
         TenantContext.setSlug(salon.getSlug());
+        TenantContext.setShowcase(salon.isShowcase());
+        if (salon.isShowcase()) {
+            response.setHeader("X-Robots-Tag", "noindex, nofollow");
+        }
         try {
             filterChain.doFilter(request, response);
         } finally {
@@ -69,6 +76,11 @@ public class TenantFilter extends OncePerRequestFilter {
         String headerSlug = request.getHeader(SALON_SLUG_HEADER);
         if (headerSlug != null && !headerSlug.isBlank()) {
             return headerSlug.trim().toLowerCase();
+        }
+
+        String cookieSlug = readCookie(request, tenantProperties.getSalonSlugCookie());
+        if (cookieSlug != null && !cookieSlug.isBlank()) {
+            return cookieSlug.trim().toLowerCase();
         }
 
         String host = request.getServerName();
@@ -85,11 +97,44 @@ public class TenantFilter extends OncePerRequestFilter {
             return host.substring(0, host.length() - ".localhost".length());
         }
 
+        String baseDomain = tenantProperties.getBaseDomain();
+        if (baseDomain != null && !baseDomain.isBlank()) {
+            String base = baseDomain.toLowerCase();
+            if (host.equals(base)) {
+                return "default";
+            }
+            String suffix = "." + base;
+            if (host.endsWith(suffix)) {
+                return host.substring(0, host.length() - suffix.length());
+            }
+        }
+
         int dot = host.indexOf('.');
         if (dot > 0) {
-            return host.substring(0, dot);
+            String label = host.substring(0, dot);
+            if (!isReservedSlug(label)) {
+                return label;
+            }
         }
 
         return "default";
+    }
+
+    private boolean isReservedSlug(String slug) {
+        return "www".equals(slug) || "api".equals(slug) || "gscrm".equals(slug)
+                || "platform".equals(slug) || "app".equals(slug);
+    }
+
+    private String readCookie(HttpServletRequest request, String name) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) {
+            return null;
+        }
+        for (Cookie cookie : cookies) {
+            if (name.equals(cookie.getName())) {
+                return cookie.getValue();
+            }
+        }
+        return null;
     }
 }

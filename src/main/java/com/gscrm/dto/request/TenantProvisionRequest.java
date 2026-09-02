@@ -32,4 +32,8 @@ public class TenantProvisionRequest {
     private String contactEmail;
 
     private String planCode = "SOLO";
+
+    private String inviteCode;
+
+    private boolean showcase;
 }

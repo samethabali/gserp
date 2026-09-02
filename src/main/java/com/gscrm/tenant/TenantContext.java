@@ -6,6 +6,7 @@ public final class TenantContext {
     private static final ThreadLocal<Long> orgId = new ThreadLocal<>();
     private static final ThreadLocal<String> slug = new ThreadLocal<>();
     private static final ThreadLocal<Boolean> platformBypass = new ThreadLocal<>();
+    private static final ThreadLocal<Boolean> showcase = new ThreadLocal<>();
 
     private TenantContext() {
     }
@@ -50,10 +51,19 @@ public final class TenantContext {
         platformBypass.set(bypass);
     }
 
+    public static boolean isShowcase() {
+        return Boolean.TRUE.equals(showcase.get());
+    }
+
+    public static void setShowcase(boolean value) {
+        showcase.set(value);
+    }
+
     public static void clear() {
         salonId.remove();
         orgId.remove();
         slug.remove();
         platformBypass.remove();
+        showcase.remove();
     }
 }

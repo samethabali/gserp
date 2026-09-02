@@ -34,6 +34,10 @@ public class Salon {
     @Builder.Default
     private boolean active = true;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean showcase = false;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

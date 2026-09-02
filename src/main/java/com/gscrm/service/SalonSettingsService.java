@@ -29,6 +29,7 @@ public class SalonSettingsService {
         map.put("name", get("salon.name", "GSCRM Salon"));
         map.put("logoUrl", get("salon.logo_url", ""));
         map.put("primaryColor", get("salon.primary_color", "#e91e8c"));
+        map.put("showcase", TenantContext.isShowcase() ? "true" : "false");
         return map;
     }
 
