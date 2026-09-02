@@ -1,6 +1,7 @@
 package com.gscrm.service;
 
 import com.gscrm.dto.request.AppointmentCreateRequest;
+import com.gscrm.exception.ConflictException;
 import com.gscrm.dto.response.AppointmentResponse;
 import com.gscrm.model.Appointment;
 import com.gscrm.model.ServiceDefinition;
@@ -25,7 +26,9 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -80,7 +83,7 @@ class AppointmentServiceTest {
         Staff staff = Staff.builder().id(2L).salonId(SALON_ID).name("Zeynep").build();
 
         when(serviceRepository.findByIdAndSalonId(1L, SALON_ID)).thenReturn(Optional.of(service));
-        when(staffRepository.findByIdAndSalonId(2L, SALON_ID)).thenReturn(Optional.of(staff));
+        when(staffRepository.lockByIdAndSalonId(2L, SALON_ID)).thenReturn(Optional.of(staff));
         when(branchHolidayService.isHoliday(eq(SALON_ID), any())).thenReturn(false);
         when(branchPricingService.effectiveDuration(1L)).thenReturn(60);
         when(branchPricingService.effectivePrice(1L)).thenReturn(BigDecimal.valueOf(500));
@@ -97,7 +100,7 @@ class AppointmentServiceTest {
                 .customerPhone("05551234567")
                 .staffId(2L)
                 .serviceId(1L)
-                .startTime(LocalDateTime.of(2026, 6, 20, 10, 0))
+                .startTime(LocalDateTime.now().plusDays(7).withHour(10).withMinute(0).withSecond(0).withNano(0))
                 .build();
 
         AppointmentResponse response = appointmentService.createRequest(req);
@@ -108,5 +111,35 @@ class AppointmentServiceTest {
         assertEquals(SALON_ID, captor.getValue().getSalonId());
         assertNotNull(response);
         assertEquals(100L, response.getId());
+    }
+
+    /**
+     * Çalışma saati kontrolü geçmiş tarihleri yakalamaz — geçmişteki bir salı 11:00
+     * de mesai içindedir — bu yüzden ayrı bir kontrol gerekiyor.
+     */
+    @Test
+    void createRequest_rejectsPastDate() {
+        ServiceDefinition service = ServiceDefinition.builder()
+                .id(1L)
+                .salonId(SALON_ID)
+                .name("Manikür")
+                .durationMinutes(60)
+                .basePrice(BigDecimal.valueOf(500))
+                .build();
+
+        when(serviceRepository.findByIdAndSalonId(1L, SALON_ID)).thenReturn(Optional.of(service));
+
+        AppointmentCreateRequest req = AppointmentCreateRequest.builder()
+                .customerName("Ayşe Yılmaz")
+                .customerPhone("05551234567")
+                .staffId(2L)
+                .serviceId(1L)
+                .startTime(LocalDateTime.now().minusDays(3))
+                .build();
+
+        ConflictException ex = assertThrows(ConflictException.class,
+                () -> appointmentService.createRequest(req));
+        assertEquals("Geçmiş bir tarih için randevu alınamaz", ex.getMessage());
+        verify(appointmentRepository, never()).save(any(Appointment.class));
     }
 }

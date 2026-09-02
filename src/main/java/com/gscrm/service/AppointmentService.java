@@ -92,16 +92,21 @@ public class AppointmentService {
                 AppointmentResponse resp = createSingle(sessionReq, groupId, i, sessions);
                 created.add(resp);
             } catch (ConflictException e) {
+                // Çakışan seans atlanır. Eskiden kayıt zorla yazılıyordu; bu, uzmanı
+                // aynı saatte iki müşteriye veriyordu ve V29'daki çakışma kısıtıyla
+                // zaten mümkün değil. Seri, sığan seanslarla oluşturulur.
                 warnings.add("Seans " + i + " (" + sessionDate + "): " + e.getMessage());
-                log.warn("Session {} conflict: {}", i, e.getMessage());
-
-                AppointmentResponse resp = createSingleForced(sessionReq, groupId, i, sessions);
-                created.add(resp);
+                log.warn("Seans {} çakıştı, atlandı: {}", i, e.getMessage());
             }
         }
 
         if (!warnings.isEmpty()) {
-            log.info("Session creation warnings: {}", warnings);
+            log.info("Seans oluşturma uyarıları: {}", warnings);
+        }
+
+        if (created.isEmpty()) {
+            throw new ConflictException("Seçilen saat için hiçbir seans oluşturulamadı: "
+                    + String.join("; ", warnings));
         }
 
         return created.get(0);
@@ -118,7 +123,7 @@ public class AppointmentService {
         int durationMinutes = branchPricingService.effectiveDuration(req.getServiceId());
         LocalDateTime endTime = req.getStartTime().plusMinutes(durationMinutes);
 
-        Staff staff = staffRepository.findByIdAndSalonId(req.getStaffId(), salonId)
+        Staff staff = staffRepository.lockByIdAndSalonId(req.getStaffId(), salonId)
                 .orElseThrow(() -> new IllegalArgumentException("Uzman bulunamadı: " + req.getStaffId()));
 
         if (!schedulerService.isWithinWorkingHours(req.getStaffId(), req.getStartTime(), endTime)) {
@@ -130,25 +135,6 @@ public class AppointmentService {
         }
 
         List<Long> lockedResources = resourceLockService.validateAndLock(service, req.getStartTime(), endTime, null);
-
-        return buildAndSave(req, service, endTime, lockedResources, sessionGroupId, sessionNum, totalSessions);
-    }
-
-    private AppointmentResponse createSingleForced(AppointmentCreateRequest req,
-                                                     String sessionGroupId, Integer sessionNum, Integer totalSessions) {
-        Long salonId = TenantContext.requireSalonId();
-        ServiceDefinition service = serviceRepository.findByIdAndSalonId(req.getServiceId(), salonId)
-                .orElseThrow(() -> new IllegalArgumentException("Hizmet bulunamadı: " + req.getServiceId()));
-        if (branchHolidayService.isHoliday(salonId, req.getStartTime().toLocalDate())) {
-            throw new ConflictException("Salon bu tarihte kapalı (şube tatili)");
-        }
-        int durationMinutes = branchPricingService.effectiveDuration(req.getServiceId());
-        LocalDateTime endTime = req.getStartTime().plusMinutes(durationMinutes);
-
-        List<Long> lockedResources = new ArrayList<>();
-        try {
-            lockedResources = resourceLockService.validateAndLock(service, req.getStartTime(), endTime, null);
-        } catch (Exception ignored) {}
 
         return buildAndSave(req, service, endTime, lockedResources, sessionGroupId, sessionNum, totalSessions);
     }
@@ -231,13 +217,21 @@ public class AppointmentService {
         Long salonId = TenantContext.requireSalonId();
         ServiceDefinition service = serviceRepository.findByIdAndSalonId(req.getServiceId(), salonId)
                 .orElseThrow(() -> new IllegalArgumentException("Hizmet bulunamadı: " + req.getServiceId()));
+        // Online istek yalnızca ileri bir tarihe verilebilir. Çalışma saati kontrolü
+        // geçmiş tarihleri yakalamaz: geçmişteki bir salı 11:00 de mesai içindedir.
+        // Panelden geçmişe kayıt (yürüyerek gelen müşteri) bilinçli olarak serbest.
+        if (req.getStartTime().isBefore(LocalDateTime.now())) {
+            throw new ConflictException("Geçmiş bir tarih için randevu alınamaz");
+        }
         if (branchHolidayService.isHoliday(salonId, req.getStartTime().toLocalDate())) {
             throw new ConflictException("Salon bu tarihte kapalı (şube tatili)");
         }
         int durationMinutes = branchPricingService.effectiveDuration(req.getServiceId());
         LocalDateTime endTime = req.getStartTime().plusMinutes(durationMinutes);
 
-        Staff staff = staffRepository.findByIdAndSalonId(req.getStaffId(), salonId)
+        // Uzman satırını kilitle: aynı uzmana gelen eşzamanlı istekler burada sıraya
+        // girer, böylece aşağıdaki müsaitlik kontrolü bir öncekinin kaydını görür.
+        Staff staff = staffRepository.lockByIdAndSalonId(req.getStaffId(), salonId)
                 .orElseThrow(() -> new IllegalArgumentException("Uzman bulunamadı: " + req.getStaffId()));
 
         if (!schedulerService.isWithinWorkingHours(req.getStaffId(), req.getStartTime(), endTime)) {
@@ -328,7 +322,7 @@ public class AppointmentService {
         Long newStaffId = req.getNewStaffId() != null ? req.getNewStaffId() : appointment.getStaffId();
         LocalDateTime newEnd = req.getNewStartTime().plusMinutes(service.getDurationMinutes());
 
-        Staff newStaff = staffRepository.findByIdAndSalonId(newStaffId, salonId)
+        Staff newStaff = staffRepository.lockByIdAndSalonId(newStaffId, salonId)
                 .orElseThrow(() -> new IllegalArgumentException("Uzman bulunamadı"));
 
         if (!schedulerService.isWithinWorkingHours(newStaffId, req.getNewStartTime(), newEnd)) {
