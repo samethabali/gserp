@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   GSERP — Common Utilities (app.js)
+   GSCRM — Common Utilities (app.js)
    ═══════════════════════════════════════════════════════════════ */
 
 // ─── Modal Management ───
@@ -175,7 +175,7 @@ async function initSubscriptionBanner() {
     if (!json.success || !json.data) return;
 
     const d = json.data;
-    window.GSERP_READ_ONLY = !!d.readOnly;
+    window.GSCRM_READ_ONLY = !!d.readOnly;
 
     let message = null;
     let cls = 'subscription-banner--warn';
@@ -197,4 +197,4 @@ async function initSubscriptionBanner() {
     main.insertBefore(banner, main.firstChild);
 }
 
-console.log('%c💅 GSERP — Güzellik Salonu ERP', 'font-size:16px;font-weight:bold;color:#9b59b6;');
+console.log('%c💅 GSCRM — Güzellik Salonu ERP', 'font-size:16px;font-weight:bold;color:#9b59b6;');

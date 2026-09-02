@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   GSERP — Expenses Page (expenses.js)
+   GSCRM — Expenses Page (expenses.js)
    ═══════════════════════════════════════════════════════════════ */
 
 const CAT_LABELS = {

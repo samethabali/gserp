@@ -1,26 +1,26 @@
-# GSERP Multi-Tenant — Nginx Wildcard Subdomain
+# GSCRM Multi-Tenant — Nginx Wildcard Subdomain
 
 ## Hedef
 
-Tek `gserp-app` instance; tenant `{slug}.gserp.avesitesi.xyz` ile çözülür.
+Tek `gscrm-app` instance; tenant `{slug}.gscrm.avesitesi.xyz` ile çözülür.
 
 ## DNS
 
 ```
-*.gserp.avesitesi.xyz  A  <VDS_IP>
-gserp.avesitesi.xyz    A  <VDS_IP>   # landing / platform admin
+*.gscrm.avesitesi.xyz  A  <VDS_IP>
+gscrm.avesitesi.xyz    A  <VDS_IP>   # landing / platform admin
 ```
 
 ## Nginx site config
 
 ```nginx
-# /etc/nginx/sites-available/gserp-multitenant
+# /etc/nginx/sites-available/gscrm-multitenant
 server {
     listen 443 ssl http2;
-    server_name gserp.avesitesi.xyz *.gserp.avesitesi.xyz;
+    server_name gscrm.avesitesi.xyz *.gscrm.avesitesi.xyz;
 
-    ssl_certificate     /etc/letsencrypt/live/gserp.avesitesi.xyz/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/gserp.avesitesi.xyz/privkey.pem;
+    ssl_certificate     /etc/letsencrypt/live/gscrm.avesitesi.xyz/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/gscrm.avesitesi.xyz/privkey.pem;
 
     location / {
         proxy_pass http://127.0.0.1:8989;
@@ -39,13 +39,13 @@ server {
 ## SSL (wildcard)
 
 ```bash
-sudo certbot certonly --nginx -d gserp.avesitesi.xyz -d '*.gserp.avesitesi.xyz'
+sudo certbot certonly --nginx -d gscrm.avesitesi.xyz -d '*.gscrm.avesitesi.xyz'
 ```
 
 ## VDS deploy
 
 - Tek container: `127.0.0.1:8989:8989`
-- DB: merkezi `postgres` / `shared-db` / `gserp` database
+- DB: merkezi `postgres` / `shared-db` / `gscrm` database
 - `TenantFilter` Host header'dan slug çıkarır
 
 ## Local dev

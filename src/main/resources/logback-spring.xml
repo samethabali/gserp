@@ -14,12 +14,12 @@
         <root level="INFO">
             <appender-ref ref="CONSOLE"/>
         </root>
-        <logger name="com.gserp" level="DEBUG"/>
+        <logger name="com.gscrm" level="DEBUG"/>
         <logger name="org.hibernate.SQL" level="INFO"/>
     </springProfile>
 
     <springProfile name="prod">
-        <property name="LOG_DIR" value="${LOG_DIR:-/var/log/gserp}"/>
+        <property name="LOG_DIR" value="${LOG_DIR:-/var/log/gscrm}"/>
 
         <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
             <file>${LOG_DIR}/app.log</file>
@@ -38,7 +38,7 @@
             <appender-ref ref="CONSOLE"/>
             <appender-ref ref="FILE"/>
         </root>
-        <logger name="com.gserp" level="INFO"/>
+        <logger name="com.gscrm" level="INFO"/>
         <logger name="org.hibernate.SQL" level="WARN"/>
     </springProfile>
 

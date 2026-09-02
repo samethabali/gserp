@@ -1,9 +1,9 @@
-# GSERP — Veri İşleme Sözleşmesi (DPA) Taslağı
+# GSCRM — Veri İşleme Sözleşmesi (DPA) Taslağı
 
 ## Taraflar
 
 - **Veri Sorumlusu:** Salon işletmesi / Franchise merkezi (müşteri)
-- **Veri İşleyen:** GSERP platform operatörü
+- **Veri İşleyen:** GSCRM platform operatörü
 
 ## İşleme Kapsamı
 

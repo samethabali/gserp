@@ -1,22 +1,22 @@
-# GSERP — VPS Deployment
+# GSCRM — VPS Deployment
 
-Bu doküman GSERP'i tek bir Linux VPS'e (Ubuntu 22.04 / 24.04 LTS varsayılır) Docker
+Bu doküman GSCRM'i tek bir Linux VPS'e (Ubuntu 22.04 / 24.04 LTS varsayılır) Docker
 Compose üzerinden, nginx reverse proxy ve Let's Encrypt TLS ile yayına almanın
 adım adım yönergesidir.
 
 > **Hızlı yol:** Aşağıdaki adımların büyük kısmını `scripts/vps-setup.sh` script'i
 > idempotent (zaten var olanı atlar) şekilde yapar. Önce sistem kurulumu (Docker,
-> nginx, UFW, certbot) elle tamamlanmalı; sonrasında script GSERP'e özgü kısmı
+> nginx, UFW, certbot) elle tamamlanmalı; sonrasında script GSCRM'e özgü kısmı
 > (clone, .env, compose up, nginx site, backup cron) otomatikleştirir. Yine de
 > bu doküman referans olarak baştan adım adım açıklar.
 
 Hedef mimari:
 
 ```
-İnternet ── 443/80 ──> nginx (host) ── 127.0.0.1:8989 ──> gserp-app (container)
+İnternet ── 443/80 ──> nginx (host) ── 127.0.0.1:8989 ──> gscrm-app (container)
                                                               │
                                                               ▼
-                                                         gserp-db (container)
+                                                         gscrm-db (container)
                                                          (sadece compose ağı, host'a kapalı)
 ```
 
@@ -88,7 +88,7 @@ sudo ufw enable
 sudo ufw status verbose
 ```
 
-**Önemli:** GSERP app container'ı `127.0.0.1:8989`'a bind ediyor ve DB container'ı
+**Önemli:** GSCRM app container'ı `127.0.0.1:8989`'a bind ediyor ve DB container'ı
 host'a hiç port açmıyor. 80/443 dışında hiçbir uygulama portunu UFW'da açma.
 
 ---
@@ -96,10 +96,10 @@ host'a hiç port açmıyor. 80/443 dışında hiçbir uygulama portunu UFW'da a�
 ## 4. Kaynak kodu çekme + .env
 
 ```bash
-sudo mkdir -p /opt/gserp
-sudo chown deploy:deploy /opt/gserp
-cd /opt/gserp
-git clone https://github.com/<your-org>/gserp.git .
+sudo mkdir -p /opt/gscrm
+sudo chown deploy:deploy /opt/gscrm
+cd /opt/gscrm
+git clone https://github.com/<your-org>/gscrm.git .
 git checkout production-ready   # veya tagged release
 
 cp .env.example .env
@@ -118,8 +118,8 @@ JWT_SECRET=<openssl rand -base64 48 ile üret>
 APP_CORS_ALLOWED_ORIGINS=https://salon.example.com
 
 # İlk admin (kurulumdan sonra UI'dan parolayı değiştir)
-GSERP_INITIAL_ADMIN_USERNAME=admin
-GSERP_INITIAL_ADMIN_PASSWORD=<güçlü-tek-kullanımlık-parola>
+GSCRM_INITIAL_ADMIN_USERNAME=admin
+GSCRM_INITIAL_ADMIN_PASSWORD=<güçlü-tek-kullanımlık-parola>
 ```
 
 `.env` dosyasının izinleri:
@@ -133,7 +133,7 @@ chmod 600 .env
 ## 5. Stack'i başlat
 
 ```bash
-cd /opt/gserp
+cd /opt/gscrm
 docker compose up -d --build
 docker compose ps   # her ikisi de "Up (healthy)" olmalı
 docker compose logs -f app | head -40
@@ -146,10 +146,10 @@ curl -fsS http://localhost:8989/actuator/health
 # {"status":"UP","groups":["liveness","readiness"]}
 ```
 
-İlk açılışta `gserp-app` loglarında şunu görmelisin:
+İlk açılışta `gscrm-app` loglarında şunu görmelisin:
 
 ```
-INFO  com.gserp.config.InitialAdminSeeder - İlk admin kullanıcısı oluşturuldu: 'admin'.
+INFO  com.gscrm.config.InitialAdminSeeder - İlk admin kullanıcısı oluşturuldu: 'admin'.
 ```
 
 ---
@@ -161,11 +161,11 @@ sudo apt install -y nginx
 sudo systemctl enable --now nginx
 ```
 
-`/etc/nginx/sites-available/gserp` dosyasını oluştur:
+`/etc/nginx/sites-available/gscrm` dosyasını oluştur:
 
 ```nginx
-# /etc/nginx/sites-available/gserp
-upstream gserp_app {
+# /etc/nginx/sites-available/gscrm
+upstream gscrm_app {
     server 127.0.0.1:8989;
     keepalive 32;
 }
@@ -212,7 +212,7 @@ server {
 
     location /api/booking/request {
         limit_req zone=booking_api burst=5 nodelay;
-        proxy_pass http://gserp_app;
+        proxy_pass http://gscrm_app;
         proxy_set_header Host              $host;
         proxy_set_header X-Real-IP         $remote_addr;
         proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
@@ -223,7 +223,7 @@ server {
 
     location /api/booking/ {
         limit_req zone=booking_get burst=20 nodelay;
-        proxy_pass http://gserp_app;
+        proxy_pass http://gscrm_app;
         proxy_set_header Host              $host;
         proxy_set_header X-Real-IP         $remote_addr;
         proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
@@ -234,7 +234,7 @@ server {
 
     # ───────── REST + sayfa trafiği ─────────
     location / {
-        proxy_pass http://gserp_app;
+        proxy_pass http://gscrm_app;
 
         proxy_set_header Host              $host;
         proxy_set_header X-Real-IP         $remote_addr;
@@ -255,7 +255,7 @@ server {
     # transport'larıyla birlikte uzun-poll, xhr-streaming ve websocket
     # frame'lerini bu blok taşır.
     location /ws-calendar/ {
-        proxy_pass http://gserp_app;
+        proxy_pass http://gscrm_app;
 
         proxy_http_version 1.1;
         proxy_set_header Upgrade           $http_upgrade;
@@ -282,7 +282,7 @@ server {
 Etkinleştir + test et:
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/gserp /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/gscrm /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default
 sudo mkdir -p /var/www/certbot
 sudo nginx -t
@@ -334,59 +334,59 @@ sudo fail2ban-client status sshd
 
 Container içindeki Postgres'i hosttan `pg_dump`'lamak en pratik yol.
 
-Yedek script'i (`/opt/gserp/scripts/backup-db.sh`):
+Yedek script'i (`/opt/gscrm/scripts/backup-db.sh`):
 
 ```bash
 #!/usr/bin/env bash
 set -euo pipefail
 
-BACKUP_DIR=/var/backups/gserp
+BACKUP_DIR=/var/backups/gscrm
 RETENTION_DAYS=14
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
-OUT="$BACKUP_DIR/gserp-$STAMP.sql.gz"
+OUT="$BACKUP_DIR/gscrm-$STAMP.sql.gz"
 
 mkdir -p "$BACKUP_DIR"
 
-# Compose ağındaki gserp-db container'ına gir, pg_dump çıktısını gzip'le
-docker exec -t gserp-db pg_dump -U gserp -d gserp --no-owner --clean --if-exists \
+# Compose ağındaki gscrm-db container'ına gir, pg_dump çıktısını gzip'le
+docker exec -t gscrm-db pg_dump -U gscrm -d gscrm --no-owner --clean --if-exists \
   | gzip -9 > "$OUT"
 
 # Eski yedekleri temizle
-find "$BACKUP_DIR" -name 'gserp-*.sql.gz' -mtime "+$RETENTION_DAYS" -delete
+find "$BACKUP_DIR" -name 'gscrm-*.sql.gz' -mtime "+$RETENTION_DAYS" -delete
 
 echo "Backup: $OUT ($(du -h "$OUT" | cut -f1))"
 ```
 
 ```bash
-sudo mkdir -p /var/backups/gserp /opt/gserp/scripts
-sudo chown deploy:deploy /var/backups/gserp /opt/gserp/scripts
-chmod +x /opt/gserp/scripts/backup-db.sh
+sudo mkdir -p /var/backups/gscrm /opt/gscrm/scripts
+sudo chown deploy:deploy /var/backups/gscrm /opt/gscrm/scripts
+chmod +x /opt/gscrm/scripts/backup-db.sh
 ```
 
 Cron (deploy kullanıcısının crontab'ına — `crontab -e`):
 
 ```cron
 # Her gece 03:30 UTC'de yedek
-30 3 * * * /opt/gserp/scripts/backup-db.sh >> /var/log/gserp-backup.log 2>&1
+30 3 * * * /opt/gscrm/scripts/backup-db.sh >> /var/log/gscrm-backup.log 2>&1
 ```
 
 ### Geri yükleme (felaket kurtarma)
 
 ```bash
 # Stack'i durdur, volume'ı sıfırla
-cd /opt/gserp
+cd /opt/gscrm
 docker compose down
-docker volume rm gserp_gserp-db-data
+docker volume rm gscrm_gscrm-db-data
 
 # DB'yi tek başına ayağa kaldır (app henüz çalışmasın — Flyway DB temizken bozulur)
 docker compose up -d db
-until [ "$(docker inspect --format='{{.State.Health.Status}}' gserp-db)" = "healthy" ]; do
+until [ "$(docker inspect --format='{{.State.Health.Status}}' gscrm-db)" = "healthy" ]; do
   sleep 2
 done
 
 # Yedeği geri yükle
-gunzip -c /var/backups/gserp/gserp-YYYYMMDDTHHMMSSZ.sql.gz | \
-  docker exec -i gserp-db psql -U gserp -d gserp
+gunzip -c /var/backups/gscrm/gscrm-YYYYMMDDTHHMMSSZ.sql.gz | \
+  docker exec -i gscrm-db psql -U gscrm -d gscrm
 
 # App'i başlat
 docker compose up -d app
@@ -403,7 +403,7 @@ docker compose up -d app
 Kod güncellemesi geldiğinde:
 
 ```bash
-cd /opt/gserp
+cd /opt/gscrm
 git fetch --all
 git checkout production-ready    # veya yeni tag
 git pull
@@ -438,7 +438,7 @@ docker compose logs --tail 200 app
 - [ ] `.env` dosyasının izni `600`, kullanıcısı `deploy` (`ls -l .env`)
 - [ ] `ufw status` — sadece 22/80/443 açık
 - [ ] `docker compose ps` — db ve app "healthy"
-- [ ] Yedek cron'unu manuel tetikle (`./scripts/backup-db.sh`) ve `/var/backups/gserp/`
+- [ ] Yedek cron'unu manuel tetikle (`./scripts/backup-db.sh`) ve `/var/backups/gscrm/`
       içinde dosya geldiğini doğrula
 - [ ] `journalctl -u fail2ban` aktif
 - [ ] WebSocket: iki tarayıcıda giriş yap, birinde randevu sürükle → diğerinde
@@ -461,20 +461,20 @@ docker compose logs --tail 200 app
 
 ## 13. Multi-Tenant SaaS (wildcard subdomain)
 
-Tek `gserp-app` instance, shared PostgreSQL. Tenant `{slug}.gserp.avesitesi.xyz` ile çözülür.
+Tek `gscrm-app` instance, shared PostgreSQL. Tenant `{slug}.gscrm.avesitesi.xyz` ile çözülür.
 
 Detaylı nginx config: [`docs/saas/nginx-wildcard.md`](saas/nginx-wildcard.md)
 
 ```bash
 # DNS
-*.gserp.avesitesi.xyz  →  VPS IP
+*.gscrm.avesitesi.xyz  →  VPS IP
 
 # Deploy (image_transfer önerilir — bkz. MCP deploy_kurallari.yaml)
 docker compose up -d --build
 
 # Smoke test
-curl -H "X-Salon-Slug: default" https://gserp.avesitesi.xyz/api/booking/services
-curl https://gserp.avesitesi.xyz/actuator/health
+curl -H "X-Salon-Slug: default" https://gscrm.avesitesi.xyz/api/booking/services
+curl https://gscrm.avesitesi.xyz/actuator/health
 ```
 
 DR: [`docs/saas/dr-playbook.md`](saas/dr-playbook.md)

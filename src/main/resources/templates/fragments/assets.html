@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <body>
-<!-- GSERP ortak statik asset'ler — cache bust için app.asset-version kullanılır -->
+<!-- GSCRM ortak statik asset'ler — cache bust için app.asset-version kullanılır -->
 <th:block th:fragment="styles">
     <link rel="stylesheet"
           th:href="@{/css/style.css(v=${@environment.getProperty('app.asset-version', '1')})}">

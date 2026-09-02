@@ -11,10 +11,10 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.gserp</groupId>
-    <artifactId>gserp</artifactId>
+    <groupId>com.gscrm</groupId>
+    <artifactId>gscrm</artifactId>
     <version>1.0.0</version>
-    <name>GSERP</name>
+    <name>GSCRM</name>
     <description>Güzellik Salonu ERP - Banko Yönetim Sistemi</description>
 
     <properties>

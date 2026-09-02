@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   GSERP — WebSocket Client (websocket.js)
+   GSCRM — WebSocket Client (websocket.js)
    STOMP over SockJS for real-time calendar updates
    ═══════════════════════════════════════════════════════════════ */
 

@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# GSERP — VPS kurulum otomasyonu (idempotent).
+# GSCRM — VPS kurulum otomasyonu (idempotent).
 #
-# Kapsam: GSERP'e özgü kısım. apt/docker/ufw/certbot gibi sistem-seviyesi
+# Kapsam: GSCRM'e özgü kısım. apt/docker/ufw/certbot gibi sistem-seviyesi
 # kurulum BU SCRIPTTE YOKTUR; onlar deploy-vps.md'de el ile yapılır.
 #
 # Bu script:
 #   1. Gerekli sistem araçlarının (docker, compose, nginx, certbot) varlığını
 #      DOĞRULAR (eksikse durur, ne yapacağını söyler).
-#   2. /opt/gserp altına repo'yu clone'lar veya günceller.
+#   2. /opt/gscrm altına repo'yu clone'lar veya günceller.
 #   3. .env yoksa interaktif olarak oluşturur (secret'ları openssl rand ile üretir).
 #   4. docker compose'u ayağa kaldırır, health bekler.
-#   5. /etc/nginx/sites-available/gserp dosyasını yazar (mevcutsa diff gösterip
+#   5. /etc/nginx/sites-available/gscrm dosyasını yazar (mevcutsa diff gösterip
 #      onay ister). Mevcut diğer site'lara dokunmaz.
 #   6. Yedek script'i + cron girdisini ekler (zaten varsa atlar).
 #
@@ -25,11 +25,11 @@ set -euo pipefail
 
 # ───────────────────── Ayarlar ─────────────────────
 REPO_URL="${REPO_URL:-}"                              # Boşsa kullanıcıya sorulur
-INSTALL_DIR="${INSTALL_DIR:-/opt/gserp}"
+INSTALL_DIR="${INSTALL_DIR:-/opt/gscrm}"
 BRANCH="${BRANCH:-production-ready}"
-NGINX_SITE_NAME="${NGINX_SITE_NAME:-gserp}"
+NGINX_SITE_NAME="${NGINX_SITE_NAME:-gscrm}"
 DOMAIN="${DOMAIN:-}"                                  # Boşsa kullanıcıya sorulur
-BACKUP_DIR="${BACKUP_DIR:-/var/backups/gserp}"
+BACKUP_DIR="${BACKUP_DIR:-/var/backups/gscrm}"
 BACKUP_RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-14}"
 
 # ───────────────────── Yardımcılar ─────────────────────
@@ -162,11 +162,11 @@ else
     JWT_SEC=$(openssl rand -base64 48)
 
     cat > "$INSTALL_DIR/.env" <<ENV
-# GSERP production .env — $(date -u +%Y-%m-%dT%H:%M:%SZ) tarihinde üretildi
+# GSCRM production .env — $(date -u +%Y-%m-%dT%H:%M:%SZ) tarihinde üretildi
 DB_PASSWORD=$DB_PW
 
-SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/gserp
-SPRING_DATASOURCE_USERNAME=gserp
+SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/gscrm
+SPRING_DATASOURCE_USERNAME=gscrm
 SPRING_DATASOURCE_PASSWORD=$DB_PW
 
 JWT_SECRET=$JWT_SEC
@@ -175,8 +175,8 @@ APP_CORS_ALLOWED_ORIGINS=https://$DOMAIN
 
 SPRING_PROFILES_ACTIVE=prod
 
-GSERP_INITIAL_ADMIN_USERNAME=$ADMIN_USER
-GSERP_INITIAL_ADMIN_PASSWORD=$ADMIN_PASS
+GSCRM_INITIAL_ADMIN_USERNAME=$ADMIN_USER
+GSCRM_INITIAL_ADMIN_PASSWORD=$ADMIN_PASS
 ENV
     chmod 600 "$INSTALL_DIR/.env"
     ok ".env yazıldı (chmod 600)"
@@ -184,9 +184,9 @@ fi
 
 # ───────────────────── 3. Docker compose up ─────────────────────
 # Stack zaten çalışıyor mu? Çalışıyorsa kullanıcıya restart riskini söyle.
-RUNNING=$($DOCKER ps --filter "name=gserp-app" --filter "status=running" --format '{{.Names}}' 2>/dev/null || true)
+RUNNING=$($DOCKER ps --filter "name=gscrm-app" --filter "status=running" --format '{{.Names}}' 2>/dev/null || true)
 if [[ -n "$RUNNING" ]]; then
-    warn "gserp-app şu an çalışıyor. Build + up kısa süreli (~10s) downtime yapacak."
+    warn "gscrm-app şu an çalışıyor. Build + up kısa süreli (~10s) downtime yapacak."
     warn "Veritabanı volume'u korunur, veri kaybı OLMAZ."
     if ! confirm "Devam edeyim mi?"; then
         warn "Compose adımı atlandı. nginx ve diğer ayarlar yapıldı."
@@ -206,15 +206,15 @@ else
 log "App'in healthy duruma gelmesi bekleniyor (max 120s)..."
 DEADLINE=$(( $(date +%s) + 120 ))
 while [[ $(date +%s) -lt $DEADLINE ]]; do
-    STATUS=$($DOCKER inspect --format='{{.State.Health.Status}}' gserp-app 2>/dev/null || echo "missing")
+    STATUS=$($DOCKER inspect --format='{{.State.Health.Status}}' gscrm-app 2>/dev/null || echo "missing")
     if [[ "$STATUS" == "healthy" ]]; then
-        ok "gserp-app healthy"
+        ok "gscrm-app healthy"
         break
     fi
     sleep 5
 done
 if [[ "$STATUS" != "healthy" ]]; then
-    err "gserp-app healthy olmadı (durum: $STATUS). Logları kontrol et:"
+    err "gscrm-app healthy olmadı (durum: $STATUS). Logları kontrol et:"
     err "  docker compose logs --tail 100 app"
     exit 3
 fi
@@ -250,8 +250,8 @@ else
 fi
 
 # Üst kısım: upstream + 80 bloğu (her zaman)
-NGX_CONFIG="# GSERP — vps-setup.sh tarafından üretildi
-upstream gserp_app {
+NGX_CONFIG="# GSCRM — vps-setup.sh tarafından üretildi
+upstream gscrm_app {
     server 127.0.0.1:8989;
     keepalive 32;
 }
@@ -289,7 +289,7 @@ server {
     client_max_body_size 10M;
 
     location / {
-        proxy_pass http://gserp_app;
+        proxy_pass http://gscrm_app;
         proxy_set_header Host              \$host;
         proxy_set_header X-Real-IP         \$remote_addr;
         proxy_set_header X-Forwarded-For   \$proxy_add_x_forwarded_for;
@@ -303,7 +303,7 @@ server {
     }
 
     location /ws-calendar/ {
-        proxy_pass http://gserp_app;
+        proxy_pass http://gscrm_app;
         proxy_http_version 1.1;
         proxy_set_header Upgrade           \$http_upgrade;
         proxy_set_header Connection        \"upgrade\";
@@ -328,7 +328,7 @@ else
     # certbot --nginx -d $DOMAIN sonrası bu script'i tekrar çalıştır,
     # 443 bloğu eklenecek + bu blok HTTPS redirect'e dönüşecek.
     location / {
-        proxy_pass http://gserp_app;
+        proxy_pass http://gscrm_app;
         proxy_set_header Host              \$host;
         proxy_set_header X-Real-IP         \$remote_addr;
         proxy_set_header X-Forwarded-For   \$proxy_add_x_forwarded_for;
@@ -338,7 +338,7 @@ else
     }
 
     location /ws-calendar/ {
-        proxy_pass http://gserp_app;
+        proxy_pass http://gscrm_app;
         proxy_http_version 1.1;
         proxy_set_header Upgrade    \$http_upgrade;
         proxy_set_header Connection \"upgrade\";
@@ -410,15 +410,15 @@ if [[ ! -f "$BACKUP_SCRIPT" ]]; then
     cat > "$BACKUP_SCRIPT" <<'BACKUP'
 #!/usr/bin/env bash
 set -euo pipefail
-BACKUP_DIR="${BACKUP_DIR:-/var/backups/gserp}"
+BACKUP_DIR="${BACKUP_DIR:-/var/backups/gscrm}"
 RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-14}"
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
-OUT="$BACKUP_DIR/gserp-$STAMP.sql.gz"
+OUT="$BACKUP_DIR/gscrm-$STAMP.sql.gz"
 
 mkdir -p "$BACKUP_DIR"
-docker exec -t gserp-db pg_dump -U gserp -d gserp --no-owner --clean --if-exists \
+docker exec -t gscrm-db pg_dump -U gscrm -d gscrm --no-owner --clean --if-exists \
   | gzip -9 > "$OUT"
-find "$BACKUP_DIR" -name 'gserp-*.sql.gz' -mtime "+$RETENTION_DAYS" -delete
+find "$BACKUP_DIR" -name 'gscrm-*.sql.gz' -mtime "+$RETENTION_DAYS" -delete
 echo "Backup: $OUT ($(du -h "$OUT" | cut -f1))"
 BACKUP
     chmod +x "$BACKUP_SCRIPT"
@@ -432,7 +432,7 @@ $SUDO mkdir -p "$BACKUP_DIR"
 $SUDO chown "$USER:$USER" "$BACKUP_DIR"
 
 # Crontab girdisi
-CRON_LINE="30 3 * * * BACKUP_RETENTION_DAYS=$BACKUP_RETENTION_DAYS BACKUP_DIR=$BACKUP_DIR $BACKUP_SCRIPT >> /var/log/gserp-backup.log 2>&1"
+CRON_LINE="30 3 * * * BACKUP_RETENTION_DAYS=$BACKUP_RETENTION_DAYS BACKUP_DIR=$BACKUP_DIR $BACKUP_SCRIPT >> /var/log/gscrm-backup.log 2>&1"
 EXISTING_CRON=$(crontab -l 2>/dev/null || true)
 if echo "$EXISTING_CRON" | grep -qF "$BACKUP_SCRIPT"; then
     ok "Cron girdisi zaten var"
@@ -441,8 +441,8 @@ else
     ok "Cron girdisi eklendi (her gün 03:30 UTC)"
 fi
 
-$SUDO touch /var/log/gserp-backup.log
-$SUDO chown "$USER:$USER" /var/log/gserp-backup.log
+$SUDO touch /var/log/gscrm-backup.log
+$SUDO chown "$USER:$USER" /var/log/gscrm-backup.log
 
 # ───────────────────── Özet ─────────────────────
 echo ""

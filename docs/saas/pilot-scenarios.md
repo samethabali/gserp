@@ -1,4 +1,4 @@
-# GSERP SaaS — Pilot Senaryo Spec
+# GSCRM SaaS — Pilot Senaryo Spec
 
 ## Senaryo A: Bağımsız Salon (STANDALONE)
 
@@ -7,7 +7,7 @@
 | Org adı | Güzellik Atölyesi |
 | Org tipi | STANDALONE |
 | Salon slug | `guzellik-atolyesi` |
-| Subdomain | `guzellik-atolyesi.gserp.avesitesi.xyz` |
+| Subdomain | `guzellik-atolyesi.gscrm.avesitesi.xyz` |
 | Plan | SOLO (trial 14 gün) |
 | İlk admin | `admin@guzellik-atolyesi` / geçici parola |
 

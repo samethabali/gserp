@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   GSERP — Calendar Page Logic (calendar.js)
+   GSCRM — Calendar Page Logic (calendar.js)
    FullCalendar 6 + drag-drop + appointment CRUD + sessions
    ═══════════════════════════════════════════════════════════════ */
 

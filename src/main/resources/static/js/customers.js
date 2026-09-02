@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   GSERP — Customers Page (customers.js)
+   GSCRM — Customers Page (customers.js)
    ═══════════════════════════════════════════════════════════════ */
 
 let allCustomers = [];

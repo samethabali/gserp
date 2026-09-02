@@ -1,10 +1,10 @@
-# GSERP Dev Başlatma Scripti
+# GSCRM Dev Başlatma Scripti
 # Kullanım: .\start-dev.ps1
 
-Write-Host "GSERP Dev Ortamı Başlatılıyor..." -ForegroundColor Cyan
+Write-Host "GSCRM Dev Ortamı Başlatılıyor..." -ForegroundColor Cyan
 
 # DB container durumunu kontrol et
-$dbRunning = docker ps --filter "name=gserp-db-dev" --format "{{.Names}}" 2>$null
+$dbRunning = docker ps --filter "name=gscrm-db-dev" --format "{{.Names}}" 2>$null
 
 if (-not $dbRunning) {
     Write-Host "Veritabanı başlatılıyor (port 5800)..." -ForegroundColor Yellow
@@ -20,14 +20,14 @@ if (-not $dbRunning) {
 }
 
 # DB bağlantısını doğrula
-$dbReady = docker exec gserp-db-dev pg_isready -U gserp -d gserp_dev 2>$null
+$dbReady = docker exec gscrm-db-dev pg_isready -U gscrm -d gscrm_dev 2>$null
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Veritabanı yanıt vermiyor, 5 saniye daha bekleniyor..." -ForegroundColor Yellow
     Start-Sleep -Seconds 5
 }
 
 # Spring Boot başlat
-$env:SPRING_DATASOURCE_URL = "jdbc:postgresql://localhost:5800/gserp_dev"
+$env:SPRING_DATASOURCE_URL = "jdbc:postgresql://localhost:5800/gscrm_dev"
 Write-Host ""
 Write-Host "Uygulama başlatılıyor..." -ForegroundColor Green
 Write-Host "URL: http://localhost:8989" -ForegroundColor Cyan

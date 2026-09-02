@@ -1,4 +1,4 @@
-/* GSERP — Custom select (dark dropdown). Inline styles: CSS dosyası eski olsa da çalışır. */
+/* GSCRM — Custom select (dark dropdown). Inline styles: CSS dosyası eski olsa da çalışır. */
 (function () {
     const MENU_STYLE = [
         'display:none',

@@ -1,4 +1,4 @@
-# GSERP — Güzellik Salonu ERP
+# GSCRM — Güzellik Salonu ERP
 
 Spring Boot 3.4 + Java 21 üzerinde çalışan, randevu / kaynak / personel yönetimi sunan monolitik web uygulaması. Thymeleaf ile sunucu-render, STOMP/WebSocket ile canlı takvim güncellemesi.
 
@@ -43,7 +43,7 @@ docker compose up -d --build
 ## Yapı
 
 ```
-src/main/java/com/gserp/
+src/main/java/com/gscrm/
   config/      — Web, WebSocket, Security
   controller/  — REST + Page controller'ları
   dto/         — request/response DTO'ları

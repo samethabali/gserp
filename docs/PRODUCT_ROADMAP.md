@@ -1,8 +1,8 @@
-# GSERP — Ürünleştirme & SaaS Yol Haritası
+# GSCRM — Ürünleştirme & SaaS Yol Haritası
 
 **Son güncelleme:** 2026-06-22  
 **Branch:** `production-ready`  
-**Canlı:** `https://gserp.avesitesi.xyz` · tenant: `https://default.gserp.avesitesi.xyz`
+**Canlı:** `https://gscrm.avesitesi.xyz` · tenant: `https://default.gscrm.avesitesi.xyz`
 
 Bu doküman demo hazırlığı, deploy ve SaaS ürünleştirme adımlarını tek planda toplar.
 
@@ -36,8 +36,8 @@ Bu doküman demo hazırlığı, deploy ve SaaS ürünleştirme adımlarını tek
 | Ortam | Giriş | Tenant |
 |-------|--------|--------|
 | Lokal | http://localhost:8989/login | `default` (otomatik) |
-| VDS (ana) | https://gserp.avesitesi.xyz/login | header/subdomain |
-| VDS (demo salon) | https://default.gserp.avesitesi.xyz/login | `default` |
+| VDS (ana) | https://gscrm.avesitesi.xyz/login | header/subdomain |
+| VDS (demo salon) | https://default.gscrm.avesitesi.xyz/login | `default` |
 
 ---
 
@@ -55,10 +55,10 @@ Manuel tetik: Actions → **Deploy to VPS** → Run workflow.
 
 ```powershell
 # MCP vds-deploy sunucusu üzerinden
-deploy_yap(proje="gserp", deploy_yontemi="image_transfer")
+deploy_yap(proje="gscrm", deploy_yontemi="image_transfer")
 ```
 
-Profil: `deploy_kurallari.yaml` → port **5004**, domain `gserp.avesitesi.xyz`, wildcard `*.gserp.avesitesi.xyz`.
+Profil: `deploy_kurallari.yaml` → port **5004**, domain `gscrm.avesitesi.xyz`, wildcard `*.gscrm.avesitesi.xyz`.
 
 ### Prod demo verisi
 
@@ -129,7 +129,7 @@ Prod DB'de demo kullanıcı yoksa:
 | E1 | Platform tenant yönetimi UI (suspend, plan değiştir) | P1 | L |
 | E2 | Self-service plan upgrade (SOLO → FRANCHISE) | P2 | L |
 | E3 | Staging ortamı + smoke (`staging.yml`) | P2 | M |
-| E4 | Landing / pazarlama sayfası (`gserp.avesitesi.xyz`) | P3 | M |
+| E4 | Landing / pazarlama sayfası (`gscrm.avesitesi.xyz`) | P3 | M |
 | E5 | ENTERPRISE dedicated instance şablonu | P3 | XL |
 
 ---

@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   GSERP — Dashboard Page Logic (dashboard.js)
+   GSCRM — Dashboard Page Logic (dashboard.js)
    ═══════════════════════════════════════════════════════════════ */
 
 let dashboardDate = todayISO();

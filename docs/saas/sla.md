@@ -1,4 +1,4 @@
-# GSERP SaaS — Hizmet Seviyesi Anlaşması (SLA)
+# GSCRM SaaS — Hizmet Seviyesi Anlaşması (SLA)
 
 ## Uptime
 
@@ -23,7 +23,7 @@
 ## Planlı Bakım
 
 - Hafta içi 02:00–04:00 UTC, 48 saat önceden bildirim
-- Durum sayfası: `status.gserp.avesitesi.xyz` (hedef)
+- Durum sayfası: `status.gscrm.avesitesi.xyz` (hedef)
 
 ## Hariç Tutulanlar
 

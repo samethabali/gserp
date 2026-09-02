@@ -17,7 +17,7 @@ RUN mvn -B -ntp -DskipTests clean package \
 FROM eclipse-temurin:21-jre-alpine AS runtime
 
 # Non-root user
-RUN addgroup -S gserp && adduser -S -G gserp -h /app gserp
+RUN addgroup -S gscrm && adduser -S -G gscrm -h /app gscrm
 
 WORKDIR /app
 
@@ -28,17 +28,17 @@ RUN apk add --no-cache curl tzdata \
 
 COPY --from=build /workspace/app.jar app.jar
 
-# Log dizini (prod logback bunu kullanır), gserp'e ait
-RUN mkdir -p /var/log/gserp && chown -R gserp:gserp /app /var/log/gserp
+# Log dizini (prod logback bunu kullanır), gscrm'e ait
+RUN mkdir -p /var/log/gscrm && chown -R gscrm:gscrm /app /var/log/gscrm
 
-USER gserp
+USER gscrm
 
 EXPOSE 8989
 
 ENV JAVA_OPTS="-XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError" \
     SPRING_PROFILES_ACTIVE=prod \
     SERVER_PORT=8989 \
-    LOG_DIR=/var/log/gserp
+    LOG_DIR=/var/log/gscrm
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
     CMD curl -fsS http://localhost:8989/actuator/health | grep -q '"status":"UP"' || exit 1

@@ -3,23 +3,23 @@
 services:
   db:
     image: postgres:16-alpine
-    container_name: gserp-db-dev
+    container_name: gscrm-db-dev
     restart: unless-stopped
     environment:
-      POSTGRES_DB: gserp_dev
-      POSTGRES_USER: gserp
-      POSTGRES_PASSWORD: gserp
+      POSTGRES_DB: gscrm_dev
+      POSTGRES_USER: gscrm
+      POSTGRES_PASSWORD: gscrm
     ports:
       # Host'ta 5432/5433 başka postgres'lerce kullanılıyor, 5434'e bind.
-      # SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5434/gserp_dev ile çalıştır.
+      # SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5434/gscrm_dev ile çalıştır.
       - "5800:5432"
     volumes:
-      - gserp-db-dev-data:/var/lib/postgresql/data
+      - gscrm-db-dev-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U gserp -d gserp_dev"]
+      test: ["CMD-SHELL", "pg_isready -U gscrm -d gscrm_dev"]
       interval: 5s
       timeout: 5s
       retries: 10
 
 volumes:
-  gserp-db-dev-data:
+  gscrm-db-dev-data:

@@ -1,20 +1,20 @@
-# GSERP — production stack (app + postgres)
+# GSCRM — production stack (app + postgres)
 # Önkoşul: .env.example -> .env (gerçek değerlerle doldurulmuş)
 # Çalıştırma: docker compose up -d --build
 # Sağlık: curl http://localhost:8989/actuator/health  -> {"status":"UP"}
 services:
   db:
     image: postgres:16-alpine
-    container_name: gserp-db
+    container_name: gscrm-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: gserp
-      POSTGRES_USER: gserp
+      POSTGRES_DB: gscrm
+      POSTGRES_USER: gscrm
       POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD .env dosyasında tanımlı olmalı}
     volumes:
-      - gserp-db-data:/var/lib/postgresql/data
+      - gscrm-db-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U gserp -d gserp"]
+      test: ["CMD-SHELL", "pg_isready -U gscrm -d gscrm"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -26,23 +26,23 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: gserp:latest
-    container_name: gserp-app
+    image: gscrm:latest
+    container_name: gscrm-app
     restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: prod
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/gserp
-      SPRING_DATASOURCE_USERNAME: gserp
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/gscrm
+      SPRING_DATASOURCE_USERNAME: gscrm
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET .env'de tanımlı olmalı}
       APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS}
       # İlk açılışta users tablosu boşsa bu admin'i yaratır. Sonraki run'larda no-op.
       # Boş bırakırsan admin'i SQL ile elle yaratman gerekir.
-      GSERP_INITIAL_ADMIN_USERNAME: ${GSERP_INITIAL_ADMIN_USERNAME:-}
-      GSERP_INITIAL_ADMIN_PASSWORD: ${GSERP_INITIAL_ADMIN_PASSWORD:-}
+      GSCRM_INITIAL_ADMIN_USERNAME: ${GSCRM_INITIAL_ADMIN_USERNAME:-}
+      GSCRM_INITIAL_ADMIN_PASSWORD: ${GSCRM_INITIAL_ADMIN_PASSWORD:-}
       WHATSAPP_ENABLED: ${WHATSAPP_ENABLED:-false}
       WHATSAPP_TOKEN: ${WHATSAPP_TOKEN:-}
       WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID:-}
@@ -50,13 +50,13 @@ services:
       WHATSAPP_SALON_PHONE: ${WHATSAPP_SALON_PHONE:-}
       WHATSAPP_WEBHOOK_VERIFY_TOKEN: ${WHATSAPP_WEBHOOK_VERIFY_TOKEN:-}
       SERVER_PORT: 8989
-      LOG_DIR: /var/log/gserp
+      LOG_DIR: /var/log/gscrm
     ports:
       # Yalnızca loopback'e bind — nginx/reverse-proxy önünde çalışır.
       - "127.0.0.1:8989:8989"
     volumes:
-      - gserp-app-logs:/var/log/gserp
+      - gscrm-app-logs:/var/log/gscrm
 
 volumes:
-  gserp-db-data:
-  gserp-app-logs:
+  gscrm-db-data:
+  gscrm-app-logs:

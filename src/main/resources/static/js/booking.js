@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   GSERP — Public Booking Page (booking.js)
+   GSCRM — Public Booking Page (booking.js)
    ═══════════════════════════════════════════════════════════════ */
 
 const state = {

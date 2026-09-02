@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KVKK Aydınlatma Metni — GSERP</title>
+    <title>KVKK Aydınlatma Metni — GSCRM</title>
     <link th:replace="~{fragments/assets :: styles}"/>
 </head>
 <body>
@@ -11,17 +11,17 @@
     <h1>Kişisel Verilerin Korunması</h1>
     <p th:if="${salonName}" style="line-height:1.6;color:var(--text-muted);">
         <strong th:text="${salonName}">Salon</strong> (<span th:text="${salonContactEmail}">iletisim@salon.com</span>)
-        veri sorumlusu sıfatıyla; GSERP platformu veri işleyen olarak hizmet vermektedir.
+        veri sorumlusu sıfatıyla; GSCRM platformu veri işleyen olarak hizmet vermektedir.
     </p>
     <p th:unless="${salonName}" style="line-height:1.6;color:var(--text-muted);">
-        GSERP salon yönetim sistemi kapsamında salon işletmesi veri sorumlusu, GSERP platformu veri işleyendir.
+        GSCRM salon yönetim sistemi kapsamında salon işletmesi veri sorumlusu, GSCRM platformu veri işleyendir.
     </p>
     <p style="line-height:1.6;color:var(--text-muted);">
         Ad, soyad, telefon ve e-posta bilgileriniz randevu planlama, hatırlatma ve hizmet sunumu amacıyla işlenir.
     </p>
     <h2 style="margin-top:1.5rem;font-size:1.1rem;">Alt İşleyenler</h2>
     <ul style="line-height:1.6;color:var(--text-muted);">
-        <li><strong>GSERP / hosting:</strong> Veritabanı ve uygulama barındırma</li>
+        <li><strong>GSCRM / hosting:</strong> Veritabanı ve uygulama barındırma</li>
         <li><strong>Meta (WhatsApp Cloud API):</strong> Randevu hatırlatma ve bildirim mesajları (rıza ile)</li>
     </ul>
     <p style="line-height:1.6;color:var(--text-muted);">

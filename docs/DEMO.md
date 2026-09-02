@@ -1,4 +1,4 @@
-# GSERP — Demo Rehberi
+# GSCRM — Demo Rehberi
 
 Arkadaşlarla yerel ortamda arayüz ve iş akışlarını denemek için kısa rehber.
 
@@ -108,9 +108,9 @@ Canlı ortam:
 
 | Sayfa | URL |
 |-------|-----|
-| Giriş | https://gserp.avesitesi.xyz/login |
-| Demo salon (subdomain) | https://default.gserp.avesitesi.xyz/login |
-| Public booking | https://default.gserp.avesitesi.xyz/booking |
+| Giriş | https://gscrm.avesitesi.xyz/login |
+| Demo salon (subdomain) | https://default.gscrm.avesitesi.xyz/login |
+| Public booking | https://default.gscrm.avesitesi.xyz/booking |
 
 Deploy: `production-ready` push sonrası GitHub Actions **Deploy to VPS** veya [deploy-vps.md](deploy-vps.md).
 

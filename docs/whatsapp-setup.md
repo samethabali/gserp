@@ -1,6 +1,6 @@
-# Meta WhatsApp Cloud API — GSERP Kurulum Rehberi
+# Meta WhatsApp Cloud API — GSCRM Kurulum Rehberi
 
-Bu doküman kod dışı Meta Business kurulum adımlarını özetler. GSERP Faz 2 hibrit modelde
+Bu doküman kod dışı Meta Business kurulum adımlarını özetler. GSCRM Faz 2 hibrit modelde
 WhatsApp yalnızca **onaylı şablon bildirimleri** için kullanılır (tam bot değil).
 
 ## 1. Önkoşullar
@@ -8,7 +8,7 @@ WhatsApp yalnızca **onaylı şablon bildirimleri** için kullanılır (tam bot 
 - Meta Business Portfolio (business.facebook.com)
 - Doğrulanmış işletme
 - WhatsApp Business telefon numarası (yeni veya migrate)
-- HTTPS üzerinden erişilebilir GSERP instance (`https://salon.domain`)
+- HTTPS üzerinden erişilebilir GSCRM instance (`https://salon.domain`)
 
 ## 2. API erişimi
 
@@ -28,7 +28,7 @@ WHATSAPP_WEBHOOK_VERIFY_TOKEN=<rastgele_güçlü_string>
 
 ## 3. Message templates
 
-Meta onayı gerekir (genelde 1–24 saat). GSERP şu şablon adlarını bekler:
+Meta onayı gerekir (genelde 1–24 saat). GSCRM şu şablon adlarını bekler:
 
 | Şablon adı | Kategori | Kullanım |
 |------------|----------|----------|
@@ -45,7 +45,7 @@ Her şablonda body parametreleri sırasıyla kodda `WhatsAppNotificationService`
 2. Verify token: `.env` içindeki `WHATSAPP_WEBHOOK_VERIFY_TOKEN` ile aynı
 3. Abone olunan alanlar: `messages` (delivery status için opsiyonel)
 
-GSERP webhook controller GET ile doğrulama, POST ile delivery payload alır (loglanır).
+GSCRM webhook controller GET ile doğrulama, POST ile delivery payload alır (loglanır).
 
 ## 5. wa.me fallback
 

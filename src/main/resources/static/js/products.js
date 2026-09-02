@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   GSERP — Products Page (products.js)
+   GSCRM — Products Page (products.js)
    ═══════════════════════════════════════════════════════════════ */
 
 let allProducts = [];

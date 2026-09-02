@@ -1,4 +1,4 @@
-# GSERP — Projeyi Ayağa Kaldırma Rehberi
+# GSCRM — Projeyi Ayağa Kaldırma Rehberi
 
 ## Gereksinimler
 
@@ -34,21 +34,21 @@ Bu script otomatik olarak:
 docker compose -f docker-compose.dev.yml up -d
 ```
 
-Bu komut `gserp-db-dev` adında bir PostgreSQL 16 container'ı başlatır:
+Bu komut `gscrm-db-dev` adında bir PostgreSQL 16 container'ı başlatır:
 - **Host port:** `5800`
-- **DB adı:** `gserp_dev`
-- **Kullanıcı:** `gserp`
-- **Şifre:** `gserp`
+- **DB adı:** `gscrm_dev`
+- **Kullanıcı:** `gscrm`
+- **Şifre:** `gscrm`
 
 Kontrol:
 ```powershell
-docker exec gserp-db-dev pg_isready -U gserp -d gserp_dev
+docker exec gscrm-db-dev pg_isready -U gscrm -d gscrm_dev
 ```
 
 ### 2. Spring Boot Uygulamasını Başlat
 
 ```powershell
-$env:SPRING_DATASOURCE_URL = "jdbc:postgresql://localhost:5800/gserp_dev"
+$env:SPRING_DATASOURCE_URL = "jdbc:postgresql://localhost:5800/gscrm_dev"
 mvn spring-boot:run
 ```
 
@@ -83,10 +83,10 @@ Mevcut verileri silip sıfırdan başlamak için:
 # Uygulamayı durdurun (Ctrl+C)
 
 # DB'yi sıfırla
-docker exec gserp-db-dev psql -U gserp -d postgres -c "DROP DATABASE gserp_dev;" -c "CREATE DATABASE gserp_dev OWNER gserp;"
+docker exec gscrm-db-dev psql -U gscrm -d postgres -c "DROP DATABASE gscrm_dev;" -c "CREATE DATABASE gscrm_dev OWNER gscrm;"
 
 # Uygulamayı tekrar başlat — Flyway tüm migration'ları otomatik çalıştırır
-$env:SPRING_DATASOURCE_URL = "jdbc:postgresql://localhost:5800/gserp_dev"
+$env:SPRING_DATASOURCE_URL = "jdbc:postgresql://localhost:5800/gscrm_dev"
 mvn spring-boot:run
 ```
 

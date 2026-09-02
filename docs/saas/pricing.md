@@ -1,4 +1,4 @@
-# GSERP SaaS — Fiyatlandırma Modeli
+# GSCRM SaaS — Fiyatlandırma Modeli
 
 ## Plan Tipleri
 

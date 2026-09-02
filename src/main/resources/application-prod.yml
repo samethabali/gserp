@@ -35,7 +35,7 @@ management:
       enabled: true
   metrics:
     tags:
-      application: gserp
+      application: gscrm
   health:
     livenessstate:
       enabled: true
@@ -43,4 +43,4 @@ management:
       enabled: true
 
 # Logging seviyeleri logback-spring.xml'de profile bazlı tanımlı.
-# Dosya yolu LOG_DIR env'iyle override edilebilir (default: /var/log/gserp).
+# Dosya yolu LOG_DIR env'iyle override edilebilir (default: /var/log/gscrm).

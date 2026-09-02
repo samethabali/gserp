@@ -1,8 +1,8 @@
-# GSERP — Proje Referans Dokümanı
+# GSCRM — Proje Referans Dokümanı
 
-> **Amaç:** Bu dosyayı okuyan bir geliştirici veya AI agent, GSERP kod tabanı, mimarisi, veri modeli, API’ler, deploy ve iş kuralları hakkında **tek kaynaktan** bilgi sahibi olabilir.  
+> **Amaç:** Bu dosyayı okuyan bir geliştirici veya AI agent, GSCRM kod tabanı, mimarisi, veri modeli, API’ler, deploy ve iş kuralları hakkında **tek kaynaktan** bilgi sahibi olabilir.  
 > **Son güncelleme:** 2026-06 · **Sürüm:** 1.0.0 (multi-tenant SaaS)  
-> **Repo:** `gserp` · **Paket:** `com.gserp`
+> **Repo:** `gscrm` · **Paket:** `com.gscrm`
 
 ---
 
@@ -34,13 +34,13 @@
 
 ## 1. Proje Özeti
 
-**GSERP** (Güzellik Salonu ERP), güzellik/kuaför salonları için geliştirilmiş **multi-tenant SaaS** uygulamasıdır.
+**GSCRM** (Güzellik Salonu ERP), güzellik/kuaför salonları için geliştirilmiş **multi-tenant SaaS** uygulamasıdır.
 
 | Boyut | Açıklama |
 |-------|----------|
 | **Ne yapar?** | Randevu, personel, müşteri, ödeme, gider, ürün stoku, kampanya/sadakat, public online booking, müşteri portalı, WhatsApp bildirimleri |
 | **Kim kullanır?** | Bağımsız salonlar (STANDALONE) ve franchise zincirleri (FRANCHISE) |
-| **Deploy modeli** | Tek Spring Boot instance + shared PostgreSQL; tenant `{slug}.gserp.domain` subdomain ile ayrılır |
+| **Deploy modeli** | Tek Spring Boot instance + shared PostgreSQL; tenant `{slug}.gscrm.domain` subdomain ile ayrılır |
 | **Monolit mi?** | Evet — tek JAR, Thymeleaf UI + REST API + WebSocket |
 
 ### Ürün evrimi
@@ -76,7 +76,7 @@
 ## 3. Dizin Yapısı
 
 ```
-gserp/
+gscrm/
 ├── .github/workflows/          # CI, staging, deploy (SSH + docker compose)
 ├── docs/
 │   ├── PROJECT_REFERENCE.md    # ← BU DOSYA
@@ -86,8 +86,8 @@ gserp/
 ├── scripts/
 │   ├── backup-db.sh            # pg_dump yedek
 │   └── vps-setup.sh            # VPS otomasyon
-├── src/main/java/com/gserp/
-│   ├── GserpApplication.java
+├── src/main/java/com/gscrm/
+│   ├── GscrmApplication.java
 │   ├── config/                 # Seeder, Web, WebSocket
 │   ├── controller/             # REST + PageController
 │   ├── dto/                    # request/ response
@@ -123,11 +123,11 @@ gserp/
 ```
                     ┌─────────────────────────────────────────┐
                     │           nginx (wildcard SSL)           │
-                    │   *.gserp.avesitesi.xyz → :8989         │
+                    │   *.gscrm.avesitesi.xyz → :8989         │
                     └───────────────────┬─────────────────────┘
                                         │
                     ┌───────────────────▼─────────────────────┐
-                    │         gserp-app (Spring Boot)          │
+                    │         gscrm-app (Spring Boot)          │
                     │  ┌─────────────┐  ┌──────────────────┐  │
                     │  │ TenantFilter│→ │ Security (JWT/   │  │
                     │  │ TenantMdc   │  │  Form + RBAC)    │  │
@@ -169,7 +169,7 @@ Platform (PLATFORM_ADMIN)
 | Öncelik | Kaynak | Örnek |
 |---------|--------|-------|
 | 1 | Header `X-Salon-Slug` | `default`, `kadikoy` |
-| 2 | Subdomain | `kadikoy.gserp.avesitesi.xyz` → `kadikoy` |
+| 2 | Subdomain | `kadikoy.gscrm.avesitesi.xyz` → `kadikoy` |
 | 3 | `*.localhost` | `kadikoy.localhost:8989` |
 | 4 | localhost | → `default` (id=1, migration seed) |
 
@@ -226,8 +226,8 @@ Platform (PLATFORM_ADMIN)
 
 ### Varsayılan seed (V14)
 
-- `organization.id=1` — "GSERP Default", STANDALONE
-- `salon.id=1`, slug=`default` — "GSERP Salon"
+- `organization.id=1` — "GSCRM Default", STANDALONE
+- `salon.id=1`, slug=`default` — "GSCRM Salon"
 - V23: org 1 → SOLO plan, ACTIVE
 
 ---
@@ -556,7 +556,7 @@ DB_PASSWORD, SPRING_DATASOURCE_*
 JWT_SECRET
 APP_CORS_ALLOWED_ORIGINS
 WHATSAPP_* (6 değişken)
-GSERP_INITIAL_ADMIN_USERNAME/PASSWORD
+GSCRM_INITIAL_ADMIN_USERNAME/PASSWORD
 SPRING_PROFILES_ACTIVE=prod
 ```
 
@@ -591,7 +591,7 @@ curl http://127.0.0.1:8989/actuator/health
 ### VDS (Emre deseni)
 
 - **Multi-tenant:** tek instance, wildcard nginx (`docs/saas/nginx-wildcard.md`)
-- **MCP:** `deploy_kurallari.yaml` → `gserp`, image_transfer, port 5004
+- **MCP:** `deploy_kurallari.yaml` → `gscrm`, image_transfer, port 5004
 - **CD:** `.github/workflows/deploy.yml` — SSH git pull + compose
 - **Yedek:** `scripts/backup-db.sh` — 14 gün retention
 - **DR:** `docs/saas/dr-playbook.md`
@@ -618,7 +618,7 @@ curl http://127.0.0.1:8989/actuator/health
 
 **Çalıştırma:** `mvn verify` (Surefire: `*Test.java`, `*IT.java`)
 
-**DB:** Testcontainers `jdbc:tc:postgresql:16-alpine:///gserp`
+**DB:** Testcontainers `jdbc:tc:postgresql:16-alpine:///gscrm`
 
 ---
 
@@ -673,10 +673,10 @@ Public booking:    POST /api/booking/request
 Provision tenant:  POST /api/platform/tenants (PLATFORM_ADMIN)
 Default salon:     id=1, slug=default
 Flyway latest:     V24
-Java package:      com.gserp
+Java package:      com.gscrm
 Port:              8989
 ```
 
 ---
 
-*Bu doküman GSERP kod tabanıyla senkron tutulmalıdır. Büyük mimari değişikliklerde güncelleyin.*
+*Bu doküman GSCRM kod tabanıyla senkron tutulmalıdır. Büyük mimari değişikliklerde güncelleyin.*

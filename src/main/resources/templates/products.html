@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="_csrf" th:content="${_csrf.token}"/>
     <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
-    <title>GSERP — Ürünler</title>
+    <title>GSCRM — Ürünler</title>
     <link th:replace="~{fragments/assets :: styles}"/>
 </head>
 <body>
@@ -14,7 +14,7 @@
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-brand">
             <div class="brand-icon">💅</div>
-            <div><h1>GSERP</h1><span class="brand-sub">Salon Yönetim Sistemi</span></div>
+            <div><h1>GSCRM</h1><span class="brand-sub">Salon Yönetim Sistemi</span></div>
         </div>
         <nav th:replace="~{fragments/sidebar-nav :: nav('products')}"></nav>
     </aside>

@@ -1,8 +1,8 @@
-# GSERP — Franchise / SaaS Hizmet Sözleşmesi Taslağı
+# GSCRM — Franchise / SaaS Hizmet Sözleşmesi Taslağı
 
 ## Konu
 
-GSERP yazılımının franchise zinciri veya bağımsız salon tarafından bulut (SaaS) olarak kullanımı.
+GSCRM yazılımının franchise zinciri veya bağımsız salon tarafından bulut (SaaS) olarak kullanımı.
 
 ## Org Tipleri
 
@@ -23,7 +23,7 @@ GSERP yazılımının franchise zinciri veya bağımsız salon tarafından bulut
 
 ## Fikri Mülkiyet
 
-- GSERP kodu ve markası platforma aittir
+- GSCRM kodu ve markası platforma aittir
 - Salon müşteri verisi salona aittir
 
 ## Veri Taşınabilirliği
