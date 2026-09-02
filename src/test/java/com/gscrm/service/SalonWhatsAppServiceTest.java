@@ -5,6 +5,7 @@ import com.gscrm.dto.response.WhatsAppSettingsResponse;
 import com.gscrm.model.SalonWhatsAppConfig;
 import com.gscrm.notification.whatsapp.WhatsAppProperties;
 import com.gscrm.repository.SalonWhatsAppConfigRepository;
+import com.gscrm.security.SecretEncryptionService;
 import com.gscrm.tenant.TenantContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,6 +36,8 @@ class SalonWhatsAppServiceTest {
     private SalonWhatsAppConfigRepository configRepository;
     @Mock
     private WhatsAppProperties whatsAppProperties;
+    @Mock
+    private SecretEncryptionService secretEncryptionService;
 
     @InjectMocks
     private SalonWhatsAppService salonWhatsAppService;
@@ -67,6 +70,7 @@ class SalonWhatsAppServiceTest {
         when(configRepository.findBySalonId(SALON_ID)).thenReturn(Optional.empty());
         when(configRepository.save(any(SalonWhatsAppConfig.class))).thenAnswer(inv -> inv.getArgument(0));
         when(whatsAppProperties.isEnabled()).thenReturn(false);
+        when(secretEncryptionService.encrypt("secret-token")).thenReturn("enc:secret-token");
 
         WhatsAppSettingsUpdateRequest req = new WhatsAppSettingsUpdateRequest();
         req.setEnabled(true);
@@ -80,7 +84,7 @@ class SalonWhatsAppServiceTest {
         verify(configRepository).save(captor.capture());
         SalonWhatsAppConfig saved = captor.getValue();
         assertTrue(saved.isEnabled());
-        assertEquals("secret-token", saved.getTokenEnc());
+        assertEquals("enc:secret-token", saved.getTokenEnc());
         assertEquals("123456", saved.getPhoneNumberId());
         assertEquals("+905551112233", saved.getSalonPhoneE164());
     }

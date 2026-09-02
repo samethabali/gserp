@@ -17,6 +17,8 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
 
     List<Appointment> findBySalonId(Long salonId);
 
+    long countBySalonId(Long salonId);
+
     List<Appointment> findBySalonIdOrderByStartTimeDesc(Long salonId, Pageable pageable);
 
     List<Appointment> findBySalonIdAndStartTimeBetween(Long salonId, LocalDateTime start, LocalDateTime end);

@@ -11,6 +11,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -24,10 +26,8 @@ public class QuotaEnforcementService {
 
     public void assertCanAddUser(Long organizationId) {
         SubscriptionPlan plan = resolvePlan(organizationId);
-        long current = userRepository.findAll().stream()
-                .filter(u -> organizationId.equals(u.getOrganizationId()))
-                .filter(u -> u.getRole() != UserRole.CUSTOMER && u.getRole() != UserRole.PLATFORM_ADMIN)
-                .count();
+        long current = userRepository.countSeatUsersByOrganization(
+                organizationId, List.of(UserRole.CUSTOMER, UserRole.PLATFORM_ADMIN));
         if (current >= plan.getMaxUsers()) {
             throw new IllegalStateException("Kullanıcı kotası doldu (max " + plan.getMaxUsers() + ")");
         }

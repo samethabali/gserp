@@ -1,17 +1,16 @@
 # GSCRM — production-ready push'unda VPS'e otomatik deploy.
 #
-# Akış: SSH ile VPS'e bağlan, /home/gscrm/gscrm'te git pull yap, docker compose
+# Akış: SSH ile VPS'e bağlan, mevcut kurulum dizininde git pull yap, docker compose
 # build + up çalıştır, app healthy olana kadar bekle.
 #
 # Gerekli GitHub repo secrets (Settings -> Secrets and variables -> Actions):
 #   VDS_HOST         VPS IP veya hostname (örn. 203.0.113.10)
-#   VDS_USER         SSH kullanıcısı (=gscrm) — docker grubunda olmalı
+#   VDS_USER         SSH kullanıcısı (=gserp) — docker grubunda olmalı
 #   VDS_SSH_KEY      Bu kullanıcının PRIVATE SSH anahtarı (tüm içerik)
 #   VDS_SSH_PORT     (opsiyonel) SSH portu — tanımsızsa 22
 #
-# Not: VPS'te /home/gscrm/gscrm önceden kurulmuş olmalı (.env + .git mevcut).
+# Not: VPS dizini henüz /home/gserp/gserp olabilir; domain/dizin kesimi ayrı onay.
 # Bu workflow ilk kurulumu YAPMAZ; sadece mevcut stack'i günceller.
-# Deploy, dizinin sahibi olan 'gscrm' kullanıcısıyla yapılır.
 
 name: Deploy to VPS
 
@@ -42,7 +41,7 @@ jobs:
           script: |
             set -euo pipefail
 
-            INSTALL_DIR=/home/gscrm/gscrm
+            INSTALL_DIR=/home/gserp/gserp
             BRANCH=production-ready
             # App, paylaşımlı (external) postgres kullanan prod override ile çalışır.
             # Bu dosya VPS'e özgüdür (repo'da takip edilmez), silme.
@@ -64,16 +63,16 @@ jobs:
             DEADLINE=$(( $(date +%s) + 120 ))
             STATUS=missing
             while [ "$(date +%s)" -lt "$DEADLINE" ]; do
-              STATUS=$(docker inspect --format='{{.State.Health.Status}}' gscrm-app 2>/dev/null || echo missing)
+              STATUS=$(docker inspect --format='{{.State.Health.Status}}' gserp-app 2>/dev/null || echo missing)
               if [ "$STATUS" = "healthy" ]; then
-                echo "[+] gscrm-app healthy"
+                echo "[+] gserp-app healthy"
                 break
               fi
               sleep 5
             done
 
             if [ "$STATUS" != "healthy" ]; then
-              echo "[x] gscrm-app healthy olmadı (durum: $STATUS). Son loglar:"
+              echo "[x] gserp-app healthy olmadı (durum: $STATUS). Son loglar:"
               docker compose -f "$COMPOSE_FILE" logs --tail 80 app
               exit 1
             fi

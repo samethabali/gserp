@@ -30,8 +30,10 @@ public class SecurityConfig {
     private static final String[] STAFF_READ = {"ADMIN", "BRANCH_MANAGER", "ORG_OWNER", "PLATFORM_ADMIN", "RECEPTIONIST", "SPECIALIST"};
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final TenantAccessFilter tenantAccessFilter;
     private final BookingRateLimitFilter bookingRateLimitFilter;
-    private final SubscriptionReadOnlyFilter subscriptionReadOnlyFilter;
+    private final ShowcaseAccessFilter showcaseAccessFilter;
+    private final ActivityAuditFilter activityAuditFilter;
     private final MustChangePasswordSuccessHandler mustChangePasswordSuccessHandler;
     private final UserDetailsService userDetailsService;
 
@@ -102,8 +104,11 @@ public class SecurityConfig {
                     .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
             .authenticationProvider(authenticationProvider())
             .addFilterBefore(bookingRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
-            .addFilterBefore(subscriptionReadOnlyFilter, UsernamePasswordAuthenticationFilter.class)
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+            // Kimlik yerleştikten hemen sonra tenant erişim doğrulaması yapılmalı.
+            .addFilterAfter(tenantAccessFilter, JwtAuthenticationFilter.class)
+            .addFilterAfter(showcaseAccessFilter, TenantAccessFilter.class)
+            .addFilterAfter(activityAuditFilter, ShowcaseAccessFilter.class);
         return http.build();
     }
 
@@ -139,7 +144,8 @@ public class SecurityConfig {
             .logout(logout -> logout
                     .logoutSuccessUrl("/login?logout")
                     .permitAll())
-            .authenticationProvider(authenticationProvider());
+            .authenticationProvider(authenticationProvider())
+            .addFilterAfter(showcaseAccessFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 }

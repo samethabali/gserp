@@ -43,7 +43,8 @@ public class WhatsAppClient {
         Optional<SalonWhatsAppConfig> salon = salonWhatsAppService.getForCurrentSalon();
         if (salon.isPresent() && salon.get().isEnabled()
                 && hasText(salon.get().getTokenEnc()) && hasText(salon.get().getPhoneNumberId())) {
-            return new SendConfig(true, properties.getApiUrl(), salon.get().getTokenEnc(), salon.get().getPhoneNumberId());
+            String token = salonWhatsAppService.decryptedToken(salon.get());
+            return new SendConfig(true, properties.getApiUrl(), token, salon.get().getPhoneNumberId());
         }
         if (properties.isEnabled() && hasText(properties.getToken()) && hasText(properties.getPhoneNumberId())) {
             return new SendConfig(true, properties.getApiUrl(), properties.getToken(), properties.getPhoneNumberId());

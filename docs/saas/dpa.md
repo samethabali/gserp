@@ -18,7 +18,6 @@
 | Alt işleyen | Amaç | Konum |
 |-------------|------|-------|
 | VDS hosting sağlayıcı | Barındırma | TR/EU |
-| Meta (WhatsApp Cloud API) | Bildirim | AB/US |
 
 ## Yükümlülükler (İşleyen)
 

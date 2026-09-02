@@ -80,10 +80,30 @@ public class JwtService {
             String typ = extractTokenType(token);
             return username.equals(userDetails.getUsername())
                     && TYP_ACCESS.equals(typ)
-                    && !isExpired(token);
+                    && !isExpired(token)
+                    && salonClaimMatches(token, userDetails);
         } catch (Exception e) {
             return false;
         }
+    }
+
+    /**
+     * Token'daki salonId claim'inin, bağlamda yüklenen kullanıcının salonId'si ile
+     * eşleştiğini doğrular. Bu, bir tenant için üretilmiş token'ın başka bir tenant
+     * bağlamında (farklı slug ile yüklenen aynı kullanıcı adı) kabul edilmesini önler.
+     *
+     * Token'da salonId yoksa (PLATFORM_ADMIN / ORG_OWNER gibi salon-bağımsız roller)
+     * kontrol atlanır.
+     */
+    private boolean salonClaimMatches(String token, UserDetails userDetails) {
+        Long tokenSalonId = extractSalonId(token);
+        if (tokenSalonId == null) {
+            return true;
+        }
+        if (userDetails instanceof AuthenticatedUser au) {
+            return tokenSalonId.equals(au.getSalonId());
+        }
+        return true;
     }
 
     public boolean validateRefreshToken(String token, UserDetails userDetails) {

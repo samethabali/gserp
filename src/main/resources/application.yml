@@ -22,12 +22,28 @@ spring:
     locations: classpath:db/migration
 
 app:
-  asset-version: "20260620-4"
+  asset-version: "20260817-1"
+  tenant:
+    base-domain: ${APP_TENANT_BASE_DOMAIN:gscrm.avesitesi.xyz}
+    salon-slug-cookie: gscrm-salon-slug
+  iyzico:
+    enabled: ${IYZICO_ENABLED:false}
+    mock-mode: ${IYZICO_MOCK_MODE:true}
+    api-key: ${IYZICO_API_KEY:}
+    secret-key: ${IYZICO_SECRET_KEY:}
+    base-url: ${IYZICO_BASE_URL:https://api.iyzipay.com}
+    callback-url: ${IYZICO_CALLBACK_URL:}
+    # Webhook imza doğrulaması için HMAC anahtarı. Boşsa secret-key kullanılır.
+    webhook-secret: ${IYZICO_WEBHOOK_SECRET:}
   jwt:
     # Base64-encoded en az 256-bit secret. Prod'da ${JWT_SECRET} ile geçersiz kılınmalı.
     secret: ${JWT_SECRET:ZGV2LW9ubHktc2VjcmV0LWNoYW5nZS1tZS1kZXYtb25seS1zZWNyZXQtY2hhbmdlLW1l}
     access-ttl-minutes: 60
     refresh-ttl-days: 7
+  encryption:
+    # At-rest sır şifreleme anahtarı. JWT secret'tan BAĞIMSIZ olmalı; boşsa JWT
+    # secret'a düşer (uyarı loglanır). Prod'da APP_ENCRYPTION_KEY ile tanımlayın.
+    key: ${APP_ENCRYPTION_KEY:}
   cors:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:8989}
   whatsapp:

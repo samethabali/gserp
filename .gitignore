@@ -62,3 +62,10 @@ yarn-error.log*
 
 # Local DB volumes (if mounted into repo)
 pgdata/
+
+# Debug / scratch artifacts (curl çıktıları, cookie jar'ları, HTML dump'ları)
+cookies*.txt
+headers*.txt
+out.html
+*.dump
+system.txt

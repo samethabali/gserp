@@ -37,4 +37,31 @@ class JwtServiceTest {
         assertFalse(jwtService.validateToken(refresh, user));
         assertTrue(jwtService.validateRefreshToken(refresh, user));
     }
+
+    @Test
+    void tokenValidWhenSalonMatches() {
+        AuthenticatedUser user = new AuthenticatedUser(
+                1L, "reception", "hash", true, UserRole.RECEPTIONIST,
+                null, null, 7L, 3L, false,
+                List.of(new SimpleGrantedAuthority("ROLE_RECEPTIONIST")));
+        String token = jwtService.generateToken(user);
+        assertTrue(jwtService.validateToken(token, user));
+    }
+
+    @Test
+    void tokenRejectedWhenSalonMismatch() {
+        AuthenticatedUser salon7User = new AuthenticatedUser(
+                1L, "reception", "hash", true, UserRole.RECEPTIONIST,
+                null, null, 7L, 3L, false,
+                List.of(new SimpleGrantedAuthority("ROLE_RECEPTIONIST")));
+        String tokenForSalon7 = jwtService.generateToken(salon7User);
+
+        // Aynı kullanıcı adı, farklı salon bağlamında yüklenmiş (salonId=9).
+        AuthenticatedUser salon9User = new AuthenticatedUser(
+                1L, "reception", "hash", true, UserRole.RECEPTIONIST,
+                null, null, 9L, 4L, false,
+                List.of(new SimpleGrantedAuthority("ROLE_RECEPTIONIST")));
+
+        assertFalse(jwtService.validateToken(tokenForSalon7, salon9User));
+    }
 }

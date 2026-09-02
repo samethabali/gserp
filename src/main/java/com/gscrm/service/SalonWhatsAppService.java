@@ -3,6 +3,7 @@ package com.gscrm.service;
 import com.gscrm.dto.request.WhatsAppSettingsUpdateRequest;
 import com.gscrm.dto.response.WhatsAppSettingsResponse;
 import com.gscrm.model.SalonWhatsAppConfig;
+import com.gscrm.security.SecretEncryptionService;
 import com.gscrm.notification.whatsapp.WhatsAppProperties;
 import com.gscrm.repository.SalonWhatsAppConfigRepository;
 import com.gscrm.tenant.TenantContext;
@@ -20,6 +21,7 @@ public class SalonWhatsAppService {
 
     private final SalonWhatsAppConfigRepository configRepository;
     private final WhatsAppProperties whatsAppProperties;
+    private final SecretEncryptionService secretEncryptionService;
 
     public Optional<SalonWhatsAppConfig> getForCurrentSalon() {
         Long salonId = TenantContext.getSalonId();
@@ -41,7 +43,7 @@ public class SalonWhatsAppService {
         SalonWhatsAppConfig config = configRepository.findBySalonId(salonId)
                 .orElse(SalonWhatsAppConfig.builder().salonId(salonId).build());
         config.setEnabled(patch.isEnabled());
-        if (patch.getTokenEnc() != null) config.setTokenEnc(patch.getTokenEnc());
+        if (patch.getTokenEnc() != null) config.setTokenEnc(secretEncryptionService.encrypt(patch.getTokenEnc()));
         if (patch.getPhoneNumberId() != null) config.setPhoneNumberId(patch.getPhoneNumberId());
         if (patch.getBusinessAccountId() != null) config.setBusinessAccountId(patch.getBusinessAccountId());
         if (patch.getSalonPhoneE164() != null) config.setSalonPhoneE164(patch.getSalonPhoneE164());
@@ -74,7 +76,7 @@ public class SalonWhatsAppService {
             config.setEnabled(req.getEnabled());
         }
         if (req.getToken() != null && !req.getToken().isBlank()) {
-            config.setTokenEnc(req.getToken().trim());
+            config.setTokenEnc(secretEncryptionService.encrypt(req.getToken().trim()));
         }
         if (req.getPhoneNumberId() != null) {
             config.setPhoneNumberId(req.getPhoneNumberId().trim());
@@ -101,6 +103,13 @@ public class SalonWhatsAppService {
         config.setUpdatedAt(LocalDateTime.now());
         configRepository.save(config);
         return getSettingsForCurrentSalon();
+    }
+
+    public String decryptedToken(SalonWhatsAppConfig config) {
+        if (config == null || config.getTokenEnc() == null) {
+            return null;
+        }
+        return secretEncryptionService.decrypt(config.getTokenEnc());
     }
 
     public boolean isEnabledForCurrentSalon() {
