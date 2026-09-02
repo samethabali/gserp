@@ -1,17 +1,15 @@
 package com.gscrm.service;
 
-import com.gscrm.dto.response.AppointmentResponse;
 import com.gscrm.model.Appointment;
 import com.gscrm.model.Salon;
 import com.gscrm.model.enums.AppointmentStatus;
-import com.gscrm.notification.whatsapp.WhatsAppNotificationService;
 import com.gscrm.repository.AppointmentRepository;
 import com.gscrm.repository.SalonRepository;
 import com.gscrm.repository.ServiceDefinitionRepository;
 import com.gscrm.repository.StaffRepository;
 import com.gscrm.tenant.TenantContext;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +21,7 @@ import java.util.Map;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class AppointmentReminderService {
 
     private final AppointmentRepository appointmentRepository;
@@ -30,25 +29,6 @@ public class AppointmentReminderService {
     private final StaffRepository staffRepository;
     private final ServiceDefinitionRepository serviceRepository;
     private final NotificationService notificationService;
-    private final WhatsAppNotificationService whatsAppNotificationService;
-    private final AppointmentService appointmentService;
-
-    public AppointmentReminderService(
-            AppointmentRepository appointmentRepository,
-            SalonRepository salonRepository,
-            StaffRepository staffRepository,
-            ServiceDefinitionRepository serviceRepository,
-            NotificationService notificationService,
-            WhatsAppNotificationService whatsAppNotificationService,
-            @Lazy AppointmentService appointmentService) {
-        this.appointmentRepository = appointmentRepository;
-        this.salonRepository = salonRepository;
-        this.staffRepository = staffRepository;
-        this.serviceRepository = serviceRepository;
-        this.notificationService = notificationService;
-        this.whatsAppNotificationService = whatsAppNotificationService;
-        this.appointmentService = appointmentService;
-    }
 
     @Scheduled(cron = "0 0 9 * * *")
     @Transactional(readOnly = true)
@@ -69,9 +49,6 @@ public class AppointmentReminderService {
                 TenantContext.setSalonId(salonId);
                 TenantContext.setOrgId(salon.getOrganizationId());
                 try {
-                    AppointmentResponse response = appointmentService.toResponse(a);
-                    whatsAppNotificationService.onReminder(response);
-
                     String staffName = staffRepository.findByIdAndSalonId(a.getStaffId(), salonId)
                             .map(s -> s.getName()).orElse("Uzman");
                     String serviceName = serviceRepository.findByIdAndSalonId(a.getServiceId(), salonId)

@@ -6,7 +6,6 @@ import com.gscrm.model.Appointment;
 import com.gscrm.model.ServiceDefinition;
 import com.gscrm.model.Staff;
 import com.gscrm.model.enums.AppointmentStatus;
-import com.gscrm.notification.whatsapp.WhatsAppNotificationService;
 import com.gscrm.repository.AppointmentRepository;
 import com.gscrm.repository.ServiceDefinitionRepository;
 import com.gscrm.repository.StaffRepository;
@@ -50,7 +49,11 @@ class AppointmentServiceTest {
     @Mock
     private NotificationService notificationService;
     @Mock
-    private WhatsAppNotificationService whatsAppNotificationService;
+    private BranchHolidayService branchHolidayService;
+    @Mock
+    private BranchPricingService branchPricingService;
+    @Mock
+    private ActivityEventService activityEventService;
 
     @InjectMocks
     private AppointmentService appointmentService;
@@ -78,6 +81,9 @@ class AppointmentServiceTest {
 
         when(serviceRepository.findByIdAndSalonId(1L, SALON_ID)).thenReturn(Optional.of(service));
         when(staffRepository.findByIdAndSalonId(2L, SALON_ID)).thenReturn(Optional.of(staff));
+        when(branchHolidayService.isHoliday(eq(SALON_ID), any())).thenReturn(false);
+        when(branchPricingService.effectiveDuration(1L)).thenReturn(60);
+        when(branchPricingService.effectivePrice(1L)).thenReturn(BigDecimal.valueOf(500));
         when(schedulerService.isWithinWorkingHours(eq(2L), any(), any())).thenReturn(true);
         when(schedulerService.isStaffAvailable(eq(2L), any(), any(), isNull())).thenReturn(true);
         when(appointmentRepository.save(any(Appointment.class))).thenAnswer(inv -> {

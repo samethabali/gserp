@@ -7,6 +7,7 @@ import com.gscrm.service.SalonWhatsAppService;
 import com.gscrm.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,6 +17,7 @@ import java.util.Optional;
 @Slf4j
 @RestController
 @RequestMapping("/api/webhooks/whatsapp")
+@ConditionalOnProperty(prefix = "app.whatsapp", name = "enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class WhatsAppWebhookController {
 

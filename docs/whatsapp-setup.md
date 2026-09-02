@@ -1,5 +1,8 @@
 # Meta WhatsApp Cloud API — GSCRM Kurulum Rehberi
 
+> **Ürün dışı (2026-08):** WhatsApp şu an GSCRM ürününde yok (UI, booking, otomatik gönderim kapalı).
+> Bu dosya sonraki sürüm için teknik not olarak durur; canlı kurulum yapmayın.
+
 Bu doküman kod dışı Meta Business kurulum adımlarını özetler. GSCRM Faz 2 hibrit modelde
 WhatsApp yalnızca **onaylı şablon bildirimleri** için kullanılır (tam bot değil).
 

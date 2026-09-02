@@ -1,7 +1,5 @@
 package com.gscrm.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.gscrm.dto.request.WhatsAppSettingsUpdateRequest;
 import com.gscrm.model.Appointment;
 import com.gscrm.model.Customer;
 import com.gscrm.model.ServiceDefinition;
@@ -20,7 +18,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
@@ -32,9 +29,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -46,9 +41,6 @@ class DemoFeaturesIT {
 
     @Autowired
     private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
 
     @Autowired
     private StaffRepository staffRepository;
@@ -120,30 +112,11 @@ class DemoFeaturesIT {
 
     @Test
     @WithMockUser(username = "admin", roles = "BRANCH_MANAGER")
-    void whatsAppSettingsRoundTrip() throws Exception {
+    void whatsAppSettingsAreNotExposed() throws Exception {
         mockMvc.perform(get("/api/settings/whatsapp")
                         .header("X-Salon-Slug", "default"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.enabled").value(false));
-
-        WhatsAppSettingsUpdateRequest update = new WhatsAppSettingsUpdateRequest();
-        update.setEnabled(true);
-        update.setToken("test-token");
-        update.setPhoneNumberId("phone-id-1");
-        update.setSalonPhoneE164("+905551112233");
-
-        mockMvc.perform(put("/api/settings/whatsapp")
-                        .with(csrf())
-                        .header("X-Salon-Slug", "default")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(update)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.enabled").value(true))
-                .andExpect(jsonPath("$.data.tokenConfigured").value(true))
-                .andExpect(jsonPath("$.data.phoneNumberId").value("phone-id-1"))
-                .andExpect(jsonPath("$.data.salonPhoneE164").value("+905551112233"));
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false));
     }
 
     @Test

@@ -58,7 +58,7 @@ public class AppointmentController {
             @PathVariable Long id,
             @RequestBody Map<String, String> body) {
         var user = staffScopeService.requireAuthenticatedUser();
-        var appointment = appointmentService.getEntity(id);
+        var appointment = appointmentService.findEntityById(id);
         branchScopeService.assertCanAccessAppointment(appointment, user);
         staffScopeService.assertCanAccessAppointment(id);
         AppointmentStatus status = AppointmentStatus.valueOf(body.get("status"));

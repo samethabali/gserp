@@ -1,11 +1,9 @@
 package com.gscrm.controller;
 
-import com.gscrm.dto.request.WhatsAppSettingsUpdateRequest;
 import com.gscrm.dto.response.ApiResponse;
-import com.gscrm.dto.response.WhatsAppSettingsResponse;
 import com.gscrm.service.SalonSettingsService;
-import com.gscrm.service.SalonWhatsAppService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -18,7 +16,6 @@ import java.util.Map;
 public class SalonSettingsController {
 
     private final SalonSettingsService salonSettingsService;
-    private final SalonWhatsAppService salonWhatsAppService;
 
     @GetMapping("/public")
     public ResponseEntity<ApiResponse<Map<String, String>>> getPublic() {
@@ -40,17 +37,10 @@ public class SalonSettingsController {
         return ResponseEntity.ok(ApiResponse.ok("Ayarlar kaydedildi", null));
     }
 
-    @GetMapping("/whatsapp")
+    @RequestMapping(path = "/whatsapp", method = {RequestMethod.GET, RequestMethod.PUT})
     @PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN')")
-    public ResponseEntity<ApiResponse<WhatsAppSettingsResponse>> getWhatsApp() {
-        return ResponseEntity.ok(ApiResponse.ok(salonWhatsAppService.getSettingsForCurrentSalon()));
-    }
-
-    @PutMapping("/whatsapp")
-    @PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN')")
-    public ResponseEntity<ApiResponse<WhatsAppSettingsResponse>> updateWhatsApp(
-            @RequestBody WhatsAppSettingsUpdateRequest body) {
-        WhatsAppSettingsResponse updated = salonWhatsAppService.updateForCurrentSalon(body);
-        return ResponseEntity.ok(ApiResponse.ok("WhatsApp ayarları kaydedildi", updated));
+    public ResponseEntity<ApiResponse<Void>> whatsappUnavailable() {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error("WhatsApp bildirimleri şu an üründe yok"));
     }
 }

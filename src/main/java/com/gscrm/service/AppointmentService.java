@@ -36,9 +36,11 @@ public class AppointmentService {
     private final StaffRepository staffRepository;
     private final SchedulerService schedulerService;
     private final ResourceLockService resourceLockService;
+    private final BranchPricingService branchPricingService;
+    private final BranchHolidayService branchHolidayService;
     private final AuditService auditService;
+    private final ActivityEventService activityEventService;
     private final NotificationService notificationService;
-    private final com.gscrm.notification.whatsapp.WhatsAppNotificationService whatsAppNotificationService;
 
     /**
      * Create appointment(s). If numberOfSessions > 1, creates multiple weekly appointments.
@@ -110,7 +112,11 @@ public class AppointmentService {
         Long salonId = TenantContext.requireSalonId();
         ServiceDefinition service = serviceRepository.findByIdAndSalonId(req.getServiceId(), salonId)
                 .orElseThrow(() -> new IllegalArgumentException("Hizmet bulunamadı: " + req.getServiceId()));
-        LocalDateTime endTime = req.getStartTime().plusMinutes(service.getDurationMinutes());
+        if (branchHolidayService.isHoliday(salonId, req.getStartTime().toLocalDate())) {
+            throw new ConflictException("Salon bu tarihte kapalı (şube tatili)");
+        }
+        int durationMinutes = branchPricingService.effectiveDuration(req.getServiceId());
+        LocalDateTime endTime = req.getStartTime().plusMinutes(durationMinutes);
 
         Staff staff = staffRepository.findByIdAndSalonId(req.getStaffId(), salonId)
                 .orElseThrow(() -> new IllegalArgumentException("Uzman bulunamadı: " + req.getStaffId()));
@@ -133,7 +139,11 @@ public class AppointmentService {
         Long salonId = TenantContext.requireSalonId();
         ServiceDefinition service = serviceRepository.findByIdAndSalonId(req.getServiceId(), salonId)
                 .orElseThrow(() -> new IllegalArgumentException("Hizmet bulunamadı: " + req.getServiceId()));
-        LocalDateTime endTime = req.getStartTime().plusMinutes(service.getDurationMinutes());
+        if (branchHolidayService.isHoliday(salonId, req.getStartTime().toLocalDate())) {
+            throw new ConflictException("Salon bu tarihte kapalı (şube tatili)");
+        }
+        int durationMinutes = branchPricingService.effectiveDuration(req.getServiceId());
+        LocalDateTime endTime = req.getStartTime().plusMinutes(durationMinutes);
 
         List<Long> lockedResources = new ArrayList<>();
         try {
@@ -146,7 +156,7 @@ public class AppointmentService {
     private AppointmentResponse buildAndSave(AppointmentCreateRequest req, ServiceDefinition service,
                                                LocalDateTime endTime, List<Long> lockedResources,
                                                String sessionGroupId, Integer sessionNum, Integer totalSessions) {
-        BigDecimal basePrice = service.getBasePrice();
+        BigDecimal basePrice = branchPricingService.effectivePrice(service.getId());
         BigDecimal adjustment = req.getAdjustment() != null ? req.getAdjustment() : BigDecimal.ZERO;
         BigDecimal finalPrice = req.getFinalPrice() != null ? req.getFinalPrice()
                 : basePrice.add(adjustment);
@@ -193,6 +203,8 @@ public class AppointmentService {
         String sessionInfo = sessionNum != null ? " (Seans " + sessionNum + "/" + totalSessions + ")" : "";
         auditService.log(AuditAction.CREATE, "APPOINTMENT", saved.getId(), null,
                 "Yeni randevu: " + req.getCustomerName() + " → " + service.getName() + sessionInfo);
+        activityEventService.recordForCustomerPhone("CREATE", "APPOINTMENT", saved.getId(),
+                saved.getCustomerPhone(), "Randevu oluşturuldu: " + req.getCustomerName());
 
         AppointmentResponse response = toResponse(saved);
         notificationService.broadcastAppointmentChange("CREATE", response);
@@ -219,7 +231,11 @@ public class AppointmentService {
         Long salonId = TenantContext.requireSalonId();
         ServiceDefinition service = serviceRepository.findByIdAndSalonId(req.getServiceId(), salonId)
                 .orElseThrow(() -> new IllegalArgumentException("Hizmet bulunamadı: " + req.getServiceId()));
-        LocalDateTime endTime = req.getStartTime().plusMinutes(service.getDurationMinutes());
+        if (branchHolidayService.isHoliday(salonId, req.getStartTime().toLocalDate())) {
+            throw new ConflictException("Salon bu tarihte kapalı (şube tatili)");
+        }
+        int durationMinutes = branchPricingService.effectiveDuration(req.getServiceId());
+        LocalDateTime endTime = req.getStartTime().plusMinutes(durationMinutes);
 
         Staff staff = staffRepository.findByIdAndSalonId(req.getStaffId(), salonId)
                 .orElseThrow(() -> new IllegalArgumentException("Uzman bulunamadı: " + req.getStaffId()));
@@ -231,7 +247,7 @@ public class AppointmentService {
             throw new ConflictException(staff.getName() + " bu saatte müsait değil");
         }
 
-        BigDecimal basePrice = service.getBasePrice();
+        BigDecimal basePrice = branchPricingService.effectivePrice(service.getId());
         BigDecimal finalPrice;
         BigDecimal adjustment;
         String adjustmentNote = req.getAdjustmentNote() != null ? req.getAdjustmentNote() : "";
@@ -283,11 +299,12 @@ public class AppointmentService {
 
         auditService.log(AuditAction.CREATE, "APPOINTMENT", saved.getId(), null,
                 "Randevu isteği: " + req.getCustomerName() + " → " + service.getName() + " (onay bekliyor)");
+        activityEventService.recordForCustomerPhone("BOOKING", "APPOINTMENT", saved.getId(),
+                saved.getCustomerPhone(), "Online randevu isteği: " + req.getCustomerName());
 
         AppointmentResponse response = toResponse(saved);
         notificationService.broadcastAppointmentChange("CREATE", response);
         notificationService.broadcastDashboardRefresh();
-        whatsAppNotificationService.onRequestReceived(response);
 
         return response;
     }
@@ -341,6 +358,8 @@ public class AppointmentService {
                 newStaff.getName(), saved.getStartTime().toLocalTime(), saved.getEndTime().toLocalTime());
 
         auditService.log(AuditAction.UPDATE, "APPOINTMENT", saved.getId(), oldState, newState);
+        activityEventService.recordForCustomerPhone("UPDATE", "APPOINTMENT", saved.getId(),
+                saved.getCustomerPhone(), "Randevu taşındı");
 
         AppointmentResponse response = toResponse(saved);
         notificationService.broadcastAppointmentChange("MOVE", response);
@@ -368,16 +387,12 @@ public class AppointmentService {
 
         auditService.log(AuditAction.STATUS_CHANGE, "APPOINTMENT", id, oldStatus,
                 newStatus.name() + (reason != null ? " — " + reason : ""));
+        activityEventService.recordForCustomerPhone("STATUS_CHANGE", "APPOINTMENT", id,
+                saved.getCustomerPhone(), "Randevu durumu: " + oldStatus + " → " + newStatus.name());
 
         AppointmentResponse response = toResponse(saved);
         notificationService.broadcastAppointmentChange("STATUS_CHANGE", response);
         notificationService.broadcastDashboardRefresh();
-
-        if (newStatus == AppointmentStatus.SCHEDULED && AppointmentStatus.valueOf(oldStatus) == AppointmentStatus.PENDING_APPROVAL) {
-            whatsAppNotificationService.onApproved(response);
-        } else if (newStatus == AppointmentStatus.CANCELLED) {
-            whatsAppNotificationService.onCancelled(response, reason);
-        }
 
         return response;
     }
@@ -440,6 +455,8 @@ public class AppointmentService {
         Appointment saved = appointmentRepository.save(appointment);
 
         auditService.log(AuditAction.UPDATE, "APPOINTMENT", id, null, "Randevu güncellendi");
+        activityEventService.recordForCustomerPhone("UPDATE", "APPOINTMENT", id,
+                saved.getCustomerPhone(), "Randevu güncellendi");
 
         AppointmentResponse response = toResponse(saved);
         notificationService.broadcastAppointmentChange("UPDATE", response);
@@ -455,6 +472,8 @@ public class AppointmentService {
 
         auditService.log(AuditAction.DELETE, "APPOINTMENT", id,
                 "Silinen: " + appointment.getCustomerName() + " " + appointment.getStartTime(), null);
+        activityEventService.recordForCustomerPhone("DELETE", "APPOINTMENT", id,
+                appointment.getCustomerPhone(), "Randevu silindi: " + appointment.getCustomerName());
 
         AppointmentResponse response = toResponse(appointment);
         appointmentRepository.delete(appointment);
@@ -465,6 +484,12 @@ public class AppointmentService {
 
     public Appointment getEntity(Long id) {
         return appointmentRepository.findByIdAndSalonId(id, TenantContext.requireSalonId())
+                .orElseThrow(() -> new IllegalArgumentException("Randevu bulunamadı: " + id));
+    }
+
+    /** Erişim kontrolü için salon filtresi olmadan yükler (yanlış şube → 403). */
+    public Appointment findEntityById(Long id) {
+        return appointmentRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Randevu bulunamadı: " + id));
     }
 

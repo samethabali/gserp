@@ -12,7 +12,6 @@ const state = {
     time:        null,
 };
 
-let bookingInfo = { whatsappEnabled: false, salonPhone: null };
 let salonBranding = { name: 'Online Randevu', logoUrl: '', primaryColor: '#e91e8c' };
 
 const CAT_LABELS = { HAIR: '💇 Saç', NAIL: '💅 Tırnak', SKIN: '🧖 Cilt', LASER: '⚡ Lazer', OTHER: '✨ Diğer' };
@@ -23,15 +22,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     dateInput.min = todayISO();
     dateInput.value = todayISO();
 
-    await Promise.all([loadServices(), loadStaff(), loadBookingInfo(), loadSalonBranding()]);
+    await Promise.all([loadServices(), loadStaff(), loadSalonBranding()]);
 });
-
-async function loadBookingInfo() {
-    try {
-        const json = await fetch('/api/booking/info').then(r => r.json());
-        bookingInfo = json.data || bookingInfo;
-    } catch (_) { /* public fallback */ }
-}
 
 async function loadSalonBranding() {
     try {
@@ -52,13 +44,6 @@ function applySalonBranding() {
     if (logoEl && salonBranding.logoUrl) {
         logoEl.innerHTML = `<img src="${salonBranding.logoUrl}" alt="" style="max-height:64px;max-width:120px;border-radius:8px;">`;
     }
-}
-
-function buildWaMeUrl(message) {
-    const phone = bookingInfo.salonPhone;
-    if (!phone) return null;
-    const digits = phone.replace(/[^0-9]/g, '');
-    return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
 }
 
 // ─── Adım navigasyonu ───
@@ -195,14 +180,6 @@ async function submitBooking() {
     const json = await res.json();
 
     if (json.success) {
-        let waHtml = '';
-        if (!bookingInfo.whatsappEnabled) {
-            const msg = `Merhaba, randevu isteğim var:\n${state.serviceName}\n${state.staffName}\n${formatDate(state.date + 'T00:00:00')} ${state.time}\nRef: #${json.data?.id || '-'}`;
-            const waUrl = buildWaMeUrl(msg);
-            if (waUrl) {
-                waHtml = `<a href="${waUrl}" target="_blank" rel="noopener" class="btn btn-primary" style="margin-top:16px;display:inline-block;">💬 WhatsApp'tan Yaz</a>`;
-            }
-        }
         document.getElementById('confirmDetails').innerHTML = `
             <div>💇 ${state.serviceName}</div>
             <div>👩‍💼 ${state.staffName}</div>
@@ -210,8 +187,7 @@ async function submitBooking() {
             <div style="margin-top:12px;padding:10px;background:rgba(241,196,15,0.15);border-radius:8px;font-size:0.85rem;">
                 ⏳ Randevu isteğiniz alındı. Salon onayından sonra kesinleşecektir.
             </div>
-            <div style="margin-top:8px;color:var(--text-muted);font-size:0.8rem;">Referans: <strong>#${json.data?.id || '-'}</strong></div>
-            ${waHtml}`;
+            <div style="margin-top:8px;color:var(--text-muted);font-size:0.8rem;">Referans: <strong>#${json.data?.id || '-'}</strong></div>`;
         goStep(5);
     } else {
         showToast(json.message || 'Randevu oluşturulamadı', 'error');

@@ -7,10 +7,8 @@ import com.gscrm.model.ServiceDefinition;
 import com.gscrm.model.Staff;
 import com.gscrm.repository.ServiceDefinitionRepository;
 import com.gscrm.repository.StaffRepository;
-import com.gscrm.notification.whatsapp.WhatsAppProperties;
 import com.gscrm.service.AppointmentService;
 import com.gscrm.service.ConsentService;
-import com.gscrm.service.SalonWhatsAppService;
 import com.gscrm.service.SchedulerService;
 import com.gscrm.tenant.TenantContext;
 import jakarta.validation.Valid;
@@ -35,24 +33,7 @@ public class BookingController {
     private final StaffRepository staffRepository;
     private final AppointmentService appointmentService;
     private final SchedulerService schedulerService;
-    private final WhatsAppProperties whatsAppProperties;
-    private final SalonWhatsAppService salonWhatsAppService;
     private final ConsentService consentService;
-
-    @GetMapping("/info")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> info() {
-        Map<String, Object> data = new java.util.HashMap<>();
-        boolean waEnabled = salonWhatsAppService.isEnabledForCurrentSalon() || whatsAppProperties.isEnabled();
-        data.put("whatsappEnabled", waEnabled);
-        String salonPhone = salonWhatsAppService.salonPhoneForCurrentSalon();
-        if (salonPhone == null || salonPhone.isBlank()) {
-            salonPhone = whatsAppProperties.getSalonPhoneE164();
-        }
-        if (salonPhone != null && !salonPhone.isBlank()) {
-            data.put("salonPhone", salonPhone);
-        }
-        return ResponseEntity.ok(ApiResponse.ok(data));
-    }
 
     @GetMapping("/services")
     public ResponseEntity<ApiResponse<List<ServiceDefinition>>> getServices() {
