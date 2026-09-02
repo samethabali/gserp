@@ -15,7 +15,7 @@
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-brand">
             <div class="brand-icon">💅</div>
-            <div><h1>GSCRM</h1><span class="brand-sub">Salon Yönetim Sistemi</span></div>
+            <div><h1>GSCRM</h1><span class="brand-sub">Salon CRM</span></div>
         </div>
         <nav th:replace="~{fragments/sidebar-nav :: nav('billing')}"></nav>
     </aside>
@@ -48,7 +48,6 @@
                         <div><dt>Aylık ücret</dt><dd id="planPrice">—</dd></div>
                         <div><dt>Salon limiti</dt><dd id="planSalons">—</dd></div>
                         <div><dt>Kullanıcı limiti</dt><dd id="planUsers">—</dd></div>
-                        <div><dt>WhatsApp kotası</dt><dd id="planWhatsapp">—</dd></div>
                         <div><dt>Deneme / dönem bitişi</dt><dd id="planPeriodEnd">—</dd></div>
                     </dl>
                 </div>
@@ -58,16 +57,28 @@
                     <p class="settings-desc" id="usagePeriod">—</p>
                     <div class="billing-meter">
                         <div class="billing-meter-header">
-                            <span>WhatsApp mesajları</span>
-                            <span id="whatsappUsageLabel">0 / 0</span>
+                            <span>Şubeler</span>
+                            <span id="salonUsageLabel">0 / 0</span>
                         </div>
                         <div class="billing-meter-bar">
-                            <div class="billing-meter-fill" id="whatsappUsageBar" style="width:0%"></div>
+                            <div class="billing-meter-fill" id="salonUsageBar" style="width:0%"></div>
                         </div>
                     </div>
-                    <p class="form-hint" style="margin-top:16px;">
-                        Ödeme entegrasyonu (iyzico) yakında. Şimdilik plan yükseltme için destek ile iletişime geçin.
-                    </p>
+                    <div class="billing-meter" style="margin-top:16px;">
+                        <div class="billing-meter-header">
+                            <span>Kullanıcılar</span>
+                            <span id="userUsageLabel">0 / 0</span>
+                        </div>
+                        <div class="billing-meter-bar">
+                            <div class="billing-meter-fill" id="userUsageBar" style="width:0%"></div>
+                        </div>
+                    </div>
+                    <p class="form-hint" style="margin-top:16px;" id="quotaHints"></p>
+                </div>
+
+                <div class="glass-card settings-card">
+                    <h2>Faturalandırma Olayları</h2>
+                    <div id="billingEvents" class="settings-desc">Yükleniyor…</div>
                 </div>
             </div>
         </div>
@@ -82,6 +93,16 @@ const statusLabels = {
     CANCELLED: 'İptal'
 };
 
+function fillMeter(labelId, barId, used, max) {
+    const usedN = used || 0;
+    const maxN = max || 0;
+    document.getElementById(labelId).textContent = usedN + ' / ' + maxN;
+    const pct = maxN > 0 ? Math.min(100, Math.round((usedN / maxN) * 100)) : 0;
+    const bar = document.getElementById(barId);
+    bar.style.width = pct + '%';
+    if (pct >= 90) bar.classList.add('billing-meter-fill--warn');
+}
+
 function statusBadgeClass(status) {
     if (status === 'ACTIVE') return 'settings-badge--active';
     if (status === 'TRIAL') return 'settings-badge--warn';
@@ -93,22 +114,24 @@ function renderBillingAlert(status) {
     if (!status) return;
     if (status.readOnly) {
         el.className = 'billing-alert billing-alert--danger';
-        el.innerHTML = '⚠️ <strong>Salt okunur mod.</strong> Deneme süreniz doldu veya abonelik askıda. Yeni kayıt oluşturamazsınız; mevcut verileri görüntüleyebilirsiniz.';
+        el.innerHTML = 'Deneme süreniz doldu. Kesintisiz kullanım için bizimle iletişime geçin.';
         el.style.display = 'block';
         return;
     }
     if (status.status === 'TRIAL' && status.trialDaysRemaining != null && status.trialDaysRemaining <= 7) {
         el.className = 'billing-alert billing-alert--warn';
-        el.innerHTML = `⏳ Deneme süreniz <strong>${status.trialDaysRemaining} gün</strong> içinde bitiyor. Kesintisiz kullanım için planı yükseltin.`;
+        el.innerHTML = `⏳ Deneme süreniz <strong>${status.trialDaysRemaining} gün</strong> içinde bitiyor. Devam etmek için bizimle iletişime geçin.`;
         el.style.display = 'block';
     }
 }
 
 async function loadBilling() {
-    const [planRes, usageRes, statusRes] = await Promise.all([
+    const [planRes, usageRes, statusRes, quotaRes, eventsRes] = await Promise.all([
         api('GET', '/api/billing/plan'),
         api('GET', '/api/billing/usage'),
-        api('GET', '/api/billing/status')
+        api('GET', '/api/billing/status'),
+        api('GET', '/api/billing/quotas'),
+        api('GET', '/api/billing/events')
     ]);
 
     if (statusRes.success && statusRes.data) {
@@ -129,7 +152,6 @@ async function loadBilling() {
     document.getElementById('planPrice').textContent = formatCurrency(p.priceMonthly);
     document.getElementById('planSalons').textContent = p.maxSalons ?? '—';
     document.getElementById('planUsers').textContent = p.maxUsers ?? '—';
-    document.getElementById('planWhatsapp').textContent = (p.whatsappQuota ?? '—') + ' / ay';
 
     const end = p.trialEnd || p.currentPeriodEnd;
     document.getElementById('planPeriodEnd').textContent = end ? formatDateTime(end) : '—';
@@ -139,16 +161,24 @@ async function loadBilling() {
             : 'Aktif abonelik döneminizde kotanız her ay yenilenir.';
 
     if (usageRes.success && usageRes.data) {
-        const u = usageRes.data;
-        document.getElementById('usagePeriod').textContent = 'Dönem: ' + (u.period || '—');
-        const used = u.whatsappSent || 0;
-        const quota = p.whatsappQuota || 0;
-        const pct = quota > 0 ? Math.min(100, Math.round((used / quota) * 100)) : 0;
-        document.getElementById('whatsappUsageLabel').textContent = used + ' / ' + quota;
-        document.getElementById('whatsappUsageBar').style.width = pct + '%';
-        if (pct >= 90) {
-            document.getElementById('whatsappUsageBar').classList.add('billing-meter-fill--warn');
-        }
+        document.getElementById('usagePeriod').textContent = 'Dönem: ' + (usageRes.data.period || '—');
+    }
+
+    if (quotaRes.success && quotaRes.data) {
+        const q = quotaRes.data;
+        fillMeter('salonUsageLabel', 'salonUsageBar', q.salonsUsed, q.salonsMax);
+        fillMeter('userUsageLabel', 'userUsageBar', q.usersUsed, q.usersMax);
+        const hints = [];
+        if (q.salonQuotaWarning) hints.push('⚠️ Salon kotası dolmak üzere');
+        if (q.userQuotaWarning) hints.push('⚠️ Kullanıcı kotası dolmak üzere');
+        document.getElementById('quotaHints').textContent = hints.length ? hints.join(' · ') : '';
+    }
+
+    if (eventsRes.success && eventsRes.data) {
+        document.getElementById('billingEvents').innerHTML = eventsRes.data.length
+            ? '<ul style="margin:0;padding-left:18px;">' + eventsRes.data.map(e =>
+                `<li><code>${e.eventType}</code> — ${formatDateTime(e.createdAt)}</li>`).join('') + '</ul>'
+            : 'Henüz olay yok';
     }
 }
 

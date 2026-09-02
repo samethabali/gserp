@@ -14,6 +14,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +28,8 @@ public class SubscriptionService {
     private final SubscriptionPlanRepository planRepository;
     private final UsageMeterRepository usageMeterRepository;
     private final BillingEventRepository billingEventRepository;
+    private final SalonRepository salonRepository;
+    private final UserRepository userRepository;
 
     public Map<String, Object> getCurrentPlan(Long organizationId) {
         OrganizationSubscription sub = subscriptionRepository.findByOrganizationId(organizationId)
@@ -50,14 +53,10 @@ public class SubscriptionService {
 
     public Map<String, Object> getUsage(Long organizationId) {
         String period = currentPeriod();
-        List<UsageMeter> meters = usageMeterRepository.findAll().stream()
-                .filter(m -> organizationId.equals(m.getOrganizationId()) && period.equals(m.getPeriod()))
-                .toList();
-
-        int whatsappUsed = meters.stream()
-                .filter(m -> METRIC_WHATSAPP.equals(m.getMetric()))
-                .mapToInt(UsageMeter::getCount)
-                .sum();
+        // Org+dönem'e scope'lu sorgu (tüm tablo taranmaz).
+        List<UsageMeter> meters = usageMeterRepository.findByOrganizationIdAndPeriod(organizationId, period);
+        // WhatsApp toplamı DB tarafında SUM ile hesaplanır.
+        int whatsappUsed = (int) usageMeterRepository.sumCount(organizationId, METRIC_WHATSAPP, period);
 
         Map<String, Object> result = new HashMap<>();
         result.put("period", period);
@@ -99,6 +98,69 @@ public class SubscriptionService {
             orgId = 1L;
         }
         recordBillingEvent(orgId, "IYZICO_WEBHOOK", payload);
+    }
+
+    public boolean hasBillingEvent(Long organizationId, String eventType) {
+        return billingEventRepository.existsByOrganizationIdAndEventType(organizationId, eventType);
+    }
+
+    @Transactional
+    public void activateSubscription(Long organizationId, String externalId) {
+        OrganizationSubscription sub = subscriptionRepository.findByOrganizationId(organizationId)
+                .orElseThrow(() -> new IllegalArgumentException("Abonelik bulunamadı"));
+        LocalDateTime now = LocalDateTime.now();
+        sub.setStatus("ACTIVE");
+        sub.setExternalId(externalId);
+        sub.setCurrentPeriodEnd(now.plusMonths(1));
+        sub.setUpdatedAt(now);
+        subscriptionRepository.save(sub);
+        recordBillingEvent(organizationId, "SUBSCRIPTION_ACTIVATED", externalId);
+    }
+
+    public List<Map<String, Object>> getBillingEvents(Long organizationId) {
+        return billingEventRepository.findTop20ByOrganizationIdOrderByCreatedAtDesc(organizationId)
+                .stream()
+                .map(e -> {
+                    Map<String, Object> row = new HashMap<>();
+                    row.put("id", e.getId());
+                    row.put("eventType", e.getEventType());
+                    row.put("createdAt", e.getCreatedAt());
+                    row.put("payloadPreview", truncate(e.getPayload(), 120));
+                    return row;
+                })
+                .collect(Collectors.toList());
+    }
+
+    public Map<String, Object> getQuotaStatus(Long organizationId) {
+        Map<String, Object> result = new HashMap<>();
+        OrganizationSubscription sub = subscriptionRepository.findByOrganizationId(organizationId).orElse(null);
+        if (sub == null) {
+            return result;
+        }
+        SubscriptionPlan plan = planRepository.findById(sub.getPlanId()).orElse(null);
+        if (plan == null) {
+            return result;
+        }
+        int salonCount = salonRepository.findByOrganizationIdAndActiveTrue(organizationId).size();
+        long userCount = userRepository.countByOrganizationIdAndEnabledTrue(organizationId);
+        Map<String, Object> usage = getUsage(organizationId);
+        int whatsappUsed = (Integer) usage.getOrDefault("whatsappSent", 0);
+
+        result.put("salonsUsed", salonCount);
+        result.put("salonsMax", plan.getMaxSalons());
+        result.put("usersUsed", userCount);
+        result.put("usersMax", plan.getMaxUsers());
+        result.put("whatsappUsed", whatsappUsed);
+        result.put("whatsappMax", plan.getWhatsappQuota());
+        result.put("salonQuotaWarning", salonCount >= plan.getMaxSalons());
+        result.put("userQuotaWarning", userCount >= plan.getMaxUsers());
+        result.put("whatsappQuotaWarning", whatsappUsed >= plan.getWhatsappQuota() * 0.9);
+        return result;
+    }
+
+    private String truncate(String s, int max) {
+        if (s == null) return "";
+        return s.length() <= max ? s : s.substring(0, max) + "…";
     }
 
     public String currentPeriod() {
