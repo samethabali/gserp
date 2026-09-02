@@ -164,8 +164,53 @@ function initSidebar() {
 
 document.addEventListener('DOMContentLoaded', () => {
     initSidebar();
-    initSubscriptionBanner();
+    initShowcaseAndBilling();
+    initSalonSwitcher();
 });
+
+async function initSalonSwitcher() {
+    const wrap = document.getElementById('salonSwitcherWrap');
+    const select = document.getElementById('salonSwitcher');
+    if (!wrap || !select) return;
+    const json = await api('GET', '/api/org/salons');
+    if (!json.success || !json.data || json.data.length < 2) return;
+    wrap.style.display = 'block';
+    const current = document.cookie.split(';').map(c => c.trim())
+        .find(c => c.startsWith('gscrm-salon-slug='));
+    const currentSlug = current ? decodeURIComponent(current.split('=')[1]) : '';
+    select.innerHTML = json.data.map(s =>
+        `<option value="${s.slug}"${s.slug === currentSlug ? ' selected' : ''}>${s.name}</option>`
+    ).join('');
+    select.addEventListener('change', async () => {
+        const slug = select.value;
+        const res = await api('POST', '/api/org/switch-salon', { slug });
+        if (res.success) {
+            window.location.href = res.data.redirectUrl || '/';
+        } else {
+            showToast(res.message || 'Şube değiştirilemedi', 'error');
+        }
+    });
+}
+
+async function initShowcaseAndBilling() {
+    if (!document.querySelector('meta[name="_csrf"]')) return;
+    if (window.location.pathname.startsWith('/login') || window.location.pathname.startsWith('/onboarding/wizard')) return;
+
+    const pub = await api('GET', '/api/settings/public');
+    if (pub.success && pub.data && pub.data.showcase === 'true') {
+        window.GSCRM_SHOWCASE = true;
+        const main = document.querySelector('.main-content');
+        if (main && !document.getElementById('subscriptionBanner')) {
+            const banner = document.createElement('div');
+            banner.id = 'subscriptionBanner';
+            banner.className = 'subscription-banner subscription-banner--warn';
+            banner.innerHTML = 'Tanıtım sürümü — veriler örnektir. Tüm özellikler bu ortamda açık değildir.';
+            main.insertBefore(banner, main.firstChild);
+        }
+        return;
+    }
+    await initSubscriptionBanner();
+}
 
 async function initSubscriptionBanner() {
     if (!document.querySelector('meta[name="_csrf"]')) return;
@@ -180,10 +225,10 @@ async function initSubscriptionBanner() {
     let message = null;
     let cls = 'subscription-banner--warn';
     if (d.readOnly) {
-        message = 'Salt okunur mod — deneme süreniz doldu. <a href="/settings/billing">Abonelik</a> sayfasından planı yükseltin.';
+        message = 'Deneme süreniz doldu. Kesintisiz kullanım için bizimle iletişime geçin.';
         cls = 'subscription-banner--danger';
     } else if (d.status === 'TRIAL' && d.trialDaysRemaining != null && d.trialDaysRemaining <= 7) {
-        message = `Deneme süreniz ${d.trialDaysRemaining} gün içinde bitiyor. <a href="/settings/billing">Planı inceleyin</a>.`;
+        message = `Deneme süreniz ${d.trialDaysRemaining} gün içinde bitiyor. Devam etmek için bizimle iletişime geçin.`;
     }
     if (!message) return;
 
@@ -197,4 +242,4 @@ async function initSubscriptionBanner() {
     main.insertBefore(banner, main.firstChild);
 }
 
-console.log('%c💅 GSCRM — Güzellik Salonu ERP', 'font-size:16px;font-weight:bold;color:#9b59b6;');
+console.log('%c💅 GSCRM — Güzellik Salonu CRM', 'font-size:16px;font-weight:bold;color:#9b59b6;');

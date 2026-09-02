@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   GSCRM — Güzellik Salonu ERP Design System
+   GSCRM — Güzellik Salonu CRM Design System
    Dark mode, glassmorphism, purple/pink/gold palette
    ═══════════════════════════════════════════════════════════════ */
 
@@ -1569,4 +1569,33 @@ select.form-select option {
     display: flex;
     justify-content: space-between;
     gap: 12px;
+}
+
+.salon-switcher-wrap {
+    padding: 8px 16px 12px;
+}
+
+.salon-switcher-select {
+    width: 100%;
+    font-size: 0.85rem;
+    padding: 8px 10px;
+}
+
+.org-compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 12px;
+}
+
+.org-compare-table th,
+.org-compare-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-glass);
+    text-align: left;
+}
+
+.org-bar {
+    height: 8px;
+    background: linear-gradient(90deg, var(--color-primary), #c471ed);
+    border-radius: 999px;
 }

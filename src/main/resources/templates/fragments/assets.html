@@ -3,6 +3,7 @@
 <body>
 <!-- GSCRM ortak statik asset'ler — cache bust için app.asset-version kullanılır -->
 <th:block th:fragment="styles">
+    <meta name="robots" content="noindex, nofollow" th:if="${showcase}">
     <link rel="stylesheet"
           th:href="@{/css/style.css(v=${@environment.getProperty('app.asset-version', '1')})}">
     <style>

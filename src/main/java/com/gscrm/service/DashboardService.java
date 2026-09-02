@@ -180,12 +180,28 @@ public class DashboardService {
                     .build());
         }
 
+        if (totalRevenue.compareTo(BigDecimal.ZERO) > 0) {
+            for (OrgSummaryResponse.SalonSummary s : salonSummaries) {
+                int pct = s.getRevenueToday()
+                        .multiply(BigDecimal.valueOf(100))
+                        .divide(totalRevenue, 0, java.math.RoundingMode.HALF_UP)
+                        .intValue();
+                s.setRevenueSharePercent(pct);
+            }
+        }
+
+        String topSalon = salonSummaries.stream()
+                .max(java.util.Comparator.comparing(OrgSummaryResponse.SalonSummary::getRevenueToday))
+                .map(OrgSummaryResponse.SalonSummary::getName)
+                .orElse(null);
+
         return OrgSummaryResponse.builder()
                 .organizationId(organizationId)
                 .organizationName(org.getName())
                 .salonCount(salons.size())
                 .totalAppointmentsToday(totalAppts)
                 .totalRevenueToday(totalRevenue)
+                .topSalonName(topSalon)
                 .salons(salonSummaries)
                 .build();
     }

@@ -5,7 +5,6 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Map;
 
 @Data
 @Builder
@@ -15,6 +14,7 @@ public class OrgSummaryResponse {
     private int salonCount;
     private int totalAppointmentsToday;
     private BigDecimal totalRevenueToday;
+    private String topSalonName;
     private List<SalonSummary> salons;
 
     @Data
@@ -25,5 +25,6 @@ public class OrgSummaryResponse {
         private String name;
         private int appointmentsToday;
         private BigDecimal revenueToday;
+        private int revenueSharePercent;
     }
 }

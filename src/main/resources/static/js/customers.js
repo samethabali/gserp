@@ -217,7 +217,33 @@ function renderDetail(c) {
                     </table>
                 </div>
             </div>` : ''}
+
+            <div class="glass-card" style="padding:0;overflow:hidden;">
+                <div style="padding:16px 20px;border-bottom:1px solid var(--border-glass);font-weight:600;">
+                    📍 Hareketler
+                </div>
+                <div id="customerActivity" style="padding:16px 20px;color:var(--text-muted);font-size:0.85rem;">Yükleniyor…</div>
+            </div>
         </div>`;
+    loadCustomerActivity(c.id);
+}
+
+async function loadCustomerActivity(customerId) {
+    const el = document.getElementById('customerActivity');
+    if (!el) return;
+    const json = await api('GET', `/api/customers/${customerId}/activity?limit=40`);
+    if (!json.success) {
+        el.textContent = json.message || 'Hareketler yüklenemedi';
+        return;
+    }
+    const rows = json.data || [];
+    if (!rows.length) {
+        el.textContent = 'Henüz hareket yok';
+        return;
+    }
+    el.innerHTML = '<ul style="margin:0;padding-left:18px;">' + rows.map(e =>
+        `<li style="margin-bottom:8px;"><strong>${e.action}</strong> — ${e.summary || ''} <span style="color:var(--text-muted);font-size:0.8rem;">(${e.createdAt ? new Date(e.createdAt).toLocaleString('tr-TR') : ''} · ${e.actorUsername || ''})</span></li>`
+    ).join('') + '</ul>';
 }
 
 // ─── Müşteri Ekle/Düzenle ───
