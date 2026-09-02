@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <title>GSCRM — Abonelik</title>
+    <link th:replace="~{fragments/assets :: styles}"/>
+</head>
+<body>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+<div id="toastContainer" class="toast-container"></div>
+<div class="app-layout">
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-icon">💅</div>
+            <div><h1>GSCRM</h1><span class="brand-sub">Salon CRM</span></div>
+        </div>
+        <nav th:replace="~{fragments/sidebar-nav :: nav('billing')}"></nav>
+    </aside>
+    <main class="main-content">
+        <header class="topbar">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <button class="menu-toggle" id="menuToggle" aria-label="Menüyü Aç">☰</button>
+                <span class="topbar-title">💳 Abonelik &amp; Kullanım</span>
+            </div>
+            <div class="topbar-actions">
+                <span style="color:var(--color-text-muted);font-size:0.9rem;">👤 <span sec:authentication="name">user</span></span>
+                <form method="post" th:action="@{/logout}" style="display:inline;">
+                    <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                    <button type="submit" class="btn btn-secondary btn-xs">Çıkış</button>
+                </form>
+            </div>
+        </header>
+        <div class="page-content">
+            <div id="billingAlert" class="billing-alert" style="display:none;"></div>
+
+            <div class="billing-grid">
+                <div class="glass-card settings-card">
+                    <div class="settings-card-header">
+                        <h2>Mevcut Plan</h2>
+                        <span class="settings-badge" id="planStatusBadge">Yükleniyor…</span>
+                    </div>
+                    <p class="settings-desc" id="planDesc">Plan bilgileri yükleniyor…</p>
+                    <dl class="billing-dl">
+                        <div><dt>Plan</dt><dd id="planName">—</dd></div>
+                        <div><dt>Aylık ücret</dt><dd id="planPrice">—</dd></div>
+                        <div><dt>Salon limiti</dt><dd id="planSalons">—</dd></div>
+                        <div><dt>Kullanıcı limiti</dt><dd id="planUsers">—</dd></div>
+                        <div><dt>Deneme / dönem bitişi</dt><dd id="planPeriodEnd">—</dd></div>
+                    </dl>
+                </div>
+
+                <div class="glass-card settings-card">
+                    <h2>Bu Ay Kullanım</h2>
+                    <p class="settings-desc" id="usagePeriod">—</p>
+                    <div class="billing-meter">
+                        <div class="billing-meter-header">
+                            <span>Şubeler</span>
+                            <span id="salonUsageLabel">0 / 0</span>
+                        </div>
+                        <div class="billing-meter-bar">
+                            <div class="billing-meter-fill" id="salonUsageBar" style="width:0%"></div>
+                        </div>
+                    </div>
+                    <div class="billing-meter" style="margin-top:16px;">
+                        <div class="billing-meter-header">
+                            <span>Kullanıcılar</span>
+                            <span id="userUsageLabel">0 / 0</span>
+                        </div>
+                        <div class="billing-meter-bar">
+                            <div class="billing-meter-fill" id="userUsageBar" style="width:0%"></div>
+                        </div>
+                    </div>
+                    <p class="form-hint" style="margin-top:16px;" id="quotaHints"></p>
+                </div>
+
+                <div class="glass-card settings-card">
+                    <h2>Faturalandırma Olayları</h2>
+                    <div id="billingEvents" class="settings-desc">Yükleniyor…</div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+<script th:replace="~{fragments/assets :: app-js}"></script>
+<script>
+const statusLabels = {
+    TRIAL: 'Deneme',
+    ACTIVE: 'Aktif',
+    PAST_DUE: 'Ödeme gecikmiş',
+    CANCELLED: 'İptal'
+};
+
+function fillMeter(labelId, barId, used, max) {
+    const usedN = used || 0;
+    const maxN = max || 0;
+    document.getElementById(labelId).textContent = usedN + ' / ' + maxN;
+    const pct = maxN > 0 ? Math.min(100, Math.round((usedN / maxN) * 100)) : 0;
+    const bar = document.getElementById(barId);
+    bar.style.width = pct + '%';
+    if (pct >= 90) bar.classList.add('billing-meter-fill--warn');
+}
+
+function statusBadgeClass(status) {
+    if (status === 'ACTIVE') return 'settings-badge--active';
+    if (status === 'TRIAL') return 'settings-badge--warn';
+    return 'settings-badge--muted';
+}
+
+function renderBillingAlert(status) {
+    const el = document.getElementById('billingAlert');
+    if (!status) return;
+    if (status.readOnly) {
+        el.className = 'billing-alert billing-alert--danger';
+        el.innerHTML = 'Deneme süreniz doldu. Kesintisiz kullanım için bizimle iletişime geçin.';
+        el.style.display = 'block';
+        return;
+    }
+    if (status.status === 'TRIAL' && status.trialDaysRemaining != null && status.trialDaysRemaining <= 7) {
+        el.className = 'billing-alert billing-alert--warn';
+        el.innerHTML = `⏳ Deneme süreniz <strong>${status.trialDaysRemaining} gün</strong> içinde bitiyor. Devam etmek için bizimle iletişime geçin.`;
+        el.style.display = 'block';
+    }
+}
+
+async function loadBilling() {
+    const [planRes, usageRes, statusRes, quotaRes, eventsRes] = await Promise.all([
+        api('GET', '/api/billing/plan'),
+        api('GET', '/api/billing/usage'),
+        api('GET', '/api/billing/status'),
+        api('GET', '/api/billing/quotas'),
+        api('GET', '/api/billing/events')
+    ]);
+
+    if (statusRes.success && statusRes.data) {
+        renderBillingAlert(statusRes.data);
+    }
+
+    if (!planRes.success || !planRes.data) {
+        showToast(planRes.message || 'Plan yüklenemedi', 'error');
+        return;
+    }
+
+    const p = planRes.data;
+    const badge = document.getElementById('planStatusBadge');
+    badge.textContent = statusLabels[p.status] || p.status;
+    badge.className = 'settings-badge ' + statusBadgeClass(p.status);
+
+    document.getElementById('planName').textContent = p.planName || p.planCode || '—';
+    document.getElementById('planPrice').textContent = formatCurrency(p.priceMonthly);
+    document.getElementById('planSalons').textContent = p.maxSalons ?? '—';
+    document.getElementById('planUsers').textContent = p.maxUsers ?? '—';
+
+    const end = p.trialEnd || p.currentPeriodEnd;
+    document.getElementById('planPeriodEnd').textContent = end ? formatDateTime(end) : '—';
+    document.getElementById('planDesc').textContent =
+        p.status === 'TRIAL'
+            ? '14 günlük deneme süresince tüm özellikler açıktır.'
+            : 'Aktif abonelik döneminizde kotanız her ay yenilenir.';
+
+    if (usageRes.success && usageRes.data) {
+        document.getElementById('usagePeriod').textContent = 'Dönem: ' + (usageRes.data.period || '—');
+    }
+
+    if (quotaRes.success && quotaRes.data) {
+        const q = quotaRes.data;
+        fillMeter('salonUsageLabel', 'salonUsageBar', q.salonsUsed, q.salonsMax);
+        fillMeter('userUsageLabel', 'userUsageBar', q.usersUsed, q.usersMax);
+        const hints = [];
+        if (q.salonQuotaWarning) hints.push('⚠️ Salon kotası dolmak üzere');
+        if (q.userQuotaWarning) hints.push('⚠️ Kullanıcı kotası dolmak üzere');
+        document.getElementById('quotaHints').textContent = hints.length ? hints.join(' · ') : '';
+    }
+
+    if (eventsRes.success && eventsRes.data) {
+        document.getElementById('billingEvents').innerHTML = eventsRes.data.length
+            ? '<ul style="margin:0;padding-left:18px;">' + eventsRes.data.map(e =>
+                `<li><code>${e.eventType}</code> — ${formatDateTime(e.createdAt)}</li>`).join('') + '</ul>'
+            : 'Henüz olay yok';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', loadBilling);
+</script>
+</body>
+</html>

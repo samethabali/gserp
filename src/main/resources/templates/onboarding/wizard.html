@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GSCRM — Kayıt</title>
+    <link th:replace="~{fragments/assets :: styles}"/>
+</head>
+<body style="display:flex;align-items:center;justify-content:center;min-height:100vh;">
+<div style="max-width:480px;width:100%;padding:24px;">
+    <h1>Salon Kaydı</h1>
+    <p style="color:var(--text-muted);">Davet kodunuz ile 14 günlük denemeye başlayın.</p>
+    <form id="registerForm" style="display:grid;gap:12px;margin-top:16px;">
+        <input type="text" id="inviteCode" placeholder="Davet kodu (GSCRM-XXXX-XXXX)" required autocomplete="off">
+        <input type="text" id="orgName" placeholder="Organizasyon / işletme adı" required>
+        <input type="text" id="salonName" placeholder="Salon adı" required>
+        <input type="text" id="salonSlug" placeholder="Subdomain slug" required>
+        <input type="email" id="contactEmail" placeholder="İletişim e-posta">
+        <input type="text" id="adminUser" placeholder="Yönetici kullanıcı adı" required>
+        <input type="password" id="adminPass" placeholder="Şifre (min 8)" required minlength="8">
+        <button type="submit" class="btn btn-primary">Kayıt Ol</button>
+    </form>
+    <p id="result" style="margin-top:16px;"></p>
+    <p style="margin-top:12px;"><a href="/login">Girişe dön</a></p>
+</div>
+<script>
+const params = new URLSearchParams(window.location.search);
+if (params.get('code')) {
+    document.getElementById('inviteCode').value = params.get('code');
+}
+document.getElementById('registerForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const body = {
+        inviteCode: document.getElementById('inviteCode').value.trim(),
+        organizationName: document.getElementById('orgName').value,
+        salonName: document.getElementById('salonName').value,
+        salonSlug: document.getElementById('salonSlug').value.trim().toLowerCase(),
+        contactEmail: document.getElementById('contactEmail').value,
+        adminUsername: document.getElementById('adminUser').value,
+        adminPassword: document.getElementById('adminPass').value
+    };
+    const res = await fetch('/api/onboarding/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    });
+    const json = await res.json();
+    const el = document.getElementById('result');
+    if (json.success) {
+        el.innerHTML = `Kayıt tamam! Salon: <strong>${json.data.salonSlug}</strong>. <a href="/login">Giriş yap</a> ve ardından <a href="/onboarding/setup">kurulum sihirbazını</a> tamamlayın.`;
+    } else {
+        el.textContent = json.message || 'Kayıt başarısız';
+    }
+});
+</script>
+</body>
+</html>

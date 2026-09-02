@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <title>GSCRM — Ürünler</title>
+    <link th:replace="~{fragments/assets :: styles}"/>
+</head>
+<body>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+<div class="app-layout">
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-icon">💅</div>
+            <div><h1>GSCRM</h1><span class="brand-sub">Salon CRM</span></div>
+        </div>
+        <nav th:replace="~{fragments/sidebar-nav :: nav('products')}"></nav>
+    </aside>
+
+    <main class="main-content">
+        <header class="topbar">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <button class="menu-toggle" id="menuToggle" aria-label="Menüyü Aç">☰</button>
+                <span class="topbar-title">📦 Ürün & Stok</span>
+            </div>
+            <div class="topbar-actions">
+                <button class="btn btn-secondary" id="tabProducts" onclick="switchTab('products')">📦 Ürünler</button>
+                <button class="btn btn-ghost" id="tabSales" onclick="switchTab('sales')">🧾 Satışlar</button>
+                <button class="btn" id="lowStockFilterBtn" onclick="toggleLowStockFilter()"
+                    style="display:none;background:rgba(231,76,60,0.12);border-color:rgba(231,76,60,0.4);color:#e74c3c;font-size:0.85rem;">
+                    ⚠️ Kritik Stok (<span id="lowStockCount">0</span>)
+                </button>
+                <button class="btn btn-primary" onclick="openProductModal()">➕ Yeni Ürün</button>
+                <span style="color:var(--text-secondary);font-size:0.9rem;">👤 <span sec:authentication="name">user</span></span>
+                <form method="post" th:action="@{/logout}" style="display:inline;">
+                    <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                    <button type="submit" class="btn btn-secondary btn-xs">Çıkış</button>
+                </form>
+            </div>
+        </header>
+
+        <div class="page-content">
+            <!-- Ürünler sekmesi -->
+            <div id="paneProducts">
+                <div id="lowStockAlert" style="display:none;margin-bottom:16px;"></div>
+                
+                <!-- Ürün Filtreleme Paneli -->
+                <div style="display:flex; gap:10px; margin-bottom:16px; align-items:center; flex-wrap:wrap;">
+                    <input type="text" id="prdSearchInput" class="form-input" placeholder="🔍 Ürün adı ara..." style="width:200px;" oninput="filterProducts()">
+                    <select id="prdCategoryFilter" class="form-input" style="width:160px;" onchange="filterProducts()">
+                        <option value="">📁 Tüm Kategoriler</option>
+                    </select>
+                    <select id="prdStockFilter" class="form-input" style="width:180px;" onchange="filterProducts()">
+                        <option value="">📦 Tüm Stok Durumları</option>
+                        <option value="in_stock">Stokta Var</option>
+                        <option value="low_stock">⚠️ Düşük Stok</option>
+                        <option value="out_of_stock">❌ Tükendi</option>
+                    </select>
+                    <button class="btn btn-secondary" onclick="clearProductFilters()">🧹 Temizle</button>
+                </div>
+
+                <div class="glass-card" style="padding:0;overflow:hidden;">
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>Ürün</th><th>Kategori</th><th>Alış (Maliyet)</th><th>Satış Fiyatı</th><th>Stok</th><th>Durum</th><th>İşlem</th></tr>
+                        </thead>
+                        <tbody id="productTableBody">
+                            <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted);">Yükleniyor...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Satışlar sekmesi -->
+            <div id="paneSales" style="display:none;">
+                <!-- Satış & Kârlılık İstatistikleri -->
+                <div class="kpi-grid" id="salesStatsContainer" style="margin-bottom:20px; display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px;">
+                    <!-- JS ile dinamik doldurulacak -->
+                </div>
+
+                <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center;">
+                    <label style="font-size:0.85rem;color:var(--text-secondary);">Başlangıç:</label>
+                    <input type="date" id="saleDateFrom" class="form-input" style="width:140px;">
+                    <label style="font-size:0.85rem;color:var(--text-secondary);">Bitiş:</label>
+                    <input type="date" id="saleDateTo" class="form-input" style="width:140px;">
+                    <button class="btn btn-secondary" onclick="loadSales()">🔍 Filtrele</button>
+                </div>
+                <div class="glass-card" style="padding:0;overflow:hidden;">
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>Tarih</th><th>Ürün</th><th>Kategori</th><th>Adet</th><th>Birim Fiyat</th><th>Toplam</th><th>Kâr</th><th>Müşteri</th></tr>
+                        </thead>
+                        <tbody id="saleTableBody">
+                            <tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted);">Tarih seçin</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Ürün Ekle/Düzenle Modalı -->
+<div class="modal-overlay" id="productModal">
+    <div class="modal" style="max-width:460px;">
+        <div class="modal-header">
+            <h3 id="productModalTitle">Yeni Ürün</h3>
+            <button class="modal-close" onclick="closeModal('productModal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="editProductId">
+            <div class="form-group">
+                <label class="form-label">Ürün Adı *</label>
+                <input type="text" class="form-input" id="prdName">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Kategori</label>
+                    <input type="text" class="form-input" id="prdCategory" placeholder="Bakım, Renk, Şampuan...">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Alış Fiyatı (Maliyet) (₺) *</label>
+                    <input type="number" class="form-input" id="prdCostPrice" min="0" step="0.01" value="0.00">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Satış Fiyatı (₺) *</label>
+                    <input type="number" class="form-input" id="prdPrice" min="0" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Stok Adedi</label>
+                    <input type="number" class="form-input" id="prdStock" min="0" value="0">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Düşük Stok Eşiği</label>
+                <input type="number" class="form-input" id="prdThreshold" min="0" value="5">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('productModal')">İptal</button>
+            <button class="btn btn-primary" onclick="saveProduct()">💾 Kaydet</button>
+        </div>
+    </div>
+</div>
+
+<!-- Satış Modalı -->
+<div class="modal-overlay" id="sellModal">
+    <div class="modal" style="max-width:440px;">
+        <div class="modal-header">
+            <h3>🛒 Satış Yap — <span id="sellProductName"></span></h3>
+            <button class="modal-close" onclick="closeModal('sellModal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="sellProductId">
+            <div class="form-group" style="position:relative;">
+                <label class="form-label">Kayıtlı Müşteri Ara</label>
+                <input type="text" class="form-input" id="sellCustomerSearch" placeholder="İsim veya telefon yazın..." autocomplete="off">
+                <input type="hidden" id="sellCustomerId">
+                <div id="sellCustomerSuggestions" class="autocomplete-dropdown" style="display:none; position:absolute; left:0; right:0; max-height:150px; overflow-y:auto; background:#201b2d; border:1px solid rgba(255,255,255,0.1); border-radius:4px; z-index:1000; margin-top:4px;"></div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Adet *</label>
+                <input type="number" class="form-input" id="sellQty" min="1" value="1">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Müşteri Adı *</label>
+                    <input type="text" class="form-input" id="sellCustomerName" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Müşteri Tel</label>
+                    <input type="text" class="form-input" id="sellCustomerPhone" placeholder="05XX XXX XXXX">
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('sellModal')">İptal</button>
+            <button class="btn btn-success" onclick="confirmSell()">✅ Sat</button>
+        </div>
+    </div>
+</div>
+
+<!-- Stok Güncelle Modalı -->
+<div class="modal-overlay" id="restockModal">
+    <div class="modal" style="max-width:340px;">
+        <div class="modal-header">
+            <h3>📥 Stok Ekle — <span id="restockProductName"></span></h3>
+            <button class="modal-close" onclick="closeModal('restockModal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="restockProductId">
+            <div class="form-group">
+                <label class="form-label">Eklenecek Adet *</label>
+                <input type="number" class="form-input" id="restockQty" min="1" value="10">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('restockModal')">İptal</button>
+            <button class="btn btn-primary" onclick="confirmRestock()">📥 Ekle</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+<script th:replace="~{fragments/assets :: app-js}"></script>
+<script th:replace="~{fragments/assets :: custom-select-js}"></script>
+<script src="/js/products.js"></script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/gscrm_dev}
+    username: ${SPRING_DATASOURCE_USERNAME:gscrm}
+    password: ${SPRING_DATASOURCE_PASSWORD:gscrm}
+  # Dev'de gerçek migration'lara ek olarak mock veri (V7) yüklenir.
+  # Prod yalnızca db/migration'ı okur (application.yml), mock veri prod'a girmez.
+  flyway:
+    locations: classpath:db/migration,classpath:db/dev-migration
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate.format_sql: true
+  thymeleaf:
+    cache: false
+    prefix: classpath:/templates/
+    suffix: .html
+
+# Logging seviyeleri logback-spring.xml'de profile bazlı tanımlı.
+
+# Dev kolaylığı için ilk admin (InitialAdminSeeder DB boşsa yaratır).
+# Prod'da BU DEĞERLER KULLANILMAZ — orada .env üzerinden geçer.
+GSCRM_INITIAL_ADMIN_USERNAME: admin
+GSCRM_INITIAL_ADMIN_PASSWORD: admin

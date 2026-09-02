@@ -1,0 +1,4 @@
+# Redis (Faz 7 — opsiyonel, REDIS_HOST set edildiğinde spring-boot-starter-data-redis ekleyin)
+# spring.data.redis.host: ${REDIS_HOST}
+# spring.data.redis.port: ${REDIS_PORT:6379}
+# BookingRateLimitFilter tenant+IP bazlı in-memory; prod'da nginx + opsiyonel Redis

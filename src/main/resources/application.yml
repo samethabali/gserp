@@ -1,14 +1,69 @@
 server:
-  port: 8080
+  port: ${SERVER_PORT:8989}
+  forward-headers-strategy: framework
 
 spring:
-  thymeleaf:
-    cache: false
-    prefix: classpath:/templates/
-    suffix: .html
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
   jackson:
     deserialization:
       ADJUST_DATES_TO_CONTEXT_TIME_ZONE: false
       FAIL_ON_UNKNOWN_PROPERTIES: false
     serialization:
       WRITE_DATES_AS_TIMESTAMPS: false
+  jpa:
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+
+app:
+  asset-version: "20260817-1"
+  tenant:
+    base-domain: ${APP_TENANT_BASE_DOMAIN:gscrm.avesitesi.xyz}
+    salon-slug-cookie: gscrm-salon-slug
+  iyzico:
+    enabled: ${IYZICO_ENABLED:false}
+    mock-mode: ${IYZICO_MOCK_MODE:true}
+    api-key: ${IYZICO_API_KEY:}
+    secret-key: ${IYZICO_SECRET_KEY:}
+    base-url: ${IYZICO_BASE_URL:https://api.iyzipay.com}
+    callback-url: ${IYZICO_CALLBACK_URL:}
+    # Webhook imza doğrulaması için HMAC anahtarı. Boşsa secret-key kullanılır.
+    webhook-secret: ${IYZICO_WEBHOOK_SECRET:}
+  jwt:
+    # Base64-encoded en az 256-bit secret. Prod'da ${JWT_SECRET} ile geçersiz kılınmalı.
+    secret: ${JWT_SECRET:ZGV2LW9ubHktc2VjcmV0LWNoYW5nZS1tZS1kZXYtb25seS1zZWNyZXQtY2hhbmdlLW1l}
+    access-ttl-minutes: 60
+    refresh-ttl-days: 7
+  encryption:
+    # At-rest sır şifreleme anahtarı. JWT secret'tan BAĞIMSIZ olmalı; boşsa JWT
+    # secret'a düşer (uyarı loglanır). Prod'da APP_ENCRYPTION_KEY ile tanımlayın.
+    key: ${APP_ENCRYPTION_KEY:}
+  cors:
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:8989}
+  whatsapp:
+    enabled: ${WHATSAPP_ENABLED:false}
+    api-url: ${WHATSAPP_API_URL:https://graph.facebook.com/v21.0}
+    token: ${WHATSAPP_TOKEN:}
+    phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID:}
+    business-account-id: ${WHATSAPP_BUSINESS_ACCOUNT_ID:}
+    salon-phone-e164: ${WHATSAPP_SALON_PHONE:}
+    webhook-verify-token: ${WHATSAPP_WEBHOOK_VERIFY_TOKEN:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  metrics:
+    tags:
+      application: gscrm
+  prometheus:
+    metrics:
+      export:
+        enabled: true

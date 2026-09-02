@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Online Randevu</title>
+    <link th:replace="~{fragments/assets :: styles}"/>
+    <style>
+        body { background: var(--bg-primary); min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 32px 16px; }
+        .booking-card { width: 100%; max-width: 560px; }
+        .step { display: none; }
+        .step.active { display: block; }
+        .step-indicator { display: flex; gap: 8px; margin-bottom: 28px; justify-content: center; }
+        .step-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--border-glass); transition: var(--transition); }
+        .step-dot.active { background: var(--color-primary); box-shadow: 0 0 8px rgba(155,89,182,0.5); }
+        .step-dot.done { background: var(--color-success); }
+        .service-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .service-option { padding: 14px; background: var(--bg-card); border: 1px solid var(--border-glass); border-radius: var(--radius-md); cursor: pointer; transition: var(--transition); }
+        .service-option:hover, .service-option.selected { border-color: var(--color-primary); background: rgba(155,89,182,0.08); }
+        .staff-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .staff-option { padding: 14px; background: var(--bg-card); border: 1px solid var(--border-glass); border-radius: var(--radius-md); cursor: pointer; transition: var(--transition); display: flex; align-items: center; gap: 10px; }
+        .staff-option:hover, .staff-option.selected { border-color: var(--color-primary); background: rgba(155,89,182,0.08); }
+        .slot-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
+        .slot-btn { padding: 10px; text-align: center; border-radius: var(--radius-sm); font-size: 0.85rem; font-weight: 600; cursor: pointer; border: 1px solid var(--border-glass); background: var(--bg-card); color: var(--text-primary); transition: var(--transition); }
+        .slot-btn:hover:not(:disabled), .slot-btn.selected { border-color: var(--color-primary); background: rgba(155,89,182,0.12); color: var(--color-primary-light); }
+        .slot-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+        .success-box { text-align: center; padding: 32px 0; }
+        @media (max-width: 480px) {
+            .service-grid, .staff-grid { grid-template-columns: 1fr; }
+            .slot-grid { grid-template-columns: repeat(3,1fr); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="booking-card animate-fade-in">
+    <!-- Başlık -->
+    <div style="text-align:center;margin-bottom:28px;">
+        <div id="bookingLogo" style="font-size:2.5rem;margin-bottom:8px;">💅</div>
+        <h1 id="bookingTitle" style="font-size:1.5rem;font-weight:700;background:linear-gradient(135deg,var(--color-primary-light),var(--color-secondary));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Online Randevu</h1>
+        <p style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">Randevunuzu kolayca oluşturun</p>
+    </div>
+
+    <!-- Adım göstergesi -->
+    <div class="step-indicator">
+        <div class="step-dot active" id="dot1"></div>
+        <div class="step-dot" id="dot2"></div>
+        <div class="step-dot" id="dot3"></div>
+        <div class="step-dot" id="dot4"></div>
+        <div class="step-dot" id="dot5"></div>
+    </div>
+
+    <div class="glass-card" style="padding:28px;">
+
+        <!-- Adım 1: Hizmet Seç -->
+        <div class="step active" id="step1">
+            <h2 style="font-size:1.1rem;margin-bottom:16px;">1. Hizmet Seçin</h2>
+            <div class="service-grid" id="serviceGrid">
+                <div style="color:var(--text-muted);padding:20px;grid-column:1/-1;text-align:center;">Yükleniyor...</div>
+            </div>
+            <div style="margin-top:20px;text-align:right;">
+                <button class="btn btn-primary" onclick="goStep(2)" id="btnStep1">Devam →</button>
+            </div>
+        </div>
+
+        <!-- Adım 2: Uzman Seç -->
+        <div class="step" id="step2">
+            <h2 style="font-size:1.1rem;margin-bottom:16px;">2. Uzman Seçin</h2>
+            <div class="staff-grid" id="staffGrid">
+                <div style="color:var(--text-muted);padding:20px;grid-column:1/-1;text-align:center;">Yükleniyor...</div>
+            </div>
+            <div style="margin-top:20px;display:flex;justify-content:space-between;">
+                <button class="btn btn-secondary" onclick="goStep(1)">← Geri</button>
+                <button class="btn btn-primary" onclick="goStep(3)" id="btnStep2">Devam →</button>
+            </div>
+        </div>
+
+        <!-- Adım 3: Tarih & Saat -->
+        <div class="step" id="step3">
+            <h2 style="font-size:1.1rem;margin-bottom:16px;">3. Tarih ve Saat Seçin</h2>
+            <div class="form-group" style="margin-bottom:16px;">
+                <label class="form-label">Tarih</label>
+                <input type="date" class="form-input" id="bookDate" onchange="loadSlots()">
+            </div>
+            <div id="slotContainer" style="min-height:80px;"></div>
+            <div style="margin-top:20px;display:flex;justify-content:space-between;">
+                <button class="btn btn-secondary" onclick="goStep(2)">← Geri</button>
+                <button class="btn btn-primary" onclick="goStep(4)" id="btnStep3">Devam →</button>
+            </div>
+        </div>
+
+        <!-- Adım 4: Bilgiler -->
+        <div class="step" id="step4">
+            <h2 style="font-size:1.1rem;margin-bottom:16px;">4. Bilgilerinizi Girin</h2>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Ad Soyad *</label>
+                    <input type="text" class="form-input" id="bookName" placeholder="Adınız Soyadınız">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Telefon *</label>
+                    <input type="tel" class="form-input" id="bookPhone" placeholder="05XX XXX XXXX">
+                </div>
+            </div>
+            <!-- Özet -->
+            <div id="bookSummary" style="background:var(--bg-card);border:1px solid var(--border-glass);border-radius:var(--radius-md);padding:14px;margin-top:8px;font-size:0.85rem;line-height:1.8;"></div>
+            <label style="display:flex;gap:8px;align-items:flex-start;margin-top:12px;font-size:0.82rem;color:var(--text-muted);">
+                <input type="checkbox" id="bookKvkk" required style="margin-top:3px;">
+                <span><a href="/privacy" target="_blank">KVKK aydınlatma metnini</a> okudum, kişisel verilerimin işlenmesini kabul ediyorum.</span>
+            </label>
+            <div style="margin-top:20px;display:flex;justify-content:space-between;">
+                <button class="btn btn-secondary" onclick="goStep(3)">← Geri</button>
+                <button class="btn btn-primary" onclick="submitBooking()">✅ Randevu Oluştur</button>
+            </div>
+        </div>
+
+        <!-- Adım 5: Onay -->
+        <div class="step" id="step5">
+            <div class="success-box">
+                <div style="font-size:4rem;margin-bottom:16px;">✅</div>
+                <h2 style="font-size:1.3rem;font-weight:700;color:var(--color-success);margin-bottom:8px;">İsteğiniz Alındı!</h2>
+                <div id="confirmDetails" style="color:var(--text-secondary);font-size:0.9rem;line-height:1.8;"></div>
+                <button class="btn btn-secondary" style="margin-top:24px;" onclick="resetBooking()">🔄 Yeni Randevu</button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+<script th:replace="~{fragments/assets :: app-js}"></script>
+<script th:replace="~{fragments/assets :: custom-select-js}"></script>
+<script src="/js/booking.js"></script>
+</body>
+</html>

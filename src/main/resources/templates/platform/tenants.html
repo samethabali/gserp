@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <title>GSCRM — Platform Tenants</title>
+    <link th:replace="~{fragments/assets :: styles}"/>
+</head>
+<body>
+<div class="app-layout">
+    <aside class="sidebar">
+        <div class="sidebar-brand">GSCRM Platform</div>
+        <nav th:replace="~{fragments/sidebar-nav :: nav('platform')}"></nav>
+    </aside>
+    <main class="main-content">
+        <h1>Tenant Yönetimi</h1>
+        <p style="color:var(--text-muted);margin-bottom:16px;">Tüm salon ve organizasyonları görüntüleyin.</p>
+        <div id="tenantList">Yükleniyor...</div>
+
+        <section style="margin-top:32px;">
+            <h2>Davet kodları</h2>
+            <form id="inviteForm" style="display:grid;gap:12px;max-width:480px;margin-bottom:16px;">
+                <select id="inviteKind" class="form-input">
+                    <option value="PILOT">PILOT (tam salon)</option>
+                    <option value="SHOWCASE">SHOWCASE (tanıtım)</option>
+                </select>
+                <input type="text" id="inviteNote" placeholder="Not (ör. Salon X)">
+                <button type="submit" class="btn btn-primary">Kod üret</button>
+            </form>
+            <div id="inviteList">Yükleniyor...</div>
+        </section>
+
+        <section style="margin-top:32px;">
+            <h2>Yeni Tenant</h2>
+            <form id="provisionForm" style="display:grid;gap:12px;max-width:480px;">
+                <input type="text" id="orgName" placeholder="Organizasyon adı" required>
+                <input type="text" id="salonName" placeholder="Salon adı" required>
+                <input type="text" id="salonSlug" placeholder="slug (ör. yeni-salon)" required>
+                <input type="text" id="adminUser" placeholder="Admin kullanıcı adı" required>
+                <input type="password" id="adminPass" placeholder="Admin şifre" required>
+                <button type="submit" class="btn btn-primary">Oluştur</button>
+            </form>
+        </section>
+    </main>
+</div>
+<script th:replace="~{fragments/assets :: app-js}"></script>
+<script>
+async function loadTenants() {
+    const json = await api('GET', '/api/platform/tenants');
+    const list = document.getElementById('tenantList');
+    if (!json.success) { list.textContent = json.message || 'Hata'; return; }
+    list.innerHTML = '<table class="data-table"><thead><tr><th>Slug</th><th>Salon</th><th>Org</th><th>Aktif</th><th>Tanıtım</th></tr></thead><tbody>'
+        + (json.data || []).map(t => `<tr><td>${t.slug}</td><td>${t.name}</td><td>${t.organizationName || t.organizationId}</td><td>${t.active}</td><td>${t.showcase ? 'evet' : 'hayır'}</td></tr>`).join('')
+        + '</tbody></table>';
+}
+async function loadInvites() {
+    const json = await api('GET', '/api/platform/invites');
+    const list = document.getElementById('inviteList');
+    if (!json.success) { list.textContent = json.message || 'Hata'; return; }
+    const rows = json.data || [];
+    if (!rows.length) { list.textContent = 'Henüz davet kodu yok'; return; }
+    list.innerHTML = '<table class="data-table"><thead><tr><th>Kod</th><th>Tür</th><th>Kullanım</th><th>Not</th><th></th></tr></thead><tbody>'
+        + rows.map(i => `<tr><td><code>${i.code}</code></td><td>${i.kind}</td><td>${i.usedCount}/${i.maxUses}</td><td>${i.note || ''}</td><td>${i.revokedAt ? 'iptal' : `<button class="btn btn-secondary btn-xs" onclick="revokeInvite(${i.id})">İptal</button>`}</td></tr>`).join('')
+        + '</tbody></table>';
+}
+async function revokeInvite(id) {
+    const json = await api('POST', `/api/platform/invites/${id}/revoke`, {});
+    showToast(json.message || 'İptal', json.success ? 'success' : 'error');
+    if (json.success) loadInvites();
+}
+document.getElementById('inviteForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const json = await api('POST', '/api/platform/invites', {
+        kind: document.getElementById('inviteKind').value,
+        note: document.getElementById('inviteNote').value
+    });
+    showToast(json.success ? ('Kod: ' + json.data.code) : (json.message || 'Hata'), json.success ? 'success' : 'error');
+    if (json.success) loadInvites();
+});
+document.getElementById('provisionForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const body = {
+        organizationName: document.getElementById('orgName').value,
+        salonName: document.getElementById('salonName').value,
+        salonSlug: document.getElementById('salonSlug').value,
+        adminUsername: document.getElementById('adminUser').value,
+        adminPassword: document.getElementById('adminPass').value
+    };
+    const json = await api('POST', '/api/platform/tenants', body);
+    showToast(json.message || (json.success ? 'OK' : 'Hata'), json.success ? 'success' : 'error');
+    if (json.success) loadTenants();
+});
+loadTenants();
+loadInvites();
+</script>
+</body>
+</html>

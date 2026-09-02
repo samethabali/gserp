@@ -1,42 +1,44 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="tr">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="tr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GSERP — İşlem Kütüğü</title>
-    <link rel="stylesheet" href="/css/style.css">
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <title>GSCRM — İşlem Kütüğü</title>
+    <link th:replace="~{fragments/assets :: styles}"/>
 </head>
 <body>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
 <div class="app-layout">
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-brand">
             <div class="brand-icon">💅</div>
-            <div><h1>GSERP</h1><span class="brand-sub">Salon Yönetim Sistemi</span></div>
+            <div><h1>GSCRM</h1><span class="brand-sub">Salon CRM</span></div>
         </div>
-        <nav class="sidebar-nav">
-            <span class="nav-section-title">Ana Menü</span>
-            <a href="/" class="nav-item"><span class="nav-icon">📅</span> Takvim</a>
-            <a href="/dashboard" class="nav-item"><span class="nav-icon">📊</span> Dashboard</a>
-            <span class="nav-section-title">Yönetim</span>
-
-            <a href="/services" class="nav-item"><span class="nav-icon">💇</span> Hizmetler</a>
-            <a href="/staff" class="nav-item"><span class="nav-icon">👩‍💼</span> Personel</a>
-            <a href="/resources" class="nav-item"><span class="nav-icon">🏠</span> Kaynaklar</a>
-            <span class="nav-section-title">Sistem</span>
-            <a href="/audit" class="nav-item active"><span class="nav-icon">📋</span> İşlem Kütüğü</a>
-        </nav>
+        <nav th:replace="~{fragments/sidebar-nav :: nav('audit')}"></nav>
     </aside>
 
     <main class="main-content">
         <header class="topbar">
-            <span class="topbar-title">📋 İşlem Kütüğü (Audit Log)</span>
-            <button class="btn btn-secondary" onclick="loadAudit()">🔄 Yenile</button>
+            <div style="display:flex;align-items:center;gap:12px;">
+                <button class="menu-toggle" id="menuToggle" aria-label="Menüyü Aç">☰</button>
+                <span class="topbar-title">📋 İşlem Kütüğü</span>
+            </div>
+            <div class="topbar-actions">
+                <button class="btn btn-secondary" onclick="loadAudit()">🔄 Yenile</button>
+                <span style="color:var(--color-text-muted);font-size:0.9rem;">👤 <span sec:authentication="name">user</span></span>
+                <form method="post" th:action="@{/logout}" style="display:inline;">
+                    <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                    <button type="submit" class="btn btn-secondary btn-xs">Çıkış</button>
+                </form>
+            </div>
         </header>
         <div class="page-content">
             <div class="glass-card" style="padding:0;overflow:hidden;">
                 <table class="data-table">
                     <thead>
-                        <tr><th>Zaman</th><th>İşlem</th><th>Tür</th><th>ID</th><th>Eski Değer</th><th>Yeni Değer</th></tr>
+                        <tr><th>Zaman</th><th>İşlem</th><th>Tür</th><th>Özet</th><th>Kullanıcı</th></tr>
                     </thead>
                     <tbody id="auditTableBody"></tbody>
                 </table>
@@ -44,7 +46,8 @@
         </div>
     </main>
 </div>
-<script src="/js/app.js"></script>
+<script th:replace="~{fragments/assets :: app-js}"></script>
+<script th:replace="~{fragments/assets :: custom-select-js}"></script>
 <script>
     const actionLabels = { CREATE: '🟢 Oluşturma', UPDATE: '🟡 Güncelleme', DELETE: '🔴 Silme', STATUS_CHANGE: '🔵 Durum Değişikliği' };
 
@@ -57,9 +60,8 @@
                 <td style="font-variant-numeric:tabular-nums;font-size:0.8rem;">${l.createdAt ? new Date(l.createdAt).toLocaleString('tr-TR') : '-'}</td>
                 <td>${actionLabels[l.action] || l.action}</td>
                 <td><span class="badge badge-scheduled">${l.entityType}</span></td>
-                <td>#${l.entityId}</td>
-                <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;" title="${l.oldValue || ''}">${l.oldValue || '—'}</td>
-                <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;" title="${l.newValue || ''}">${l.newValue || '—'}</td>
+                <td style="max-width:320px;">${l.summary || '—'}</td>
+                <td>${l.actorUsername || '—'}</td>
             </tr>
         `).join('');
     }

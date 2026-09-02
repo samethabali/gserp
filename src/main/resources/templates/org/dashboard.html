@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <title>GSCRM — Org Dashboard</title>
+    <link th:replace="~{fragments/assets :: styles}"/>
+</head>
+<body>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+<div class="app-layout">
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand"><div class="brand-icon">🏢</div><div><h1>GSCRM</h1><span class="brand-sub">Organizasyon</span></div></div>
+        <nav th:replace="~{fragments/sidebar-nav :: nav('org')}"></nav>
+    </aside>
+    <main class="main-content">
+        <header class="topbar"><span class="topbar-title">🏢 Organizasyon Özeti</span></header>
+        <div class="page-content">
+            <div id="orgSummary" class="glass-card settings-card">Yükleniyor…</div>
+            <div class="glass-card settings-card" style="margin-top:20px;">
+                <h2>Şube Karşılaştırması</h2>
+                <div id="salonCompare"></div>
+            </div>
+        </div>
+    </main>
+</div>
+<script th:replace="~{fragments/assets :: app-js}"></script>
+<script>
+async function load() {
+    const summary = await api('GET', '/api/org/summary');
+    if (!summary.success || !summary.data) return;
+    const s = summary.data;
+    document.getElementById('orgSummary').innerHTML = `
+        <h2>${s.organizationName}</h2>
+        <p>${s.salonCount} şube · Bugün <strong>${s.totalAppointmentsToday}</strong> randevu · <strong>${formatCurrency(s.totalRevenueToday)}</strong> ciro</p>
+        ${s.topSalonName ? `<p class="settings-desc">En yüksek ciro: <strong>${s.topSalonName}</strong></p>` : ''}`;
+    const rows = (s.salons || []).map(x => `
+        <tr>
+            <td>${x.name}<br><small>${x.slug}</small></td>
+            <td>${x.appointmentsToday}</td>
+            <td>${formatCurrency(x.revenueToday)}</td>
+            <td style="min-width:120px;"><div class="org-bar" style="width:${x.revenueSharePercent || 0}%"></div> ${x.revenueSharePercent || 0}%</td>
+        </tr>`).join('');
+    document.getElementById('salonCompare').innerHTML = `
+        <table class="org-compare-table"><thead><tr><th>Şube</th><th>Randevu</th><th>Ciro</th><th>Pay</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+document.addEventListener('DOMContentLoaded', load);
+</script>
+</body>
+</html>

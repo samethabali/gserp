@@ -1,0 +1,76 @@
+-- V15: salon_id on all operational tables — backfill to default salon (id=1)
+
+ALTER TABLE staff              ADD COLUMN IF NOT EXISTS salon_id BIGINT;
+ALTER TABLE resource           ADD COLUMN IF NOT EXISTS salon_id BIGINT;
+ALTER TABLE service_definition ADD COLUMN IF NOT EXISTS salon_id BIGINT;
+ALTER TABLE customer           ADD COLUMN IF NOT EXISTS salon_id BIGINT;
+ALTER TABLE appointment        ADD COLUMN IF NOT EXISTS salon_id BIGINT;
+ALTER TABLE working_hours      ADD COLUMN IF NOT EXISTS salon_id BIGINT;
+ALTER TABLE waitlist_entry     ADD COLUMN IF NOT EXISTS salon_id BIGINT;
+ALTER TABLE payment            ADD COLUMN IF NOT EXISTS salon_id BIGINT;
+ALTER TABLE expense            ADD COLUMN IF NOT EXISTS salon_id BIGINT;
+ALTER TABLE product            ADD COLUMN IF NOT EXISTS salon_id BIGINT;
+ALTER TABLE product_sale       ADD COLUMN IF NOT EXISTS salon_id BIGINT;
+ALTER TABLE coupon             ADD COLUMN IF NOT EXISTS salon_id BIGINT;
+ALTER TABLE loyalty_tier       ADD COLUMN IF NOT EXISTS salon_id BIGINT;
+ALTER TABLE coupon_usage       ADD COLUMN IF NOT EXISTS salon_id BIGINT;
+ALTER TABLE users              ADD COLUMN IF NOT EXISTS salon_id BIGINT;
+ALTER TABLE salon_settings     ADD COLUMN IF NOT EXISTS salon_id BIGINT;
+ALTER TABLE audit_log_entry    ADD COLUMN IF NOT EXISTS salon_id BIGINT;
+ALTER TABLE notification_log   ADD COLUMN IF NOT EXISTS salon_id BIGINT;
+
+UPDATE staff              SET salon_id = 1 WHERE salon_id IS NULL;
+UPDATE resource           SET salon_id = 1 WHERE salon_id IS NULL;
+UPDATE service_definition SET salon_id = 1 WHERE salon_id IS NULL;
+UPDATE customer           SET salon_id = 1 WHERE salon_id IS NULL;
+UPDATE appointment        SET salon_id = 1 WHERE salon_id IS NULL;
+UPDATE working_hours      SET salon_id = 1 WHERE salon_id IS NULL;
+UPDATE waitlist_entry     SET salon_id = 1 WHERE salon_id IS NULL;
+UPDATE payment            SET salon_id = 1 WHERE salon_id IS NULL;
+UPDATE expense            SET salon_id = 1 WHERE salon_id IS NULL;
+UPDATE product            SET salon_id = 1 WHERE salon_id IS NULL;
+UPDATE product_sale       SET salon_id = 1 WHERE salon_id IS NULL;
+UPDATE coupon             SET salon_id = 1 WHERE salon_id IS NULL;
+UPDATE loyalty_tier       SET salon_id = 1 WHERE salon_id IS NULL;
+UPDATE coupon_usage       SET salon_id = 1 WHERE salon_id IS NULL;
+UPDATE users              SET salon_id = 1 WHERE salon_id IS NULL;
+UPDATE salon_settings     SET salon_id = 1 WHERE salon_id IS NULL;
+UPDATE audit_log_entry    SET salon_id = 1 WHERE salon_id IS NULL;
+UPDATE notification_log   SET salon_id = 1 WHERE salon_id IS NULL;
+
+ALTER TABLE staff              ALTER COLUMN salon_id SET NOT NULL;
+ALTER TABLE resource           ALTER COLUMN salon_id SET NOT NULL;
+ALTER TABLE service_definition ALTER COLUMN salon_id SET NOT NULL;
+ALTER TABLE customer           ALTER COLUMN salon_id SET NOT NULL;
+ALTER TABLE appointment        ALTER COLUMN salon_id SET NOT NULL;
+ALTER TABLE working_hours      ALTER COLUMN salon_id SET NOT NULL;
+ALTER TABLE waitlist_entry     ALTER COLUMN salon_id SET NOT NULL;
+ALTER TABLE payment            ALTER COLUMN salon_id SET NOT NULL;
+ALTER TABLE expense            ALTER COLUMN salon_id SET NOT NULL;
+ALTER TABLE product            ALTER COLUMN salon_id SET NOT NULL;
+ALTER TABLE product_sale       ALTER COLUMN salon_id SET NOT NULL;
+ALTER TABLE coupon             ALTER COLUMN salon_id SET NOT NULL;
+ALTER TABLE loyalty_tier       ALTER COLUMN salon_id SET NOT NULL;
+ALTER TABLE coupon_usage       ALTER COLUMN salon_id SET NOT NULL;
+ALTER TABLE users              ALTER COLUMN salon_id SET NOT NULL;
+ALTER TABLE salon_settings     ALTER COLUMN salon_id SET NOT NULL;
+
+ALTER TABLE staff              ADD CONSTRAINT fk_staff_salon FOREIGN KEY (salon_id) REFERENCES salon(id);
+ALTER TABLE resource           ADD CONSTRAINT fk_resource_salon FOREIGN KEY (salon_id) REFERENCES salon(id);
+ALTER TABLE service_definition ADD CONSTRAINT fk_service_salon FOREIGN KEY (salon_id) REFERENCES salon(id);
+ALTER TABLE customer           ADD CONSTRAINT fk_customer_salon FOREIGN KEY (salon_id) REFERENCES salon(id);
+ALTER TABLE appointment        ADD CONSTRAINT fk_appointment_salon FOREIGN KEY (salon_id) REFERENCES salon(id);
+ALTER TABLE working_hours      ADD CONSTRAINT fk_wh_salon FOREIGN KEY (salon_id) REFERENCES salon(id);
+ALTER TABLE waitlist_entry     ADD CONSTRAINT fk_waitlist_salon FOREIGN KEY (salon_id) REFERENCES salon(id);
+ALTER TABLE payment            ADD CONSTRAINT fk_payment_salon FOREIGN KEY (salon_id) REFERENCES salon(id);
+ALTER TABLE expense            ADD CONSTRAINT fk_expense_salon FOREIGN KEY (salon_id) REFERENCES salon(id);
+ALTER TABLE product            ADD CONSTRAINT fk_product_salon FOREIGN KEY (salon_id) REFERENCES salon(id);
+ALTER TABLE product_sale       ADD CONSTRAINT fk_product_sale_salon FOREIGN KEY (salon_id) REFERENCES salon(id);
+ALTER TABLE coupon             ADD CONSTRAINT fk_coupon_salon FOREIGN KEY (salon_id) REFERENCES salon(id);
+ALTER TABLE loyalty_tier       ADD CONSTRAINT fk_loyalty_salon FOREIGN KEY (salon_id) REFERENCES salon(id);
+ALTER TABLE coupon_usage       ADD CONSTRAINT fk_coupon_usage_salon FOREIGN KEY (salon_id) REFERENCES salon(id);
+ALTER TABLE users              ADD CONSTRAINT fk_users_salon FOREIGN KEY (salon_id) REFERENCES salon(id);
+ALTER TABLE salon_settings     ADD CONSTRAINT fk_salon_settings_salon FOREIGN KEY (salon_id) REFERENCES salon(id);
+
+ALTER TABLE audit_log_entry    ADD CONSTRAINT fk_audit_salon FOREIGN KEY (salon_id) REFERENCES salon(id);
+ALTER TABLE notification_log   ADD CONSTRAINT fk_notification_salon FOREIGN KEY (salon_id) REFERENCES salon(id);

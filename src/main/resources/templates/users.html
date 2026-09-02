@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <title>GSCRM — Kullanıcılar</title>
+    <link th:replace="~{fragments/assets :: styles}"/>
+</head>
+<body>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+<div class="app-layout">
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-icon">💅</div>
+            <div><h1>GSCRM</h1><span class="brand-sub">Salon CRM</span></div>
+        </div>
+        <nav th:replace="~{fragments/sidebar-nav :: nav('users')}"></nav>
+    </aside>
+    <main class="main-content">
+        <header class="topbar">
+            <span class="topbar-title">🔐 Kullanıcı Yönetimi</span>
+            <button class="btn btn-primary" onclick="openCreate()">➕ Yeni Kullanıcı</button>
+        </header>
+        <div class="glass-card" style="padding:16px;">
+            <table class="data-table" id="usersTable">
+                <thead><tr><th>Kullanıcı</th><th>Rol</th><th>Personel ID</th><th>Durum</th><th></th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </main>
+</div>
+<script th:replace="~{fragments/assets :: app-js}"></script>
+<script th:replace="~{fragments/assets :: custom-select-js}"></script>
+<script>
+async function loadUsers() {
+    const json = await api('GET', '/api/users');
+    const tbody = document.querySelector('#usersTable tbody');
+    tbody.innerHTML = (json.data || []).map(u => `
+        <tr>
+            <td>${u.username}</td>
+            <td>${u.role}</td>
+            <td>${u.staffId || '-'}</td>
+            <td>${u.enabled ? 'Aktif' : 'Pasif'}</td>
+            <td>
+                <button class="btn btn-xs btn-secondary" onclick="resetPw(${u.id})">Parola sıfırla</button>
+            </td>
+        </tr>`).join('');
+}
+function openCreate() {
+    const username = prompt('Kullanıcı adı');
+    const password = prompt('Geçici parola (min 6)');
+    const role = prompt('Rol (ADMIN / RECEPTIONIST / SPECIALIST)');
+    if (!username || !password || !role) return;
+    api('POST', '/api/users', { username, password, role }).then(r => {
+        showToast(r.message || 'OK', r.success ? 'success' : 'error');
+        if (r.success) loadUsers();
+    });
+}
+function resetPw(id) {
+    const password = prompt('Yeni geçici parola');
+    if (!password) return;
+    api('POST', `/api/users/${id}/reset-password`, { password }).then(r => {
+        showToast(r.message || 'OK', r.success ? 'success' : 'error');
+    });
+}
+loadUsers();
+</script>
+</body>
+</html>

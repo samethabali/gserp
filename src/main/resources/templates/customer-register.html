@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GSCRM — Kayıt Ol</title>
+    <link th:replace="~{fragments/assets :: styles}"/>
+</head>
+<body>
+<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;">
+    <div class="glass-card" style="width:100%;max-width:440px;padding:32px;">
+        <div style="text-align:center;margin-bottom:24px;">
+            <div style="font-size:48px;">💅</div>
+            <h1 style="margin:8px 0 4px;">Kayıt Ol</h1>
+            <span style="color:var(--color-text-muted);font-size:0.9rem;">Müşteri hesabı oluşturun</span>
+        </div>
+
+        <div id="errorMsg" style="display:none;margin-bottom:16px;padding:10px 14px;background:rgba(231,76,60,0.1);border:1px solid rgba(231,76,60,0.3);border-radius:8px;color:#e74c3c;font-size:0.9rem;"></div>
+        <div id="successMsg" style="display:none;margin-bottom:16px;padding:10px 14px;background:rgba(46,204,113,0.1);border:1px solid rgba(46,204,113,0.3);border-radius:8px;color:#2ecc71;font-size:0.9rem;"></div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div class="form-group">
+                <label class="form-label" for="firstName">Ad *</label>
+                <input type="text" class="form-input" id="firstName" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="lastName">Soyad</label>
+                <input type="text" class="form-input" id="lastName">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="email">E-posta *</label>
+            <input type="email" class="form-input" id="email" required>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="phone">Telefon</label>
+            <input type="tel" class="form-input" id="phone" placeholder="05xx xxx xx xx">
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="password">Parola * <span style="font-size:0.8rem;color:var(--color-text-muted);">(en az 6 karakter)</span></label>
+            <input type="password" class="form-input" id="password" required minlength="6">
+        </div>
+
+        <button id="registerBtn" class="btn btn-primary" style="width:100%;margin-top:8px;">Kayıt Ol</button>
+
+        <label style="display:flex;gap:8px;align-items:flex-start;margin-top:14px;font-size:0.82rem;color:var(--color-text-muted);">
+            <input type="checkbox" id="kvkkConsent" required style="margin-top:3px;">
+            <span><a href="/privacy" target="_blank">KVKK aydınlatma metnini</a> okudum ve kabul ediyorum.</span>
+        </label>
+
+        <p style="text-align:center;margin-top:16px;color:var(--color-text-muted);font-size:0.9rem;">
+            Zaten hesabınız var mı?
+            <a href="/customer/login" style="color:var(--color-accent);">Giriş Yapın</a>
+        </p>
+    </div>
+</div>
+<script>
+    document.getElementById('registerBtn').addEventListener('click', async () => {
+        const errorMsg = document.getElementById('errorMsg');
+        const successMsg = document.getElementById('successMsg');
+        errorMsg.style.display = 'none';
+        successMsg.style.display = 'none';
+
+        const payload = {
+            firstName: document.getElementById('firstName').value.trim(),
+            lastName: document.getElementById('lastName').value.trim() || null,
+            email: document.getElementById('email').value.trim(),
+            phone: document.getElementById('phone').value.trim() || null,
+            password: document.getElementById('password').value
+        };
+
+        if (!payload.firstName || !payload.email || !payload.password) {
+            errorMsg.textContent = '⚠️ Ad, e-posta ve parola zorunludur';
+            errorMsg.style.display = 'block';
+            return;
+        }
+        if (!document.getElementById('kvkkConsent').checked) {
+            errorMsg.textContent = '⚠️ KVKK onayı zorunludur';
+            errorMsg.style.display = 'block';
+            return;
+        }
+        if (payload.password.length < 6) {
+            errorMsg.textContent = '⚠️ Parola en az 6 karakter olmalıdır';
+            errorMsg.style.display = 'block';
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/auth/customer/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                errorMsg.textContent = '⚠️ ' + (data.message || 'Kayıt başarısız');
+                errorMsg.style.display = 'block';
+                return;
+            }
+            localStorage.setItem('customerToken', data.data.accessToken);
+            localStorage.setItem('customerRefreshToken', data.data.refreshToken);
+            successMsg.textContent = '✅ Kayıt başarılı! Yönlendiriliyorsunuz...';
+            successMsg.style.display = 'block';
+            setTimeout(() => window.location.href = '/customer/portal', 1000);
+        } catch (e) {
+            errorMsg.textContent = '⚠️ Bağlantı hatası';
+            errorMsg.style.display = 'block';
+        }
+    });
+</script>
+</body>
+</html>

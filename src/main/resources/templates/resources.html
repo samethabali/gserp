@@ -1,35 +1,37 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="tr">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="tr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GSERP — Kaynaklar</title>
-    <link rel="stylesheet" href="/css/style.css">
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <title>GSCRM — Kaynaklar</title>
+    <link th:replace="~{fragments/assets :: styles}"/>
 </head>
 <body>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
 <div class="app-layout">
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-brand">
             <div class="brand-icon">💅</div>
-            <div><h1>GSERP</h1><span class="brand-sub">Salon Yönetim Sistemi</span></div>
+            <div><h1>GSCRM</h1><span class="brand-sub">Salon CRM</span></div>
         </div>
-        <nav class="sidebar-nav">
-            <span class="nav-section-title">Ana Menü</span>
-            <a href="/" class="nav-item"><span class="nav-icon">📅</span> Takvim</a>
-            <a href="/dashboard" class="nav-item"><span class="nav-icon">📊</span> Dashboard</a>
-            <span class="nav-section-title">Yönetim</span>
-
-            <a href="/services" class="nav-item"><span class="nav-icon">💇</span> Hizmetler</a>
-            <a href="/staff" class="nav-item"><span class="nav-icon">👩‍💼</span> Personel</a>
-            <a href="/resources" class="nav-item active"><span class="nav-icon">🏠</span> Kaynaklar</a>
-            <span class="nav-section-title">Sistem</span>
-            <a href="/audit" class="nav-item"><span class="nav-icon">📋</span> İşlem Kütüğü</a>
-        </nav>
+        <nav th:replace="~{fragments/sidebar-nav :: nav('resources')}"></nav>
     </aside>
 
     <main class="main-content">
         <header class="topbar">
-            <span class="topbar-title">🏠 Kaynak Yönetimi (Oda, Cihaz, Ekipman)</span>
+            <div style="display:flex;align-items:center;gap:12px;">
+                <button class="menu-toggle" id="menuToggle" aria-label="Menüyü Aç">☰</button>
+                <span class="topbar-title">🏠 Kaynak Yönetimi</span>
+            </div>
+            <div class="topbar-actions">
+                <span style="color:var(--color-text-muted);font-size:0.9rem;">👤 <span sec:authentication="name">user</span></span>
+                <form method="post" th:action="@{/logout}" style="display:inline;">
+                    <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                    <button type="submit" class="btn btn-secondary btn-xs">Çıkış</button>
+                </form>
+            </div>
         </header>
         <div class="page-content">
             <div class="crud-header">
@@ -83,14 +85,14 @@
 </div>
 
 <div class="toast-container" id="toastContainer"></div>
-<script src="/js/app.js"></script>
+<script th:replace="~{fragments/assets :: app-js}"></script>
+<script th:replace="~{fragments/assets :: custom-select-js}"></script>
 <script>
     const typeLabels = { ROOM: '🚪 Oda', DEVICE: '⚙️ Cihaz', EQUIPMENT: '🛋️ Ekipman' };
     let resources = [];
 
     async function loadResources() {
-        const res = await fetch('/api/resources');
-        const json = await res.json();
+        const json = await api('GET', '/api/resources');
         resources = json.data || [];
         renderResources();
     }
@@ -131,14 +133,13 @@
         };
         const url = id ? `/api/resources/${id}` : '/api/resources';
         const method = id ? 'PUT' : 'POST';
-        const res = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
-        const json = await res.json();
+        const json = await api(method, url, body);
         if (json.success) {
             showToast(json.message, 'success');
             closeModal('resModal');
             loadResources();
         } else {
-            showToast(json.message, 'error');
+            showToast(json.message || 'İşlem başarısız', 'error');
         }
     }
 

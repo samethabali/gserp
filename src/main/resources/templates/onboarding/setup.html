@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <title>GSCRM — Kurulum Sihirbazı</title>
+    <link th:replace="~{fragments/assets :: styles}"/>
+</head>
+<body style="min-height:100vh;background:var(--color-bg);">
+<div id="toastContainer" class="toast-container"></div>
+<div class="onboarding-shell">
+    <div class="glass-card onboarding-card">
+        <h1>Salon Kurulumu</h1>
+        <p class="settings-desc">4 adımda salonunuzu kullanıma hazırlayın.</p>
+
+        <div class="onboarding-steps" id="stepIndicators"></div>
+
+        <div id="stepPanel" class="onboarding-panel"></div>
+
+        <div class="onboarding-actions">
+            <button type="button" class="btn btn-secondary" id="btnBack" style="display:none;">← Geri</button>
+            <button type="button" class="btn btn-primary" id="btnNext">İleri →</button>
+        </div>
+    </div>
+</div>
+<script th:replace="~{fragments/assets :: app-js}"></script>
+<script>
+const STEPS = [
+    { key: 'SALON_INFO', title: 'Salon bilgileri', icon: '🏪' },
+    { key: 'SERVICES', title: 'Hizmetler', icon: '💇' },
+    { key: 'STAFF', title: 'Personel', icon: '👩‍💼' },
+    { key: 'COMPLETED', title: 'Tamamlandı', icon: '✅' }
+];
+
+let currentIndex = 0;
+let salonSettings = {};
+
+function stepIndex(key) {
+    const i = STEPS.findIndex(s => s.key === key);
+    return i >= 0 ? i : 0;
+}
+
+function renderIndicators() {
+    const el = document.getElementById('stepIndicators');
+    el.innerHTML = STEPS.map((s, i) =>
+        `<div class="onboarding-step-dot${i === currentIndex ? ' active' : ''}${i < currentIndex ? ' done' : ''}" title="${s.title}">${s.icon}</div>`
+    ).join('');
+}
+
+function panelSalonInfo() {
+    return `
+        <h2>Salon görünümü</h2>
+        <p class="settings-desc">Booking sayfasında görünecek ad ve renk.</p>
+        <div class="form-group">
+            <label class="form-label">Salon adı</label>
+            <input type="text" class="form-input" id="obSalonName">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Ana renk (hex)</label>
+            <input type="text" class="form-input" id="obPrimaryColor" placeholder="#e91e8c">
+        </div>`;
+}
+
+function panelServices() {
+    return `
+        <h2>İlk hizmetleriniz</h2>
+        <p class="settings-desc">En az bir hizmet ekleyerek randevu almaya başlayın.</p>
+        <p id="serviceCount" class="settings-desc">Yükleniyor…</p>
+        <a href="/services" class="btn btn-secondary" target="_blank">Hizmetler sayfasını aç →</a>`;
+}
+
+function panelStaff() {
+    return `
+        <h2>Personel</h2>
+        <p class="settings-desc">Uzman ve resepsiyon ekibinizi tanımlayın.</p>
+        <p id="staffCount" class="settings-desc">Yükleniyor…</p>
+        <a href="/staff" class="btn btn-secondary" target="_blank">Personel sayfasını aç →</a>`;
+}
+
+function panelCompleted() {
+    return `
+        <h2>Kurulum tamamlandı 🎉</h2>
+        <p class="settings-desc">Takvimden randevu oluşturabilir veya booking sayfanızı paylaşabilirsiniz.</p>
+        <a href="/" class="btn btn-primary">Takvime git</a>
+        <a href="/booking" class="btn btn-secondary" target="_blank" style="margin-left:8px;">Booking sayfası</a>`;
+}
+
+const PANELS = [panelSalonInfo, panelServices, panelStaff, panelCompleted];
+
+function showStep(index) {
+    currentIndex = index;
+    renderIndicators();
+    document.getElementById('stepPanel').innerHTML = PANELS[index]();
+    document.getElementById('btnBack').style.display = index > 0 && index < STEPS.length - 1 ? 'inline-flex' : 'none';
+    document.getElementById('btnNext').textContent = index === STEPS.length - 1 ? 'Bitti' : (index === STEPS.length - 2 ? 'Tamamla' : 'İleri →');
+    document.getElementById('btnNext').style.display = index === STEPS.length - 1 ? 'none' : 'inline-flex';
+
+    if (index === 0 && salonSettings.name) {
+        document.getElementById('obSalonName').value = salonSettings.name || '';
+        document.getElementById('obPrimaryColor').value = salonSettings.primaryColor || '#e91e8c';
+    }
+    if (index === 1) loadServiceCount();
+    if (index === 2) loadStaffCount();
+}
+
+async function loadServiceCount() {
+    const json = await api('GET', '/api/services');
+    const count = (json.data || []).length;
+    document.getElementById('serviceCount').textContent = count > 0
+        ? `✓ ${count} hizmet tanımlı.`
+        : 'Henüz hizmet yok — en az bir tane ekleyin.';
+}
+
+async function loadStaffCount() {
+    const json = await api('GET', '/api/staff');
+    const count = (json.data || []).length;
+    document.getElementById('staffCount').textContent = count > 0
+        ? `✓ ${count} personel kayıtlı.`
+        : 'Henüz personel yok — en az bir uzman ekleyin.';
+}
+
+async function saveCurrentStep() {
+    const stepKey = STEPS[currentIndex].key;
+    if (stepKey === 'SALON_INFO') {
+        const body = {
+            name: document.getElementById('obSalonName').value.trim(),
+            primaryColor: document.getElementById('obPrimaryColor').value.trim() || '#e91e8c',
+            logoUrl: salonSettings.logoUrl || ''
+        };
+        const json = await api('PUT', '/api/settings', body);
+        if (!json.success) {
+            showToast(json.message || 'Kaydedilemedi', 'error');
+            return false;
+        }
+    }
+
+    const nextKey = currentIndex < STEPS.length - 1 ? STEPS[currentIndex + 1].key : 'COMPLETED';
+    const json = await api('PUT', '/api/onboarding/steps', { currentStep: nextKey });
+    if (!json.success) {
+        showToast(json.message || 'Adım güncellenemedi', 'error');
+        return false;
+    }
+    return true;
+}
+
+async function init() {
+    const settingsRes = await api('GET', '/api/settings');
+    if (settingsRes.success && settingsRes.data) {
+        salonSettings = settingsRes.data;
+    }
+
+    const stepsRes = await api('GET', '/api/onboarding/steps');
+    if (stepsRes.success && stepsRes.data) {
+        const key = stepsRes.data.currentStep || 'SALON_INFO';
+        if (key === 'COMPLETED' || key === 'WHATSAPP') {
+            currentIndex = STEPS.length - 1;
+        } else {
+            currentIndex = stepIndex(key);
+        }
+    }
+    showStep(currentIndex);
+}
+
+document.getElementById('btnNext').addEventListener('click', async () => {
+    if (currentIndex >= STEPS.length - 1) return;
+    const ok = await saveCurrentStep();
+    if (!ok) return;
+    if (currentIndex === STEPS.length - 2) {
+        showStep(STEPS.length - 1);
+    } else {
+        showStep(currentIndex + 1);
+    }
+});
+
+document.getElementById('btnBack').addEventListener('click', () => {
+    if (currentIndex > 0) showStep(currentIndex - 1);
+});
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

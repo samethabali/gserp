@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="tr" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KVKK Aydınlatma Metni — GSCRM</title>
+    <link th:replace="~{fragments/assets :: styles}"/>
+</head>
+<body>
+<div style="max-width:720px;margin:40px auto;padding:24px;" class="glass-card">
+    <h1>Kişisel Verilerin Korunması</h1>
+    <p th:if="${salonName}" style="line-height:1.6;color:var(--text-muted);">
+        <strong th:text="${salonName}">Salon</strong> (<span th:text="${salonContactEmail}">iletisim@salon.com</span>)
+        veri sorumlusu sıfatıyla; GSCRM platformu veri işleyen olarak hizmet vermektedir.
+    </p>
+    <p th:unless="${salonName}" style="line-height:1.6;color:var(--text-muted);">
+        GSCRM salon yönetim sistemi kapsamında salon işletmesi veri sorumlusu, GSCRM platformu veri işleyendir.
+    </p>
+    <p style="line-height:1.6;color:var(--text-muted);">
+        Ad, soyad, telefon ve e-posta bilgileriniz randevu planlama, hatırlatma ve hizmet sunumu amacıyla işlenir.
+    </p>
+    <h2 style="margin-top:1.5rem;font-size:1.1rem;">Alt İşleyenler</h2>
+    <ul style="line-height:1.6;color:var(--text-muted);">
+        <li><strong>GSCRM / hosting:</strong> Veritabanı ve uygulama barındırma</li>
+    </ul>
+    <p style="line-height:1.6;color:var(--text-muted);">
+        KVKK kapsamındaki haklarınız (erişim, düzeltme, silme, taşınabilirlik) için
+        <span th:if="${salonContactEmail}" th:text="${salonContactEmail}">salon yönetimi</span>
+        <span th:unless="${salonContactEmail}">salon yönetimi</span> ile iletişime geçebilirsiniz.
+        Rıza metni sürümü: <span th:text="${consentVersion} ?: '1.0'">1.0</span>
+    </p>
+    <p style="margin-top:24px;"><a href="/booking">← Booking sayfasına dön</a></p>
+</div>
+</body>
+</html>

@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   GSERP — Common Utilities (app.js)
+   GSCRM — Common Utilities (app.js)
    ═══════════════════════════════════════════════════════════════ */
 
 // ─── Modal Management ───
@@ -79,6 +79,7 @@ function pad(n) {
 
 // ─── Status Helpers ───
 const statusLabels = {
+    PENDING_APPROVAL: 'Onay Bekliyor',
     SCHEDULED: 'Bekliyor',
     IN_PROGRESS: 'Devam Ediyor',
     COMPLETED: 'Tamamlandı',
@@ -87,6 +88,7 @@ const statusLabels = {
 };
 
 const statusBadgeClass = {
+    PENDING_APPROVAL: 'badge-pending-approval',
     SCHEDULED: 'badge-scheduled',
     IN_PROGRESS: 'badge-in-progress',
     COMPLETED: 'badge-completed',
@@ -99,14 +101,145 @@ function statusBadge(status) {
 }
 
 // ─── API Helper ───
+const csrfToken = document.querySelector('meta[name="_csrf"]')?.content;
+const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.content;
+
 async function api(method, url, body) {
+    const headers = { 'Content-Type': 'application/json' };
+    if (csrfToken && csrfHeader && method !== 'GET' && method !== 'HEAD') {
+        headers[csrfHeader] = csrfToken;
+    }
     const opts = {
         method,
-        headers: { 'Content-Type': 'application/json' }
+        headers,
+        credentials: 'same-origin',
+        redirect: 'manual'   // 302 -> /login akışını otomatik takip etme
     };
     if (body) opts.body = JSON.stringify(body);
     const res = await fetch(url, opts);
-    return res.json();
+
+    // 401/403/302 (form-login chain'inden redirect) -> oturum yok demek
+    if (res.status === 401 || res.status === 403 || res.type === 'opaqueredirect') {
+        if (!window.location.pathname.startsWith('/login')) {
+            window.location.href = '/login';
+        }
+        return { success: false, message: 'Oturum sona erdi' };
+    }
+    // Boş 204 cevapları
+    if (res.status === 204) return { success: true };
+    try {
+        return await res.json();
+    } catch (e) {
+        return { success: false, message: 'Sunucudan beklenmeyen yanıt' };
+    }
 }
 
-console.log('%c💅 GSERP — Güzellik Salonu ERP', 'font-size:16px;font-weight:bold;color:#9b59b6;');
+// ─── Sidebar Toggle (Mobile) ───
+function initSidebar() {
+    const sidebar  = document.getElementById('sidebar');
+    const overlay  = document.getElementById('sidebarOverlay');
+    const toggle   = document.getElementById('menuToggle');
+    if (!sidebar || !overlay || !toggle) return;
+
+    toggle.addEventListener('click', () => {
+        sidebar.classList.toggle('open');
+        overlay.classList.toggle('active');
+    });
+
+    overlay.addEventListener('click', () => {
+        sidebar.classList.remove('open');
+        overlay.classList.remove('active');
+    });
+
+    // Nav linke tıklandığında mobilde sidebar'ı kapat
+    sidebar.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', () => {
+            if (window.innerWidth <= 1024) {
+                sidebar.classList.remove('open');
+                overlay.classList.remove('active');
+            }
+        });
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    initSidebar();
+    initShowcaseAndBilling();
+    initSalonSwitcher();
+});
+
+async function initSalonSwitcher() {
+    const wrap = document.getElementById('salonSwitcherWrap');
+    const select = document.getElementById('salonSwitcher');
+    if (!wrap || !select) return;
+    const json = await api('GET', '/api/org/salons');
+    if (!json.success || !json.data || json.data.length < 2) return;
+    wrap.style.display = 'block';
+    const current = document.cookie.split(';').map(c => c.trim())
+        .find(c => c.startsWith('gscrm-salon-slug='));
+    const currentSlug = current ? decodeURIComponent(current.split('=')[1]) : '';
+    select.innerHTML = json.data.map(s =>
+        `<option value="${s.slug}"${s.slug === currentSlug ? ' selected' : ''}>${s.name}</option>`
+    ).join('');
+    select.addEventListener('change', async () => {
+        const slug = select.value;
+        const res = await api('POST', '/api/org/switch-salon', { slug });
+        if (res.success) {
+            window.location.href = res.data.redirectUrl || '/';
+        } else {
+            showToast(res.message || 'Şube değiştirilemedi', 'error');
+        }
+    });
+}
+
+async function initShowcaseAndBilling() {
+    if (!document.querySelector('meta[name="_csrf"]')) return;
+    if (window.location.pathname.startsWith('/login') || window.location.pathname.startsWith('/onboarding/wizard')) return;
+
+    const pub = await api('GET', '/api/settings/public');
+    if (pub.success && pub.data && pub.data.showcase === 'true') {
+        window.GSCRM_SHOWCASE = true;
+        const main = document.querySelector('.main-content');
+        if (main && !document.getElementById('subscriptionBanner')) {
+            const banner = document.createElement('div');
+            banner.id = 'subscriptionBanner';
+            banner.className = 'subscription-banner subscription-banner--warn';
+            banner.innerHTML = 'Tanıtım sürümü — veriler örnektir. Tüm özellikler bu ortamda açık değildir.';
+            main.insertBefore(banner, main.firstChild);
+        }
+        return;
+    }
+    await initSubscriptionBanner();
+}
+
+async function initSubscriptionBanner() {
+    if (!document.querySelector('meta[name="_csrf"]')) return;
+    if (window.location.pathname.startsWith('/login') || window.location.pathname.startsWith('/onboarding/wizard')) return;
+
+    const json = await api('GET', '/api/billing/status');
+    if (!json.success || !json.data) return;
+
+    const d = json.data;
+    window.GSCRM_READ_ONLY = !!d.readOnly;
+
+    let message = null;
+    let cls = 'subscription-banner--warn';
+    if (d.readOnly) {
+        message = 'Deneme süreniz doldu. Kesintisiz kullanım için bizimle iletişime geçin.';
+        cls = 'subscription-banner--danger';
+    } else if (d.status === 'TRIAL' && d.trialDaysRemaining != null && d.trialDaysRemaining <= 7) {
+        message = `Deneme süreniz ${d.trialDaysRemaining} gün içinde bitiyor. Devam etmek için bizimle iletişime geçin.`;
+    }
+    if (!message) return;
+
+    const main = document.querySelector('.main-content');
+    if (!main || document.getElementById('subscriptionBanner')) return;
+
+    const banner = document.createElement('div');
+    banner.id = 'subscriptionBanner';
+    banner.className = 'subscription-banner ' + cls;
+    banner.innerHTML = message;
+    main.insertBefore(banner, main.firstChild);
+}
+
+console.log('%c💅 GSCRM — Güzellik Salonu CRM', 'font-size:16px;font-weight:bold;color:#9b59b6;');

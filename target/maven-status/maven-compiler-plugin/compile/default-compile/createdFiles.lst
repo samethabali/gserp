@@ -1,9 +1,0 @@
-com\gserp\service\ServiceDefinitionService.class
-com\gserp\service\ResourceLockService.class
-com\gserp\service\WaitlistService.class
-com\gserp\service\DashboardService.class
-com\gserp\store\MockDataStore.class
-com\gserp\service\NotificationService.class
-com\gserp\service\SchedulerService.class
-com\gserp\service\StaffService.class
-com\gserp\service\ResourceService.class

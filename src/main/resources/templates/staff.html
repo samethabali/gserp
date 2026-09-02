@@ -1,35 +1,37 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="tr">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="tr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GSERP — Personel</title>
-    <link rel="stylesheet" href="/css/style.css">
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <title>GSCRM — Personel</title>
+    <link th:replace="~{fragments/assets :: styles}"/>
 </head>
 <body>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
 <div class="app-layout">
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-brand">
             <div class="brand-icon">💅</div>
-            <div><h1>GSERP</h1><span class="brand-sub">Salon Yönetim Sistemi</span></div>
+            <div><h1>GSCRM</h1><span class="brand-sub">Salon CRM</span></div>
         </div>
-        <nav class="sidebar-nav">
-            <span class="nav-section-title">Ana Menü</span>
-            <a href="/" class="nav-item"><span class="nav-icon">📅</span> Takvim</a>
-            <a href="/dashboard" class="nav-item"><span class="nav-icon">📊</span> Dashboard</a>
-            <span class="nav-section-title">Yönetim</span>
-
-            <a href="/services" class="nav-item"><span class="nav-icon">💇</span> Hizmetler</a>
-            <a href="/staff" class="nav-item active"><span class="nav-icon">👩‍💼</span> Personel</a>
-            <a href="/resources" class="nav-item"><span class="nav-icon">🏠</span> Kaynaklar</a>
-            <span class="nav-section-title">Sistem</span>
-            <a href="/audit" class="nav-item"><span class="nav-icon">📋</span> İşlem Kütüğü</a>
-        </nav>
+        <nav th:replace="~{fragments/sidebar-nav :: nav('staff')}"></nav>
     </aside>
 
     <main class="main-content">
         <header class="topbar">
-            <span class="topbar-title">👩‍💼 Personel Yönetimi</span>
+            <div style="display:flex;align-items:center;gap:12px;">
+                <button class="menu-toggle" id="menuToggle" aria-label="Menüyü Aç">☰</button>
+                <span class="topbar-title">👩‍💼 Personel Yönetimi</span>
+            </div>
+            <div class="topbar-actions">
+                <span style="color:var(--color-text-muted);font-size:0.9rem;">👤 <span sec:authentication="name">user</span></span>
+                <form method="post" th:action="@{/logout}" style="display:inline;">
+                    <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                    <button type="submit" class="btn btn-secondary btn-xs">Çıkış</button>
+                </form>
+            </div>
         </header>
         <div class="page-content">
             <div class="crud-header">
@@ -77,6 +79,26 @@
                     <input type="color" class="form-input" id="stfColor" value="#9b59b6" style="height:42px;padding:4px;">
                 </div>
             </div>
+            <div class="form-group">
+                <label class="form-label">Uzmanlık Alanları</label>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;" id="specializationCheckboxes">
+                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:6px 12px;background:var(--bg-card);border:1px solid var(--border-glass);border-radius:8px;">
+                        <input type="checkbox" value="HAIR"> Saç
+                    </label>
+                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:6px 12px;background:var(--bg-card);border:1px solid var(--border-glass);border-radius:8px;">
+                        <input type="checkbox" value="NAIL"> Tırnak
+                    </label>
+                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:6px 12px;background:var(--bg-card);border:1px solid var(--border-glass);border-radius:8px;">
+                        <input type="checkbox" value="SKIN"> Cilt
+                    </label>
+                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:6px 12px;background:var(--bg-card);border:1px solid var(--border-glass);border-radius:8px;">
+                        <input type="checkbox" value="LASER"> Lazer
+                    </label>
+                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:6px 12px;background:var(--bg-card);border:1px solid var(--border-glass);border-radius:8px;">
+                        <input type="checkbox" value="OTHER"> Diğer
+                    </label>
+                </div>
+            </div>
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="closeModal('staffModal')">İptal</button>
@@ -85,15 +107,45 @@
     </div>
 </div>
 
+<!-- Çalışma Saatleri Modalı -->
+<div class="modal-overlay" id="workingHoursModal">
+    <div class="modal" style="max-width:520px;">
+        <div class="modal-header">
+            <h3>⏰ Çalışma Saatleri — <span id="whStaffName"></span></h3>
+            <button class="modal-close" onclick="closeModal('workingHoursModal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="whStaffId">
+            <table style="width:100%;border-collapse:collapse;" id="whTable">
+                <thead>
+                    <tr style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">
+                        <th style="padding:6px 8px;text-align:left;">Gün</th>
+                        <th style="padding:6px 8px;text-align:center;">İzin Günü</th>
+                        <th style="padding:6px 8px;text-align:left;">Başlangıç</th>
+                        <th style="padding:6px 8px;text-align:left;">Bitiş</th>
+                    </tr>
+                </thead>
+                <tbody id="whRows"></tbody>
+            </table>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('workingHoursModal')">İptal</button>
+            <button class="btn btn-primary" onclick="saveWorkingHours()">💾 Kaydet</button>
+        </div>
+    </div>
+</div>
+
 <div class="toast-container" id="toastContainer"></div>
-<script src="/js/app.js"></script>
+<script th:replace="~{fragments/assets :: app-js}"></script>
+<script th:replace="~{fragments/assets :: custom-select-js}"></script>
 <script>
     let staffList = [];
     const roleLabels = { SPECIALIST: 'Uzman', RECEPTIONIST: 'Resepsiyonist', ADMIN: 'Admin' };
+    const specLabels = { HAIR: 'Saç', NAIL: 'Tırnak', SKIN: 'Cilt', LASER: 'Lazer', OTHER: 'Diğer' };
+    function specLabel(c) { return specLabels[c] || c; }
 
     async function loadStaff() {
-        const res = await fetch('/api/staff');
-        const json = await res.json();
+        const json = await api('GET', '/api/staff');
         staffList = json.data || [];
         renderStaff();
     }
@@ -101,21 +153,26 @@
     function renderStaff() {
         const grid = document.getElementById('staffGrid');
         grid.innerHTML = staffList.map(s => `
-            <div class="glass-card" style="cursor:pointer;position:relative;" onclick="editStaff(${s.id})">
+            <div class="glass-card" style="position:relative;">
                 <div style="position:absolute;top:0;left:0;right:0;height:4px;background:${s.colorHex};border-radius:16px 16px 0 0;"></div>
                 <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
                     <div style="width:48px;height:48px;border-radius:12px;background:${s.colorHex}20;display:flex;align-items:center;justify-content:center;font-size:1.5rem;">
                         👩‍💼
                     </div>
-                    <div>
+                    <div style="flex:1;">
                         <div style="font-weight:700;font-size:1.05rem;">${s.name}</div>
                         <div style="font-size:0.78rem;color:var(--text-secondary);">${roleLabels[s.role] || s.role}</div>
                     </div>
                 </div>
                 <div style="font-size:0.82rem;color:var(--text-secondary);">📞 ${s.phone || '-'}</div>
                 <div style="font-size:0.82rem;color:var(--text-secondary);">✉️ ${s.email || '-'}</div>
-                <div style="margin-top:8px;">
+                <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;">
                     <span class="badge ${s.active ? 'badge-completed' : 'badge-cancelled'}">${s.active ? 'Aktif' : 'Pasif'}</span>
+                    ${(s.specializations || []).map(c => `<span class="badge badge-scheduled">${specLabel(c)}</span>`).join('')}
+                </div>
+                <div style="display:flex;gap:8px;margin-top:12px;">
+                    <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="editStaff(${s.id})">✏️ Düzenle</button>
+                    <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="openWorkingHoursModal(${s.id},'${s.name}')">⏰ Saatler</button>
                 </div>
             </div>
         `).join('');
@@ -129,6 +186,13 @@
         document.getElementById('stfRole').value = s ? s.role : 'SPECIALIST';
         document.getElementById('stfColor').value = s ? s.colorHex : '#9b59b6';
         document.getElementById('staffModalTitle').textContent = s ? 'Personel Düzenle' : 'Yeni Personel';
+
+        // Uzmanlık checkboxlarını işaretle
+        const specs = s ? (s.specializations || []) : [];
+        document.querySelectorAll('#specializationCheckboxes input[type=checkbox]').forEach(cb => {
+            cb.checked = specs.includes(cb.value);
+        });
+
         openModal('staffModal');
     }
 
@@ -149,18 +213,96 @@
         };
         const url = id ? `/api/staff/${id}` : '/api/staff';
         const method = id ? 'PUT' : 'POST';
-        const res = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
-        const json = await res.json();
-        if (json.success) {
-            showToast(json.message, 'success');
-            closeModal('staffModal');
-            loadStaff();
-        } else {
-            showToast(json.message, 'error');
+        const json = await api(method, url, body);
+        if (!json.success) {
+            showToast(json.message || 'İşlem başarısız', 'error');
+            return;
         }
+
+        // Uzmanlıkları güncelle (sadece düzenleme modunda, ID biliniyorsa)
+        const savedId = json.data?.id || id;
+        if (savedId) {
+            const selectedSpecs = Array.from(
+                document.querySelectorAll('#specializationCheckboxes input[type=checkbox]:checked')
+            ).map(cb => cb.value);
+            await api('PUT', `/api/staff/${savedId}/specializations`, selectedSpecs);
+        }
+
+        showToast(json.message, 'success');
+        closeModal('staffModal');
+        loadStaff();
     }
 
     loadStaff();
+
+    // ─── Çalışma Saatleri ───
+    const DAYS = [
+        { key: 'MONDAY',    label: 'Pazartesi' },
+        { key: 'TUESDAY',   label: 'Salı'      },
+        { key: 'WEDNESDAY', label: 'Çarşamba'  },
+        { key: 'THURSDAY',  label: 'Perşembe'  },
+        { key: 'FRIDAY',    label: 'Cuma'      },
+        { key: 'SATURDAY',  label: 'Cumartesi' },
+        { key: 'SUNDAY',    label: 'Pazar'     },
+    ];
+
+    async function openWorkingHoursModal(staffId, staffName) {
+        document.getElementById('whStaffId').value = staffId;
+        document.getElementById('whStaffName').textContent = staffName;
+
+        const json = await api('GET', `/api/staff/${staffId}/working-hours`);
+        const existing = json.data || [];
+
+        const tbody = document.getElementById('whRows');
+        tbody.innerHTML = DAYS.map(d => {
+            const wh = existing.find(w => w.dayOfWeek === d.key);
+            const isDayOff = wh ? wh.dayOff : true;
+            const start = wh && !wh.dayOff ? wh.startTime : '09:00';
+            const end   = wh && !wh.dayOff ? wh.endTime   : '18:00';
+            return `
+            <tr style="border-bottom:1px solid var(--border-glass);">
+                <td style="padding:8px;font-weight:500;">${d.label}</td>
+                <td style="padding:8px;text-align:center;">
+                    <input type="checkbox" id="dayoff_${d.key}" ${isDayOff ? 'checked' : ''}
+                        onchange="toggleDayRow('${d.key}')">
+                </td>
+                <td style="padding:8px;">
+                    <input type="time" class="form-input" id="start_${d.key}" value="${start}"
+                        style="width:110px;padding:6px;" ${isDayOff ? 'disabled' : ''}>
+                </td>
+                <td style="padding:8px;">
+                    <input type="time" class="form-input" id="end_${d.key}" value="${end}"
+                        style="width:110px;padding:6px;" ${isDayOff ? 'disabled' : ''}>
+                </td>
+            </tr>`;
+        }).join('');
+
+        openModal('workingHoursModal');
+    }
+
+    function toggleDayRow(dayKey) {
+        const isDayOff = document.getElementById(`dayoff_${dayKey}`).checked;
+        document.getElementById(`start_${dayKey}`).disabled = isDayOff;
+        document.getElementById(`end_${dayKey}`).disabled   = isDayOff;
+    }
+
+    async function saveWorkingHours() {
+        const staffId = document.getElementById('whStaffId').value;
+        const body = DAYS.map(d => ({
+            dayOfWeek:  d.key,
+            dayOff:     document.getElementById(`dayoff_${d.key}`).checked,
+            startTime:  document.getElementById(`start_${d.key}`).value || null,
+            endTime:    document.getElementById(`end_${d.key}`).value   || null,
+        }));
+
+        const json = await api('PUT', `/api/staff/${staffId}/working-hours`, body);
+        if (json.success) {
+            showToast('Çalışma saatleri kaydedildi', 'success');
+            closeModal('workingHoursModal');
+        } else {
+            showToast(json.message || 'Kayıt başarısız', 'error');
+        }
+    }
 </script>
 </body>
 </html>

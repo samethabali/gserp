@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <title>GSCRM — Salon Ayarları</title>
+    <link th:replace="~{fragments/assets :: styles}"/>
+</head>
+<body>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+<div class="app-layout">
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-icon">💅</div>
+            <div><h1>GSCRM</h1><span class="brand-sub">Salon CRM</span></div>
+        </div>
+        <nav th:replace="~{fragments/sidebar-nav :: nav('settings')}"></nav>
+    </aside>
+    <main class="main-content">
+        <header class="topbar">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <button class="menu-toggle" id="menuToggle" aria-label="Menüyü Aç">☰</button>
+                <span class="topbar-title">⚙️ Salon Ayarları</span>
+            </div>
+            <div class="topbar-actions">
+                <span style="color:var(--color-text-muted);font-size:0.9rem;">👤 <span sec:authentication="name">user</span></span>
+                <form method="post" th:action="@{/logout}" style="display:inline;">
+                    <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                    <button type="submit" class="btn btn-secondary btn-xs">Çıkış</button>
+                </form>
+            </div>
+        </header>
+        <div class="page-content">
+            <div class="settings-stack">
+
+                <!-- White-label -->
+                <div class="glass-card settings-card">
+                    <h2>White-label Görünüm</h2>
+                    <p class="settings-desc">
+                        Bu ayarlar booking sayfası ve müşteri portalında görünür.
+                    </p>
+                    <div class="form-group">
+                        <label class="form-label">Salon Adı</label>
+                        <input type="text" class="form-input" id="salonName" placeholder="Örn. Güzellik Merkezi">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Logo URL (opsiyonel)</label>
+                        <input type="url" class="form-input" id="logoUrl" placeholder="https://...">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Ana Renk (hex)</label>
+                        <input type="text" class="form-input" id="primaryColor" placeholder="#e91e8c">
+                    </div>
+                    <button class="btn btn-primary" onclick="saveSettings()">💾 Kaydet</button>
+                </div>
+
+                <div class="glass-card settings-card">
+                    <h2>Şube tatil günleri</h2>
+                    <p class="settings-desc">Bu tarihlerde randevu oluşturulamaz.</p>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Tarih</label>
+                            <input type="date" class="form-input" id="holidayDate">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Açıklama</label>
+                            <input type="text" class="form-input" id="holidayReason" placeholder="Bayram, izin...">
+                        </div>
+                    </div>
+                    <button class="btn btn-secondary" type="button" onclick="addHoliday()">Tatil ekle</button>
+                    <ul id="holidayList" style="margin-top:12px;padding-left:18px;"></ul>
+                </div>
+
+            </div>
+        </div>
+    </main>
+</div>
+<script th:replace="~{fragments/assets :: app-js}"></script>
+<script th:replace="~{fragments/assets :: custom-select-js}"></script>
+<script>
+async function loadSettings() {
+    const json = await api('GET', '/api/settings');
+    const s = json.data || {};
+    document.getElementById('salonName').value = s.name || '';
+    document.getElementById('logoUrl').value = s.logoUrl || '';
+    document.getElementById('primaryColor').value = s.primaryColor || '#e91e8c';
+}
+
+async function saveSettings() {
+    const body = {
+        name: document.getElementById('salonName').value.trim(),
+        logoUrl: document.getElementById('logoUrl').value.trim(),
+        primaryColor: document.getElementById('primaryColor').value.trim()
+    };
+    const json = await api('PUT', '/api/settings', body);
+    showToast(json.message || 'Kaydedildi', json.success ? 'success' : 'error');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadSettings();
+    loadHolidays();
+});
+
+async function loadHolidays() {
+    const json = await api('GET', '/api/holidays');
+    const list = document.getElementById('holidayList');
+    if (!list) return;
+    if (!json.success) {
+        list.innerHTML = '<li>Tatiller yüklenemedi</li>';
+        return;
+    }
+    const rows = json.data || [];
+    list.innerHTML = rows.length
+        ? rows.map(h => `<li>${h.holidayDate} ${h.reason ? '— ' + h.reason : ''} <button class="btn btn-secondary btn-xs" onclick="deleteHoliday(${h.id})">Sil</button></li>`).join('')
+        : '<li>Kayıtlı tatil yok</li>';
+}
+
+async function addHoliday() {
+    const date = document.getElementById('holidayDate').value;
+    const reason = document.getElementById('holidayReason').value.trim();
+    if (!date) {
+        showToast('Tarih seçin', 'warning');
+        return;
+    }
+    const json = await api('POST', '/api/holidays', { date, reason });
+    showToast(json.message || 'Kaydedildi', json.success ? 'success' : 'error');
+    if (json.success) {
+        document.getElementById('holidayDate').value = '';
+        document.getElementById('holidayReason').value = '';
+        loadHolidays();
+    }
+}
+
+async function deleteHoliday(id) {
+    const json = await api('DELETE', '/api/holidays/' + id);
+    showToast(json.message || 'Silindi', json.success ? 'success' : 'error');
+    if (json.success) loadHolidays();
+}
+</script>
+</body>
+</html>

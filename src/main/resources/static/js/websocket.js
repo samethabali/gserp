@@ -1,11 +1,17 @@
 /* ═══════════════════════════════════════════════════════════════
-   GSERP — WebSocket Client (websocket.js)
+   GSCRM — WebSocket Client (websocket.js)
    STOMP over SockJS for real-time calendar updates
    ═══════════════════════════════════════════════════════════════ */
 
 let stompClient = null;
 let wsConnected = false;
 let wsReconnectTimer = null;
+
+function getSalonTopicPrefix() {
+    const meta = document.querySelector('meta[name="salon-id"]');
+    const salonId = meta && meta.content ? meta.content : '1';
+    return '/topic/salon.' + salonId;
+}
 
 function connectWebSocket() {
     try {
@@ -18,19 +24,27 @@ function connectWebSocket() {
             updateWsStatus(true);
             console.log('🔗 WebSocket connected');
 
+            const topicPrefix = getSalonTopicPrefix();
+
             // Subscribe to appointment changes
-            stompClient.subscribe('/topic/appointments', function (message) {
+            stompClient.subscribe(topicPrefix + '.appointments', function (message) {
                 const payload = JSON.parse(message.body);
                 console.log('📡 WS received:', payload.action);
                 handleWsAppointmentChange(payload);
             });
 
             // Subscribe to dashboard refresh signals
-            stompClient.subscribe('/topic/dashboard', function (message) {
+            stompClient.subscribe(topicPrefix + '.dashboard', function (message) {
                 const payload = JSON.parse(message.body);
                 if (payload.action === 'REFRESH' && typeof refreshDashboard === 'function') {
                     refreshDashboard();
                 }
+            });
+
+            // Subscribe to general notifications (session reminders, etc.)
+            stompClient.subscribe(topicPrefix + '.notifications', function (message) {
+                const payload = JSON.parse(message.body);
+                handleNotification(payload);
             });
 
         }, function (error) {
@@ -89,6 +103,18 @@ function handleWsAppointmentChange(payload) {
             `${actionLabels[action] || action}: ${appointment.customerName || ''} — ${appointment.serviceName || ''}`,
             'info'
         );
+    }
+}
+
+function handleNotification(payload) {
+    const { type, message } = payload;
+
+    if (type === 'SESSION_REMINDER') {
+        showToast(message, 'warning');
+        // Dashboard'daki seans panelini güncelle
+        if (typeof loadSessionProgress === 'function') {
+            loadSessionProgress();
+        }
     }
 }
 

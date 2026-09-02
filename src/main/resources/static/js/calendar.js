@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   GSERP — Calendar Page Logic (calendar.js)
+   GSCRM — Calendar Page Logic (calendar.js)
    FullCalendar 6 + drag-drop + appointment CRUD + sessions
    ═══════════════════════════════════════════════════════════════ */
 
@@ -7,12 +7,20 @@ let calendar;
 let staffData = [];
 let serviceData = [];
 let activeStaffFilters = new Set();
+let customerSearchTimeout;
 
 // ─── Initialize ───
 document.addEventListener('DOMContentLoaded', async () => {
     await Promise.all([loadStaffData(), loadServiceData()]);
     initCalendar();
     renderStaffLegend();
+    initAppointmentCustomerPicker();
+    fitCalendarToViewport();
+    window.addEventListener('resize', () => fitCalendarToViewport());
+    const shell = document.querySelector('.calendar-shell');
+    if (shell && typeof ResizeObserver !== 'undefined') {
+        new ResizeObserver(() => fitCalendarToViewport()).observe(shell);
+    }
     document.getElementById('dateInput').value = todayISO();
 
     // Status reason select change
@@ -31,6 +39,7 @@ async function loadStaffData() {
     staffData.forEach(s => {
         sel.innerHTML += `<option value="${s.id}">${s.name}</option>`;
     });
+    if (typeof refreshCustomSelect === 'function') refreshCustomSelect(sel);
     staffData.forEach(s => activeStaffFilters.add(s.id));
 }
 
@@ -43,6 +52,7 @@ async function loadServiceData() {
     serviceData.forEach(s => {
         sel.innerHTML += `<option value="${s.id}">${s.name} (${s.durationMinutes} dk — ${Number(s.basePrice).toLocaleString('tr-TR')} ₺)</option>`;
     });
+    if (typeof refreshCustomSelect === 'function') refreshCustomSelect(sel);
 }
 
 // ─── Staff Legend / Filter ───
@@ -77,14 +87,16 @@ function initCalendar() {
         firstDay: 1,
         slotMinTime: '08:00:00',
         slotMaxTime: '20:00:00',
-        slotDuration: '00:15:00',
+        slotDuration: '01:00:00',
+        snapDuration: '00:15:00',
         slotLabelInterval: '01:00:00',
+        scrollTime: '08:00:00',
         allDaySlot: false,
         nowIndicator: true,
         editable: true,
         selectable: true,
         selectMirror: true,
-        height: 'auto',
+        height: '100%',
         expandRows: true,
         dayMaxEvents: 4,       // for month view: show max 4 then "+X more"
 
@@ -100,6 +112,9 @@ function initCalendar() {
             week: 'Hafta',
             month: 'Ay'
         },
+
+        datesSet: () => fitCalendarToViewport(),
+        viewDidMount: () => fitCalendarToViewport(),
 
         // Fetch events from API — iterate over each day in the visible range
         events: async function (info, successCallback, failureCallback) {
@@ -184,13 +199,7 @@ function initCalendar() {
             };
 
             try {
-                const res = await fetch(`/api/appointments/${a.id}/move`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(moveData)
-                });
-                const json = await res.json();
-
+                const json = await api('PUT', `/api/appointments/${a.id}/move`, moveData);
                 if (!json.success) {
                     info.revert();
                     showToast(json.message || 'Taşıma başarısız', 'error');
@@ -222,11 +231,20 @@ function initCalendar() {
     calendar.render();
 }
 
+function fitCalendarToViewport() {
+    if (!calendar) return;
+    const shell = document.querySelector('.calendar-shell');
+    if (!shell) return;
+    calendar.setOption('height', shell.clientHeight);
+    calendar.updateSize();
+}
+
 function localDateStr(d) {
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 }
 
 function getEventBgColor(appointment) {
+    if (appointment.status === 'PENDING_APPROVAL') return 'rgba(241, 196, 15, 0.6)';
     if (appointment.status === 'COMPLETED') return 'rgba(46, 204, 113, 0.35)';
     if (appointment.status === 'CANCELLED') return 'rgba(231, 76, 60, 0.25)';
     if (appointment.status === 'NO_SHOW') return 'rgba(155, 89, 182, 0.25)';
@@ -306,6 +324,239 @@ function getSelectedFlags() {
     return flags;
 }
 
+// ─── Customer Picker (appointment modal) ───
+function initAppointmentCustomerPicker() {
+    const searchInput = document.getElementById('customerSearchInput');
+    const dropdown = document.getElementById('customerSearchSuggestions');
+    const nameInput = document.getElementById('customerNameInput');
+    const phoneInput = document.getElementById('customerPhoneInput');
+    if (!searchInput || !dropdown) return;
+
+    searchInput.addEventListener('input', () => {
+        if (!searchInput.value.trim()) {
+            document.getElementById('selectedCustomerId').value = '';
+            updateRepeatLastBtn();
+        }
+
+        clearTimeout(customerSearchTimeout);
+        const query = searchInput.value.trim();
+        if (query.length < 2) {
+            dropdown.style.display = 'none';
+            dropdown.innerHTML = '';
+            return;
+        }
+
+        customerSearchTimeout = setTimeout(async () => {
+            const json = await api('GET', `/api/customers?q=${encodeURIComponent(query)}`);
+            const customers = json.data || [];
+            if (!customers.length) {
+                dropdown.style.display = 'none';
+                dropdown.innerHTML = '';
+                return;
+            }
+
+            dropdown.innerHTML = customers.map(c => `
+                <div class="autocomplete-item" data-id="${c.id}" data-name="${escapeHtml(c.fullName)}" data-phone="${escapeHtml(c.phone || '')}">
+                    <strong>${escapeHtml(c.fullName)}</strong>${c.phone ? `<span class="autocomplete-item-phone">(${escapeHtml(c.phone)})</span>` : ''}
+                </div>
+            `).join('');
+            dropdown.style.display = 'block';
+
+            dropdown.querySelectorAll('.autocomplete-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    selectCustomer(
+                        parseInt(item.dataset.id, 10),
+                        item.dataset.name,
+                        item.dataset.phone
+                    );
+                    searchInput.value = item.dataset.name;
+                    dropdown.style.display = 'none';
+                });
+            });
+        }, 300);
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!dropdown.contains(e.target) && e.target !== searchInput) {
+            dropdown.style.display = 'none';
+        }
+    });
+
+    if (nameInput) {
+        nameInput.addEventListener('input', () => {
+            document.getElementById('selectedCustomerId').value = '';
+            updateRepeatLastBtn();
+        });
+    }
+    if (phoneInput) {
+        phoneInput.addEventListener('blur', lookupCustomerByPhone);
+    }
+}
+
+function escapeHtml(str) {
+    return (str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function formatPhoneShort(phone) {
+    if (!phone) return '';
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length >= 4) {
+        return digits.slice(0, 4) + '…' + digits.slice(-2);
+    }
+    return phone;
+}
+
+async function selectCustomer(id, name, phone) {
+    document.getElementById('customerNameInput').value = name || '';
+    document.getElementById('customerPhoneInput').value = phone || '';
+    document.getElementById('customerSearchInput').value = name || '';
+
+    let customerId = id || null;
+    if (!customerId && phone) {
+        try {
+            const json = await api('GET', `/api/customers/lookup?phone=${encodeURIComponent(phone)}`);
+            if (json.data && json.data.id) {
+                customerId = json.data.id;
+            }
+        } catch (e) { /* yeni müşteri */ }
+    }
+
+    document.getElementById('selectedCustomerId').value = customerId || '';
+    updateRepeatLastBtn();
+}
+
+function clearCustomerSelection() {
+    const searchInput = document.getElementById('customerSearchInput');
+    const dropdown = document.getElementById('customerSearchSuggestions');
+    if (searchInput) searchInput.value = '';
+    if (dropdown) {
+        dropdown.style.display = 'none';
+        dropdown.innerHTML = '';
+    }
+    document.getElementById('selectedCustomerId').value = '';
+    updateRepeatLastBtn();
+}
+
+function updateRepeatLastBtn() {
+    const btn = document.getElementById('repeatLastBtn');
+    const hint = document.getElementById('repeatLastHint');
+    const customerId = document.getElementById('selectedCustomerId').value;
+    if (!btn) return;
+
+    if (customerId) {
+        btn.disabled = false;
+        if (hint) hint.textContent = 'Son randevu bilgilerini forma uygular';
+    } else {
+        btn.disabled = true;
+        if (hint) hint.textContent = 'Kayıtlı müşteri seçin';
+    }
+}
+
+async function loadRecentCustomers() {
+    const row = document.getElementById('recentCustomersRow');
+    if (!row) return;
+
+    try {
+        const json = await api('GET', '/api/customers/recent?limit=8');
+        const customers = json.data || [];
+        if (!customers.length) {
+            row.innerHTML = '';
+            return;
+        }
+
+        row.innerHTML = customers.map(c => {
+            const tooltip = c.lastServiceName
+                ? `Son: ${c.lastServiceName}${c.lastStaffName ? ' — ' + c.lastStaffName : ''}`
+                : '';
+            const label = `${c.fullName}${c.phone ? ' · ' + formatPhoneShort(c.phone) : ''}`;
+            return `<button type="button" class="recent-customer-chip" title="${escapeHtml(tooltip)}"
+                        data-id="${c.id || ''}" data-name="${escapeHtml(c.fullName)}" data-phone="${escapeHtml(c.phone || '')}">
+                    ${escapeHtml(label)}
+                </button>`;
+        }).join('');
+
+        row.querySelectorAll('.recent-customer-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const id = chip.dataset.id ? parseInt(chip.dataset.id, 10) : null;
+                selectCustomer(id, chip.dataset.name, chip.dataset.phone);
+            });
+        });
+    } catch (e) {
+        row.innerHTML = '';
+    }
+}
+
+async function lookupCustomerByPhone() {
+    const phone = document.getElementById('customerPhoneInput').value.trim();
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length < 10) return;
+
+    try {
+        const json = await api('GET', `/api/customers/lookup?phone=${encodeURIComponent(phone)}`);
+        if (!json.data) return;
+
+        document.getElementById('customerNameInput').value = json.data.fullName || '';
+        document.getElementById('selectedCustomerId').value = json.data.id || '';
+        document.getElementById('customerSearchInput').value = json.data.fullName || '';
+        updateRepeatLastBtn();
+    } catch (e) { /* kayıtlı değil */ }
+}
+
+function applyFlagsFromAppointment(flags) {
+    document.querySelectorAll('.flag-toggle').forEach(btn => {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-secondary');
+    });
+    document.getElementById('flagValueInput').value = '';
+
+    (flags || []).forEach(flag => {
+        const btn = document.querySelector(`.flag-toggle[data-flag="${flag.flagType}"]`);
+        if (btn) {
+            btn.classList.add('btn-primary');
+            btn.classList.remove('btn-secondary');
+            if (flag.flagValue) {
+                document.getElementById('flagValueInput').value = flag.flagValue;
+            }
+        }
+    });
+}
+
+async function applyLastAppointment() {
+    const customerId = document.getElementById('selectedCustomerId').value;
+    if (!customerId) {
+        showToast('Önce kayıtlı bir müşteri seçin', 'warning');
+        return;
+    }
+
+    try {
+        const json = await api('GET', `/api/customers/${customerId}`);
+        const detail = json.data;
+        const last = detail && detail.pastAppointments && detail.pastAppointments[0];
+        if (!last) {
+            showToast('Bu müşterinin geçmiş randevusu bulunamadı', 'warning');
+            return;
+        }
+
+        document.getElementById('staffSelect').value = last.staffId || '';
+        document.getElementById('serviceSelect').value = last.serviceId || '';
+        onServiceChange();
+
+        document.getElementById('adjustmentInput').value = last.adjustment || 0;
+        document.getElementById('adjustmentNoteInput').value = last.adjustmentNote || '';
+        document.getElementById('noteInput').value = last.internalNote || '';
+        updateFinalPrice();
+        applyFlagsFromAppointment(last.flags);
+
+        showToast('Son randevu bilgileri uygulandı', 'success');
+    } catch (e) {
+        showToast('Son randevu bilgileri alınamadı', 'error');
+    }
+}
+
 // ─── Create Modal ───
 function openCreateModal() {
     document.getElementById('editAppointmentId').value = '';
@@ -330,6 +581,11 @@ function openCreateModal() {
         btn.classList.remove('btn-primary');
         btn.classList.add('btn-secondary');
     });
+    clearCustomerSelection();
+    loadRecentCustomers();
+    if (typeof refreshCustomSelect === 'function') {
+        ['staffSelect', 'serviceSelect', 'preferredDaySelect'].forEach(refreshCustomSelect);
+    }
     openModal('appointmentModal');
 }
 
@@ -367,6 +623,15 @@ function openEditModal(a) {
         }
     });
 
+    clearCustomerSelection();
+    if (a.customerPhone) {
+        lookupCustomerByPhone().then(() => loadRecentCustomers());
+    } else {
+        loadRecentCustomers();
+    }
+    if (typeof refreshCustomSelect === 'function') {
+        ['staffSelect', 'serviceSelect', 'preferredDaySelect'].forEach(refreshCustomSelect);
+    }
     openModal('appointmentModal');
 }
 
@@ -425,13 +690,7 @@ async function saveAppointment() {
             method = 'POST';
         }
 
-        const res = await fetch(url, {
-            method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
-        });
-
-        const json = await res.json();
+        const json = await api(method, url, body);
 
         if (json.success) {
             showToast(json.message || 'Randevu kaydedildi', 'success');
@@ -467,7 +726,10 @@ function showAppointmentDetail(a) {
                 <span class="staff-dot" style="background:${a.staffColor};width:14px;height:14px;"></span>
                 <div>
                     <div style="font-weight:700;font-size:1.1rem;">${a.customerName}</div>
-                    <div style="color:var(--text-secondary);font-size:0.85rem;">📞 ${a.customerPhone || '-'}</div>
+                    <div style="color:var(--text-secondary);font-size:0.85rem;">
+                        📞 ${a.customerPhone || '-'}
+                        ${a.customerPhone ? `<a href="/customers?phone=${encodeURIComponent(a.customerPhone)}" target="_blank" style="margin-left:8px;font-size:0.75rem;color:var(--color-primary-light);text-decoration:none;">👤 Profil</a>` : ''}
+                    </div>
                 </div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
@@ -487,7 +749,12 @@ function showAppointmentDetail(a) {
 
     // Status action buttons
     let actions = '';
-    if (a.status === 'SCHEDULED') {
+    if (a.status === 'PENDING_APPROVAL') {
+        actions = `
+            <button class="btn btn-sm btn-success" onclick="approveAppointment(${a.id})">✅ Onayla</button>
+            <button class="btn btn-sm btn-ghost" onclick="openStatusModal(${a.id}, 'CANCELLED', '❌ Reddet')">❌ Reddet</button>
+        `;
+    } else if (a.status === 'SCHEDULED') {
         actions = `
             <button class="btn btn-sm btn-warning" onclick="changeAppointmentStatus(${a.id}, 'IN_PROGRESS')">▶️ Başlat</button>
             <button class="btn btn-sm btn-danger" onclick="openStatusModal(${a.id}, 'NO_SHOW', '👻 Gelmedi')">👻 Gelmedi</button>
@@ -504,10 +771,35 @@ function showAppointmentDetail(a) {
     document.getElementById('viewModalFooter').innerHTML = actions;
     openModal('viewModal');
 
-    // Load customer history
+    // Load customer history and balance
     if (a.customerPhone) {
         loadCustomerHistory(a.customerPhone, a.id);
+        loadCustomerBalance(a.customerPhone);
     }
+}
+
+async function loadCustomerBalance(phone) {
+    try {
+        const res = await api('GET', `/api/payments/customer?phone=${encodeURIComponent(phone)}`);
+        const payments = res.data || [];
+        if (!payments.length) return;
+
+        // Toplam ödenen vs beklenen farkı hesapla (basit gösterim için son veresiye kaydı)
+        const deferred = payments.filter(p => p.status === 'DEFERRED');
+        if (!deferred.length) return;
+
+        const totalDeferred = deferred.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+        const banner = document.getElementById('customerHistorySection');
+        if (!banner) return;
+
+        const existing = banner.innerHTML;
+        banner.innerHTML = `
+            <div style="background:rgba(243,156,18,0.12);border:1px solid rgba(243,156,18,0.3);
+                        border-radius:8px;padding:10px 14px;margin-bottom:8px;font-size:0.85rem;">
+                ⚠️ Bu müşterinin <strong>${formatCurrency(totalDeferred)}</strong> tutarında açık veresiyesi bulunmaktadır.
+            </div>
+        ` + existing;
+    } catch (e) { /* silent */ }
 }
 
 async function loadCustomerHistory(phone, currentId) {
@@ -555,12 +847,7 @@ async function confirmStatusChange() {
         reason = document.getElementById('statusReasonCustom').value.trim() || 'Diğer';
     }
 
-    const res = await fetch(`/api/appointments/${id}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status, reason })
-    });
-    const json = await res.json();
+    const json = await api('PATCH', `/api/appointments/${id}/status`, { status, reason });
     if (json.success) {
         showToast('Durum güncellendi', 'success');
         closeModal('statusModal');
@@ -572,12 +859,7 @@ async function confirmStatusChange() {
 
 async function changeAppointmentStatus(id, status) {
     // For simple transitions (no reason needed: start, complete)
-    const res = await fetch(`/api/appointments/${id}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status })
-    });
-    const json = await res.json();
+    const json = await api('PATCH', `/api/appointments/${id}/status`, { status });
     if (json.success) {
         showToast('Durum güncellendi', 'success');
         closeModal('viewModal');
@@ -587,10 +869,20 @@ async function changeAppointmentStatus(id, status) {
     }
 }
 
+async function approveAppointment(id) {
+    const json = await api('PATCH', `/api/appointments/${id}/approve`);
+    if (json.success) {
+        showToast('Randevu onaylandı', 'success');
+        closeModal('viewModal');
+        calendar.refetchEvents();
+    } else {
+        showToast(json.message, 'error');
+    }
+}
+
 async function deleteAppointment(id) {
     if (!confirm('Bu randevuyu silmek istediğinize emin misiniz?')) return;
-    const res = await fetch(`/api/appointments/${id}`, { method: 'DELETE' });
-    const json = await res.json();
+    const json = await api('DELETE', `/api/appointments/${id}`);
     showToast(json.message || 'Silindi', json.success ? 'success' : 'error');
     closeModal('viewModal');
     calendar.refetchEvents();

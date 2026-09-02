@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <title>GSCRM — Kampanyalar</title>
+    <link th:replace="~{fragments/assets :: styles}"/>
+    <style>
+        .tab-btn.active { background: var(--color-primary) !important; color: #fff !important; }
+        .campaign-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; margin-top: 16px; }
+        .coupon-card { background: var(--bg-card); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 18px; position: relative; }
+        .coupon-code { font-size: 1.3rem; font-weight: 800; letter-spacing: 0.1em; color: var(--color-primary-light); }
+        .coupon-meta { font-size: 0.82rem; color: var(--color-text-muted); margin-top: 6px; line-height: 1.7; }
+        .tier-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; background: var(--bg-card); border: 1px solid var(--border-glass); border-radius: var(--radius-sm); margin-bottom: 10px; }
+        .tier-name { font-weight: 700; }
+        .tier-meta { font-size: 0.85rem; color: var(--color-text-muted); }
+        .badge-active   { background: rgba(46,204,113,0.15); color: #2ecc71; border: 1px solid rgba(46,204,113,0.3); font-size: 0.72rem; font-weight:700; padding:2px 7px; border-radius:20px; }
+        .badge-inactive { background: rgba(231,76,60,0.12); color: #e74c3c; border: 1px solid rgba(231,76,60,0.3); font-size: 0.72rem; font-weight:700; padding:2px 7px; border-radius:20px; }
+        .modal-overlay { position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:1000;padding:16px; }
+        .modal-box { background:var(--bg-card);border:1px solid var(--border-glass);border-radius:var(--radius-lg);padding:28px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto; }
+    </style>
+</head>
+<body>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+<div class="app-layout">
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-icon">💅</div>
+            <div><h1>GSCRM</h1><span class="brand-sub">Salon CRM</span></div>
+        </div>
+        <nav th:replace="~{fragments/sidebar-nav :: nav('campaigns')}"></nav>
+    </aside>
+
+    <main class="main-content">
+        <header class="topbar">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <button class="menu-toggle" id="menuToggle" aria-label="Menüyü Aç">☰</button>
+                <span class="topbar-title">🎁 Kampanya & İndirim</span>
+            </div>
+            <div class="topbar-actions">
+                <span style="color:var(--text-secondary);font-size:0.9rem;">👤 <span sec:authentication="name">user</span></span>
+                <form method="post" th:action="@{/logout}" style="display:inline;">
+                    <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                    <button type="submit" class="btn btn-secondary btn-xs">Çıkış</button>
+                </form>
+            </div>
+        </header>
+
+        <div class="page-content">
+
+            <!-- Sekmeler -->
+            <div style="display:flex;gap:10px;margin-bottom:24px;">
+                <button class="btn tab-btn active" id="tabCoupons" onclick="switchTab('coupons')">🎟️ Kupon Kodları</button>
+                <button class="btn tab-btn" id="tabTiers" onclick="switchTab('tiers')">⭐ Sadakat Eşikleri</button>
+            </div>
+
+            <!-- Kuponlar -->
+            <div id="paneCoupons">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                    <h3 style="font-size:1.1rem;">Aktif & Pasif Kuponlar</h3>
+                    <button class="btn btn-primary" onclick="openCouponModal()">+ Yeni Kupon</button>
+                </div>
+                <div id="couponList" class="campaign-grid">
+                    <div style="color:var(--color-text-muted);font-size:0.9rem;">Yükleniyor...</div>
+                </div>
+            </div>
+
+            <!-- Sadakat Eşikleri -->
+            <div id="paneTiers" style="display:none;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                    <div>
+                        <h3 style="font-size:1.1rem;">Sadakat Eşikleri</h3>
+                        <p style="font-size:0.85rem;color:var(--color-text-muted);margin-top:4px;">Tamamlanan randevu sayısına göre otomatik indirim</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="openTierModal()">+ Yeni Eşik</button>
+                </div>
+                <div id="tierList">
+                    <div style="color:var(--color-text-muted);font-size:0.9rem;">Yükleniyor...</div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Kupon Modal -->
+<div id="couponModal" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+        <h3 style="font-size:1.1rem;margin-bottom:20px;">Yeni Kupon</h3>
+
+        <div class="form-group">
+            <label class="form-label">Kupon Kodu *</label>
+            <input type="text" class="form-input" id="cpCode" placeholder="YAZ2026" style="text-transform:uppercase;">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Açıklama</label>
+            <input type="text" class="form-input" id="cpDesc" placeholder="Yaz kampanyası indirimi">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div class="form-group">
+                <label class="form-label">İndirim Tipi *</label>
+                <select class="form-select" id="cpType">
+                    <option value="PERCENTAGE">Yüzde (%)</option>
+                    <option value="FIXED">Sabit Tutar (₺)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">İndirim Değeri *</label>
+                <input type="number" class="form-input" id="cpValue" min="0.01" step="0.01" placeholder="10">
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Min. Tamamlanan Randevu <span style="font-size:0.8rem;color:var(--color-text-muted);">(0 = herkese açık)</span></label>
+            <input type="number" class="form-input" id="cpMinAppt" min="0" value="0">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div class="form-group">
+                <label class="form-label">Geçerlilik Başlangıcı</label>
+                <input type="datetime-local" class="form-input" id="cpFrom">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Geçerlilik Bitişi</label>
+                <input type="datetime-local" class="form-input" id="cpUntil">
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Maksimum Kullanım <span style="font-size:0.8rem;color:var(--color-text-muted);">(boş = sınırsız)</span></label>
+            <input type="number" class="form-input" id="cpMaxUses" min="1" placeholder="Sınırsız">
+        </div>
+
+        <div id="cpError" style="display:none;margin-bottom:12px;padding:8px 12px;background:rgba(231,76,60,0.1);border:1px solid rgba(231,76,60,0.3);border-radius:6px;color:#e74c3c;font-size:0.85rem;"></div>
+
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px;">
+            <button class="btn" onclick="closeCouponModal()">İptal</button>
+            <button class="btn btn-primary" onclick="saveCoupon()">Kaydet</button>
+        </div>
+    </div>
+</div>
+
+<!-- Tier Modal -->
+<div id="tierModal" class="modal-overlay" style="display:none;">
+    <div class="modal-box" style="max-width:400px;">
+        <h3 style="font-size:1.1rem;margin-bottom:20px;">Yeni Sadakat Eşiği</h3>
+
+        <div class="form-group">
+            <label class="form-label">Eşik Adı *</label>
+            <input type="text" class="form-input" id="tierName" placeholder="Altın Üye">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Min. Tamamlanan Randevu *</label>
+            <input type="number" class="form-input" id="tierMin" min="1" placeholder="10">
+        </div>
+        <div class="form-group">
+            <label class="form-label">İndirim Yüzdesi (%) *</label>
+            <input type="number" class="form-input" id="tierDiscount" min="0.01" max="100" step="0.01" placeholder="10">
+        </div>
+
+        <div id="tierError" style="display:none;margin-bottom:12px;padding:8px 12px;background:rgba(231,76,60,0.1);border:1px solid rgba(231,76,60,0.3);border-radius:6px;color:#e74c3c;font-size:0.85rem;"></div>
+
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px;">
+            <button class="btn" onclick="closeTierModal()">İptal</button>
+            <button class="btn btn-primary" onclick="saveTier()">Kaydet</button>
+        </div>
+    </div>
+</div>
+
+<script th:replace="~{fragments/assets :: app-js}"></script>
+<script th:replace="~{fragments/assets :: custom-select-js}"></script>
+<script>
+function switchTab(tab) {
+    document.getElementById('paneCoupons').style.display = tab === 'coupons' ? 'block' : 'none';
+    document.getElementById('paneTiers').style.display   = tab === 'tiers'   ? 'block' : 'none';
+    document.getElementById('tabCoupons').classList.toggle('active', tab === 'coupons');
+    document.getElementById('tabTiers').classList.toggle('active', tab === 'tiers');
+    if (tab === 'tiers') loadTiers();
+}
+
+// ─── Kuponlar ───
+async function loadCoupons() {
+    const res = await api('GET', '/api/campaigns/coupons');
+    const list = res.data || [];
+    const el = document.getElementById('couponList');
+    if (!list.length) {
+        el.innerHTML = '<div style="color:var(--color-text-muted);font-size:0.9rem;">Henüz kupon yok</div>';
+        return;
+    }
+    el.innerHTML = list.map(c => {
+        const from = c.validFrom ? new Date(c.validFrom).toLocaleDateString('tr-TR') : '—';
+        const until = c.validUntil ? new Date(c.validUntil).toLocaleDateString('tr-TR') : '—';
+        const discLabel = c.discountType === 'PERCENTAGE'
+            ? '%' + parseFloat(c.discountValue).toFixed(0) + ' indirim'
+            : '₺' + parseFloat(c.discountValue).toFixed(2) + ' indirim';
+        return `
+        <div class="coupon-card">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                <div class="coupon-code">${c.code}</div>
+                <span class="${c.active ? 'badge-active' : 'badge-inactive'}">${c.active ? 'Aktif' : 'Pasif'}</span>
+            </div>
+            <div style="margin-top:4px;font-size:0.95rem;font-weight:600;color:var(--color-accent);">${discLabel}</div>
+            <div class="coupon-meta">
+                ${c.description ? c.description + '<br>' : ''}
+                Min. randevu: ${c.minAppointments || 0} •
+                Kullanım: ${c.usedCount}${c.maxUses ? '/' + c.maxUses : ''}<br>
+                Geçerlilik: ${from} – ${until}
+            </div>
+            <div style="margin-top:12px;display:flex;gap:6px;">
+                ${c.active ? `<button class="btn btn-xs btn-ghost" style="color:#e74c3c;" onclick="deactivateCoupon(${c.id})">Deaktif Et</button>` : ''}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function openCouponModal() {
+    document.getElementById('cpCode').value = '';
+    document.getElementById('cpDesc').value = '';
+    document.getElementById('cpValue').value = '';
+    document.getElementById('cpMinAppt').value = '0';
+    document.getElementById('cpFrom').value = '';
+    document.getElementById('cpUntil').value = '';
+    document.getElementById('cpMaxUses').value = '';
+    document.getElementById('cpError').style.display = 'none';
+    document.getElementById('couponModal').style.display = 'flex';
+}
+function closeCouponModal() { document.getElementById('couponModal').style.display = 'none'; }
+
+async function saveCoupon() {
+    const err = document.getElementById('cpError');
+    err.style.display = 'none';
+    const code = document.getElementById('cpCode').value.trim().toUpperCase();
+    const value = parseFloat(document.getElementById('cpValue').value);
+    if (!code || !value) { err.textContent = '⚠️ Kod ve indirim değeri zorunludur'; err.style.display = 'block'; return; }
+
+    const payload = {
+        code,
+        description: document.getElementById('cpDesc').value.trim() || null,
+        discountType: document.getElementById('cpType').value,
+        discountValue: value,
+        minAppointments: parseInt(document.getElementById('cpMinAppt').value) || 0,
+        validFrom: document.getElementById('cpFrom').value || null,
+        validUntil: document.getElementById('cpUntil').value || null,
+        maxUses: document.getElementById('cpMaxUses').value ? parseInt(document.getElementById('cpMaxUses').value) : null
+    };
+
+    const res = await api('POST', '/api/campaigns/coupons', payload);
+    if (res.success) {
+        closeCouponModal();
+        showToast('Kupon oluşturuldu', 'success');
+        loadCoupons();
+    } else {
+        err.textContent = '⚠️ ' + (res.message || 'Hata');
+        err.style.display = 'block';
+    }
+}
+
+async function deactivateCoupon(id) {
+    if (!confirm('Bu kuponu deaktif etmek istediğinizden emin misiniz?')) return;
+    const res = await api('PATCH', `/api/campaigns/coupons/${id}/deactivate`);
+    if (res.success) { showToast('Kupon deaktif edildi', 'success'); loadCoupons(); }
+    else showToast(res.message, 'error');
+}
+
+// ─── Sadakat Eşikleri ───
+async function loadTiers() {
+    const res = await api('GET', '/api/campaigns/loyalty-tiers');
+    const list = res.data || [];
+    const el = document.getElementById('tierList');
+    if (!list.length) {
+        el.innerHTML = '<div style="color:var(--color-text-muted);font-size:0.9rem;">Henüz sadakat eşiği yok</div>';
+        return;
+    }
+    el.innerHTML = list.map(t => `
+        <div class="tier-row">
+            <div>
+                <div class="tier-name">${t.name}</div>
+                <div class="tier-meta">Min. ${t.minCompleted} tamamlanan randevu</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;">
+                <span style="font-size:1.1rem;font-weight:700;color:var(--color-accent);">%${parseFloat(t.discountPercentage).toFixed(0)}</span>
+                <button class="btn btn-xs btn-ghost" style="color:#e74c3c;" onclick="deleteTier(${t.id})">Sil</button>
+            </div>
+        </div>`).join('');
+}
+
+function openTierModal() {
+    document.getElementById('tierName').value = '';
+    document.getElementById('tierMin').value = '';
+    document.getElementById('tierDiscount').value = '';
+    document.getElementById('tierError').style.display = 'none';
+    document.getElementById('tierModal').style.display = 'flex';
+}
+function closeTierModal() { document.getElementById('tierModal').style.display = 'none'; }
+
+async function saveTier() {
+    const err = document.getElementById('tierError');
+    err.style.display = 'none';
+    const name = document.getElementById('tierName').value.trim();
+    const min  = parseInt(document.getElementById('tierMin').value);
+    const disc = parseFloat(document.getElementById('tierDiscount').value);
+    if (!name || !min || !disc) { err.textContent = '⚠️ Tüm alanlar zorunludur'; err.style.display = 'block'; return; }
+
+    const res = await api('POST', '/api/campaigns/loyalty-tiers', { name, minCompleted: min, discountPercentage: disc });
+    if (res.success) {
+        closeTierModal();
+        showToast('Sadakat eşiği oluşturuldu', 'success');
+        loadTiers();
+    } else {
+        err.textContent = '⚠️ ' + (res.message || 'Hata');
+        err.style.display = 'block';
+    }
+}
+
+async function deleteTier(id) {
+    if (!confirm('Bu eşiği silmek istediğinizden emin misiniz?')) return;
+    const res = await api('DELETE', `/api/campaigns/loyalty-tiers/${id}`);
+    if (res.success) { showToast('Silindi', 'success'); loadTiers(); }
+    else showToast(res.message, 'error');
+}
+
+// Modal dışı tıklama
+document.getElementById('couponModal').addEventListener('click', e => { if (e.target === document.getElementById('couponModal')) closeCouponModal(); });
+document.getElementById('tierModal').addEventListener('click', e => { if (e.target === document.getElementById('tierModal')) closeTierModal(); });
+
+loadCoupons();
+</script>
+</body>
+</html>

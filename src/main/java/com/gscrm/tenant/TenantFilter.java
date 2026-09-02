@@ -1,0 +1,140 @@
+package com.gscrm.tenant;
+
+import com.gscrm.config.TenantProperties;
+import com.gscrm.model.Salon;
+import com.gscrm.repository.SalonRepository;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+
+@Component
+@Order(Ordered.HIGHEST_PRECEDENCE)
+@RequiredArgsConstructor
+public class TenantFilter extends OncePerRequestFilter {
+
+    private static final String SALON_SLUG_HEADER = "X-Salon-Slug";
+
+    private final SalonRepository salonRepository;
+    private final TenantProperties tenantProperties;
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        return path.startsWith("/actuator")
+                || path.startsWith("/api/platform")
+                || path.equals("/api/onboarding/register");
+    }
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
+                                    FilterChain filterChain) throws ServletException, IOException {
+        String path = request.getRequestURI();
+        if (path.startsWith("/platform")) {
+            TenantContext.setPlatformBypass(true);
+            try {
+                filterChain.doFilter(request, response);
+            } finally {
+                TenantContext.clear();
+            }
+            return;
+        }
+
+        String slug = resolveSlug(request);
+        Salon salon = salonRepository.findBySlugAndActiveTrue(slug).orElse(null);
+        if (salon == null) {
+            response.setStatus(HttpStatus.NOT_FOUND.value());
+            response.setContentType("application/json");
+            response.getWriter().write("{\"success\":false,\"message\":\"Salon bulunamadı: " + slug + "\"}");
+            return;
+        }
+
+        TenantContext.setSalonId(salon.getId());
+        TenantContext.setOrgId(salon.getOrganizationId());
+        TenantContext.setSlug(salon.getSlug());
+        TenantContext.setShowcase(salon.isShowcase());
+        if (salon.isShowcase()) {
+            response.setHeader("X-Robots-Tag", "noindex, nofollow");
+        }
+        try {
+            filterChain.doFilter(request, response);
+        } finally {
+            TenantContext.clear();
+        }
+    }
+
+    private String resolveSlug(HttpServletRequest request) {
+        String headerSlug = request.getHeader(SALON_SLUG_HEADER);
+        if (headerSlug != null && !headerSlug.isBlank()) {
+            return headerSlug.trim().toLowerCase();
+        }
+
+        String cookieSlug = readCookie(request, tenantProperties.getSalonSlugCookie());
+        if (cookieSlug != null && !cookieSlug.isBlank()) {
+            return cookieSlug.trim().toLowerCase();
+        }
+
+        String host = request.getServerName();
+        if (host == null || host.isBlank()) {
+            return "default";
+        }
+
+        host = host.toLowerCase();
+        if ("localhost".equals(host) || "127.0.0.1".equals(host)) {
+            return "default";
+        }
+
+        if (host.endsWith(".localhost")) {
+            return host.substring(0, host.length() - ".localhost".length());
+        }
+
+        String baseDomain = tenantProperties.getBaseDomain();
+        if (baseDomain != null && !baseDomain.isBlank()) {
+            String base = baseDomain.toLowerCase();
+            if (host.equals(base)) {
+                return "default";
+            }
+            String suffix = "." + base;
+            if (host.endsWith(suffix)) {
+                return host.substring(0, host.length() - suffix.length());
+            }
+        }
+
+        int dot = host.indexOf('.');
+        if (dot > 0) {
+            String label = host.substring(0, dot);
+            if (!isReservedSlug(label)) {
+                return label;
+            }
+        }
+
+        return "default";
+    }
+
+    private boolean isReservedSlug(String slug) {
+        return "www".equals(slug) || "api".equals(slug) || "gscrm".equals(slug)
+                || "platform".equals(slug) || "app".equals(slug);
+    }
+
+    private String readCookie(HttpServletRequest request, String name) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) {
+            return null;
+        }
+        for (Cookie cookie : cookies) {
+            if (name.equals(cookie.getName())) {
+                return cookie.getValue();
+            }
+        }
+        return null;
+    }
+}
