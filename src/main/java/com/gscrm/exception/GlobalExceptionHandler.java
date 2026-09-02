@@ -6,7 +6,10 @@ import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Arrays;
@@ -53,6 +56,23 @@ public class GlobalExceptionHandler {
                 .orElse("Doğrulama hatası");
         return ResponseEntity.badRequest()
                 .body(ApiResponse.error(message));
+    }
+
+    /**
+     * Hatalı istemci istekleri 400 döndürmelidir.
+     *
+     * <p>Bunlar ele alınmadığında genel {@code Exception} işleyicisine düşüyor ve
+     * istemci hatası 500 olarak raporlanıyordu: hem yanıltıcı, hem de hata
+     * kayıtlarını gerçek sunucu arızalarıyla karıştıran bir durum.
+     */
+    @ExceptionHandler({
+            MissingServletRequestParameterException.class,
+            MethodArgumentTypeMismatchException.class,
+            HttpMessageNotReadableException.class})
+    public ResponseEntity<ApiResponse<Void>> handleBadRequest(Exception ex) {
+        log.debug("Hatalı istek: {}", ex.getMessage());
+        return ResponseEntity.badRequest()
+                .body(ApiResponse.error("Geçersiz istek: gerekli parametreler eksik veya hatalı"));
     }
 
     @ExceptionHandler(AccessDeniedException.class)
