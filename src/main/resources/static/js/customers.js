@@ -54,8 +54,8 @@ function renderList(customers) {
              onclick="selectCustomer(${c.id})">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;">
                 <div>
-                    <div style="font-weight:600;font-size:0.95rem;">${c.fullName}</div>
-                    <div style="font-size:0.78rem;color:var(--text-secondary);">📞 ${c.phone || '-'}</div>
+                    <div style="font-weight:600;font-size:0.95rem;">${escapeHtml(c.fullName)}</div>
+                    <div style="font-size:0.78rem;color:var(--text-secondary);">📞 ${escapeHtml(c.phone) || '-'}</div>
                 </div>
                 <div style="text-align:right;font-size:0.75rem;color:var(--text-muted);">
                     ${c.totalAppointments} randevu<br>${balanceHtml}
@@ -81,8 +81,8 @@ function renderDetail(c) {
         <tr>
             <td style="padding:6px 10px;font-size:0.8rem;">${formatDate(a.startTime)}</td>
             <td style="padding:6px 10px;font-size:0.8rem;">${formatTime(a.startTime)}</td>
-            <td style="padding:6px 10px;font-size:0.8rem;">${a.serviceName}</td>
-            <td style="padding:6px 10px;font-size:0.8rem;">${a.staffName}</td>
+            <td style="padding:6px 10px;font-size:0.8rem;">${escapeHtml(a.serviceName)}</td>
+            <td style="padding:6px 10px;font-size:0.8rem;">${escapeHtml(a.staffName)}</td>
             <td style="padding:6px 10px;font-size:0.8rem;">${formatCurrency(a.finalPrice)}</td>
             <td style="padding:6px 10px;">${statusBadge(a.status)}</td>
         </tr>`).join('');
@@ -91,8 +91,8 @@ function renderDetail(c) {
         <tr>
             <td style="padding:6px 10px;font-size:0.8rem;">${formatDate(a.startTime)}</td>
             <td style="padding:6px 10px;font-size:0.8rem;">${formatTime(a.startTime)}</td>
-            <td style="padding:6px 10px;font-size:0.8rem;">${a.serviceName}</td>
-            <td style="padding:6px 10px;font-size:0.8rem;">${a.staffName}</td>
+            <td style="padding:6px 10px;font-size:0.8rem;">${escapeHtml(a.serviceName)}</td>
+            <td style="padding:6px 10px;font-size:0.8rem;">${escapeHtml(a.staffName)}</td>
             <td style="padding:6px 10px;">${statusBadge(a.status)}</td>
         </tr>`).join('');
 
@@ -113,7 +113,7 @@ function renderDetail(c) {
     const productSaleRows = (c.productSales || []).slice(0, 10).map(s => `
         <tr>
             <td style="padding:6px 10px;font-size:0.8rem;">${formatDate(s.soldAt.split('T')[0])}</td>
-            <td style="padding:6px 10px;font-size:0.8rem;"><strong>${s.productName}</strong></td>
+            <td style="padding:6px 10px;font-size:0.8rem;"><strong>${escapeHtml(s.productName)}</strong></td>
             <td style="padding:6px 10px;font-size:0.8rem;">${s.quantity} adet</td>
             <td style="padding:6px 10px;font-size:0.8rem;">${formatCurrency(s.unitPrice)}</td>
             <td style="padding:6px 10px;font-size:0.8rem;font-weight:600;">${formatCurrency(s.totalPrice)}</td>
@@ -125,9 +125,9 @@ function renderDetail(c) {
             <div class="glass-card" style="padding:20px;">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
                     <div>
-                        <h2 style="font-size:1.4rem;font-weight:700;margin-bottom:4px;">${c.fullName}</h2>
-                        <div style="color:var(--text-secondary);font-size:0.85rem;">📞 ${c.phone || '-'} &nbsp;|&nbsp; ✉️ ${c.email || '-'}</div>
-                        ${c.notes ? `<div style="margin-top:8px;font-size:0.82rem;color:var(--text-muted);">📝 ${c.notes}</div>` : ''}
+                        <h2 style="font-size:1.4rem;font-weight:700;margin-bottom:4px;">${escapeHtml(c.fullName)}</h2>
+                        <div style="color:var(--text-secondary);font-size:0.85rem;">📞 ${escapeHtml(c.phone) || '-'} &nbsp;|&nbsp; ✉️ ${c.email || '-'}</div>
+                        ${c.notes ? `<div style="margin-top:8px;font-size:0.82rem;color:var(--text-muted);">📝 ${escapeHtml(c.notes)}</div>` : ''}
                     </div>
                     <div style="text-align:right;">
                         <div style="font-size:0.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">${balanceLabel}</div>
@@ -242,7 +242,7 @@ async function loadCustomerActivity(customerId) {
         return;
     }
     el.innerHTML = '<ul style="margin:0;padding-left:18px;">' + rows.map(e =>
-        `<li style="margin-bottom:8px;"><strong>${e.action}</strong> — ${e.summary || ''} <span style="color:var(--text-muted);font-size:0.8rem;">(${e.createdAt ? new Date(e.createdAt).toLocaleString('tr-TR') : ''} · ${e.actorUsername || ''})</span></li>`
+        `<li style="margin-bottom:8px;"><strong>${escapeHtml(e.action)}</strong> — ${escapeHtml(e.summary || '')} <span style="color:var(--text-muted);font-size:0.8rem;">(${e.createdAt ? new Date(e.createdAt).toLocaleString('tr-TR') : ''} · ${escapeHtml(e.actorUsername || '')})</span></li>`
     ).join('') + '</ul>';
 }
 

@@ -57,7 +57,7 @@ function renderTable(expenses) {
     tbody.innerHTML = expenses.map(e => `
         <tr>
             <td>${formatDate(e.expenseDate + 'T00:00:00')}</td>
-            <td><strong>${e.description}</strong></td>
+            <td><strong>${escapeHtml(e.description)}</strong></td>
             <td><span class="badge badge-scheduled">${CAT_LABELS[e.category] || e.category}</span></td>
             <td style="font-weight:600;color:var(--color-danger);">${formatCurrency(e.amount)}</td>
             <td style="color:var(--text-muted);font-size:0.82rem;">${e.notes || '-'}</td>

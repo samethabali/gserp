@@ -242,4 +242,17 @@ async function initSubscriptionBanner() {
     main.insertBefore(banner, main.firstChild);
 }
 
+// ─── XSS koruması ───
+// innerHTML'e giden her kullanıcı kaynaklı değer buradan geçmelidir. Müşteri adı
+// gibi alanlar herkese açık randevu formundan gelir; kaçışsız gömülürse personel
+// panelinde çalışan betiğe dönüşür.
+function escapeHtml(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 console.log('%c💅 GSCRM — Güzellik Salonu CRM', 'font-size:16px;font-weight:bold;color:#9b59b6;');

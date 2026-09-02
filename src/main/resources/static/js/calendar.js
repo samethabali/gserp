@@ -393,13 +393,7 @@ function initAppointmentCustomerPicker() {
     }
 }
 
-function escapeHtml(str) {
-    return (str || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-}
+// escapeHtml artık app.js içinde ortak tanımlıdır.
 
 function formatPhoneShort(phone) {
     if (!phone) return '';

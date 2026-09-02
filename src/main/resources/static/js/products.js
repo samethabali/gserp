@@ -39,7 +39,7 @@ async function loadProducts() {
         alert.innerHTML = `
             <div style="background:rgba(243,156,18,0.12);border:1px solid rgba(243,156,18,0.3);
                         border-radius:10px;padding:12px 16px;font-size:0.85rem;">
-                ⚠️ <strong>${low.length} ürün</strong> düşük stokta: ${low.map(p => p.name).join(', ')}
+                ⚠️ <strong>${low.length} ürün</strong> düşük stokta: ${escapeHtml(low.map(p => p.name).join(', '))}
             </div>`;
     } else {
         alert.style.display = 'none';
@@ -74,7 +74,7 @@ function populateCategories() {
     const currentVal = select.value;
     const categories = [...new Set(allProducts.map(p => p.category).filter(Boolean))].sort();
     select.innerHTML = '<option value="">📁 Tüm Kategoriler</option>' +
-        categories.map(cat => `<option value="${cat.replace(/"/g, '&quot;')}">${cat}</option>`).join('');
+        categories.map(cat => `<option value="${cat.replace(/"/g, '&quot;')}">${escapeHtml(cat)}</option>`).join('');
     select.value = categories.includes(currentVal) ? currentVal : "";
     if (typeof refreshCustomSelect === 'function') refreshCustomSelect(select);
 }
@@ -122,7 +122,7 @@ function renderProducts(list) {
             : p.stockQuantity <= p.lowStockThreshold * 2 ? 'color:var(--color-warning);font-weight:600;' : '';
         return `
         <tr>
-            <td><strong>${p.name}</strong></td>
+            <td><strong>${escapeHtml(p.name)}</strong></td>
             <td style="color:var(--text-secondary);">${p.category || '-'}</td>
             <td>${formatCurrency(p.costPrice)}</td>
             <td style="font-weight:600;">${formatCurrency(p.price)}</td>
@@ -208,11 +208,11 @@ function renderSalesStats(stats) {
         </div>
         <div class="kpi-card gold">
             <div class="kpi-label">🔥 En Çok Satan</div>
-            <div class="kpi-value" style="font-size: 0.95rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${topQtyName}">${topQtyName}</div>
+            <div class="kpi-value" style="font-size: 0.95rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(topQtyName)}">${escapeHtml(topQtyName)}</div>
         </div>
         <div class="kpi-card red">
             <div class="kpi-label">💎 En Çok Kazandıran</div>
-            <div class="kpi-value" style="font-size: 0.95rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${topProfName}">${topProfName}</div>
+            <div class="kpi-value" style="font-size: 0.95rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(topProfName)}">${escapeHtml(topProfName)}</div>
         </div>
     `;
 }
@@ -280,7 +280,7 @@ function initCustomerAutocomplete() {
             dropdown.innerHTML = customers.map(c => `
                 <div class="autocomplete-item" style="padding:8px 12px; cursor:pointer; font-size:0.85rem; border-bottom:1px solid rgba(255,255,255,0.05); color:var(--text-secondary);"
                      onclick="selectCustomerForSell(${c.id}, '${c.fullName.replace(/'/g, "\\'")}', '${c.phone || ''}')">
-                    <strong>${c.fullName}</strong> ${c.phone ? `<span style="font-size:0.75rem; color:var(--text-muted);">(${c.phone})</span>` : ''}
+                    <strong>${escapeHtml(c.fullName)}</strong> ${c.phone ? `<span style="font-size:0.75rem; color:var(--text-muted);">(${escapeHtml(c.phone)})</span>` : ''}
                 </div>
             `).join('');
             dropdown.style.display = 'block';

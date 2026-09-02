@@ -57,7 +57,7 @@ async function loadKPIs() {
                 return `
                 <div class="perf-card" style="--staff-color:${s.staffColor}">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                        <div style="font-weight:600;font-size:1rem;">${s.staffName}</div>
+                        <div style="font-weight:600;font-size:1rem;">${escapeHtml(s.staffName)}</div>
                         <button class="btn btn-ghost btn-xs" onclick="toggleStaffDetail(this)" style="font-size:0.8rem;">▼ Detay</button>
                     </div>
                     <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:0.85rem;">
@@ -125,7 +125,7 @@ async function loadAppointments() {
         }
 
         list.innerHTML = appointments.map(a => {
-            const flags = (a.flags || []).map(f => `<span class="flag-badge" title="${f.flagValue}">${f.icon}</span>`).join('');
+            const flags = (a.flags || []).map(f => `<span class="flag-badge" title="${escapeHtml(f.flagValue)}">${f.icon}</span>`).join('');
 
             return `
                 <div class="appointment-item animate-fade-in">
@@ -135,8 +135,8 @@ async function loadAppointments() {
                     </div>
                     <span class="staff-dot" style="background:${a.staffColor}"></span>
                     <div class="appointment-info">
-                        <div class="customer-name">${a.customerName} ${flags}</div>
-                        <div class="service-name">${a.serviceName} • ${a.staffName} • ${formatCurrency(a.finalPrice)}</div>
+                        <div class="customer-name">${escapeHtml(a.customerName)} ${flags}</div>
+                        <div class="service-name">${escapeHtml(a.serviceName)} • ${escapeHtml(a.staffName)} • ${formatCurrency(a.finalPrice)}</div>
                     </div>
                     <div>${statusBadge(a.status)}</div>
                     <div class="appointment-actions">

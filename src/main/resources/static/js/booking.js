@@ -42,7 +42,7 @@ function applySalonBranding() {
     }
     const logoEl = document.getElementById('bookingLogo');
     if (logoEl && salonBranding.logoUrl) {
-        logoEl.innerHTML = `<img src="${salonBranding.logoUrl}" alt="" style="max-height:64px;max-width:120px;border-radius:8px;">`;
+        logoEl.innerHTML = `<img src="${encodeURI(salonBranding.logoUrl)}" alt="" style="max-height:64px;max-width:120px;border-radius:8px;">`;
     }
 }
 
@@ -73,7 +73,7 @@ async function loadServices() {
     grid.innerHTML = services.map(s => `
         <div class="service-option" onclick="selectService(${s.id},'${esc(s.name)}',${s.basePrice})" id="srv_${s.id}">
             <div style="font-size:1rem;margin-bottom:2px;">${CAT_LABELS[s.category] || '✨'}</div>
-            <div style="font-weight:600;font-size:0.9rem;">${s.name}</div>
+            <div style="font-weight:600;font-size:0.9rem;">${escapeHtml(s.name)}</div>
             <div style="color:var(--text-muted);font-size:0.78rem;margin-top:4px;">⏱ ${s.durationMinutes} dk &nbsp;|&nbsp; ${formatCurrency(s.basePrice)}</div>
         </div>`).join('');
 }
@@ -97,7 +97,7 @@ async function loadStaff() {
         <div class="staff-option" onclick="selectStaff(${s.id},'${esc(s.name)}')" id="stf_${s.id}">
             <div style="width:36px;height:36px;border-radius:50%;background:${s.colorHex};display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">👩‍💼</div>
             <div>
-                <div style="font-weight:600;font-size:0.9rem;">${s.name}</div>
+                <div style="font-weight:600;font-size:0.9rem;">${escapeHtml(s.name)}</div>
             </div>
         </div>`).join('');
 }
@@ -144,8 +144,8 @@ function selectSlot(time) {
 // ─── Adım 4: Özet ───
 function buildSummary() {
     document.getElementById('bookSummary').innerHTML = `
-        <div>💇 <strong>${state.serviceName}</strong></div>
-        <div>👩‍💼 <strong>${state.staffName}</strong></div>
+        <div>💇 <strong>${escapeHtml(state.serviceName)}</strong></div>
+        <div>👩‍💼 <strong>${escapeHtml(state.staffName)}</strong></div>
         <div>📅 <strong>${formatDate(state.date + 'T00:00:00')}</strong> saat <strong>${state.time}</strong></div>
         <div>💰 <strong>${formatCurrency(state.servicePrice)}</strong></div>`;
 }
@@ -181,8 +181,8 @@ async function submitBooking() {
 
     if (json.success) {
         document.getElementById('confirmDetails').innerHTML = `
-            <div>💇 ${state.serviceName}</div>
-            <div>👩‍💼 ${state.staffName}</div>
+            <div>💇 ${escapeHtml(state.serviceName)}</div>
+            <div>👩‍💼 ${escapeHtml(state.staffName)}</div>
             <div>📅 ${formatDate(state.date + 'T00:00:00')} — ${state.time}</div>
             <div style="margin-top:12px;padding:10px;background:rgba(241,196,15,0.15);border-radius:8px;font-size:0.85rem;">
                 ⏳ Randevu isteğiniz alındı. Salon onayından sonra kesinleşecektir.

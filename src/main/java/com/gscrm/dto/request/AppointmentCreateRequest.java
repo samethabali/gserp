@@ -2,6 +2,8 @@ package com.gscrm.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -15,9 +17,18 @@ import java.util.List;
 @AllArgsConstructor
 public class AppointmentCreateRequest {
 
+    /**
+     * Bu uç herkese açıktır ({@code POST /api/booking/request}) ve buradaki değer
+     * personel panelinde listelenir. Uzunluk ve karakter kısıtı, hem saçma verinin
+     * hem de betik enjeksiyon denemelerinin kaynakta durdurulması içindir.
+     */
     @NotBlank(message = "Müşteri adı girilmelidir")
+    @Size(max = 100, message = "Müşteri adı en fazla 100 karakter olabilir")
+    @Pattern(regexp = "[^<>{}\\\\]*", message = "Müşteri adı geçersiz karakter içeriyor")
     private String customerName;
 
+    @Size(max = 20, message = "Telefon numarası en fazla 20 karakter olabilir")
+    @Pattern(regexp = "|[0-9+()\\s-]{7,20}", message = "Geçerli bir telefon numarası girin")
     private String customerPhone;
 
     @NotNull(message = "Uzman seçilmelidir")
