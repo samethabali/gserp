@@ -48,7 +48,7 @@ public class AppointmentController {
     @PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN','RECEPTIONIST')")
     public ResponseEntity<ApiResponse<AppointmentResponse>> move(
             @PathVariable Long id,
-            @RequestBody AppointmentMoveRequest request) {
+            @Valid @RequestBody AppointmentMoveRequest request) {
         request.setAppointmentId(id);
         return ResponseEntity.ok(ApiResponse.ok("Randevu taşındı", appointmentService.move(request)));
     }

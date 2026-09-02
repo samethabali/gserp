@@ -3,6 +3,8 @@ package com.gscrm.exception;
 import com.gscrm.dto.response.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.env.Environment;
+import org.springframework.dao.ConcurrencyFailureException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -10,6 +12,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Arrays;
@@ -73,6 +76,54 @@ public class GlobalExceptionHandler {
         log.debug("Hatalı istek: {}", ex.getMessage());
         return ResponseEntity.badRequest()
                 .body(ApiResponse.error("Geçersiz istek: gerekli parametreler eksik veya hatalı"));
+    }
+
+    /**
+     * Bilinmeyen bir adrese yapılan istek 404 döndürür.
+     *
+     * <p>Ele alınmadığında genel {@code Exception} işleyicisine düşüyor ve var olmayan
+     * bir uç "sunucu hatası" gibi raporlanıyordu; hata kayıtlarını da gereksiz yere
+     * kirletiyordu.
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNotFound(NoResourceFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error("Böyle bir adres yok"));
+    }
+
+    /**
+     * Randevu çakışması veritabanı kısıtına takıldığında 409 döndürür.
+     *
+     * <p>Müsaitlik kontrolü ile kaydın yazılması arasında kilit yok; eşzamanlı iki
+     * istek kontrolü birlikte geçebiliyor. Son savunma hattı olan
+     * {@code excl_appointment_staff_overlap} kısıtı (V29) ikinciyi reddeder ve
+     * kullanıcı burada, alışılmış çakışma mesajını görür.
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDataIntegrity(DataIntegrityViolationException ex) {
+        String detail = ex.getMostSpecificCause().getMessage();
+        if (detail != null && detail.contains("excl_appointment_staff_overlap")) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.error("Bu uzman seçilen saatte müsait değil"));
+        }
+        log.warn("Veri bütünlüğü ihlali", ex);
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error("Kayıt mevcut verilerle çakışıyor"));
+    }
+
+    /**
+     * Kilit bekleme, deadlock ve optimistic locking çakışmaları 409 döndürür.
+     *
+     * <p>Bunlar sunucu arızası değil, aynı kaydı aynı anda değiştirmeye çalışan iki
+     * isteğin sonucu. Kullanıcıya teknik istisna metni yerine tekrar denemesini
+     * söyleyen bir mesaj gösterilir.
+     */
+    @ExceptionHandler(ConcurrencyFailureException.class)
+    public ResponseEntity<ApiResponse<Void>> handleConcurrency(ConcurrencyFailureException ex) {
+        log.warn("Eşzamanlılık çakışması: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error("Kayıt aynı anda başka bir işlemle değiştirildi. "
+                        + "Lütfen sayfayı yenileyip tekrar deneyin."));
     }
 
     @ExceptionHandler(AccessDeniedException.class)
