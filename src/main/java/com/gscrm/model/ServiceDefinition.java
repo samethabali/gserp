@@ -3,6 +3,7 @@ package com.gscrm.model;
 import com.gscrm.model.enums.ServiceCategory;
 import com.gscrm.tenant.TenantEntity;
 import jakarta.persistence.*;
+import org.hibernate.annotations.Filter;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -11,6 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
+@Filter(name = "tenantFilter", condition = "salon_id = :salonId")
 @Table(name = "service_definition")
 @Data
 @Builder

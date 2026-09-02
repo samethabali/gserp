@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class RetentionJob {
 
     private static final int RETENTION_DAYS = 90;

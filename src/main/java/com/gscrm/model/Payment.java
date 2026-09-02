@@ -4,12 +4,14 @@ import com.gscrm.model.enums.PaymentMethod;
 import com.gscrm.model.enums.PaymentStatus;
 import com.gscrm.tenant.TenantEntity;
 import jakarta.persistence.*;
+import org.hibernate.annotations.Filter;
 import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
+@Filter(name = "tenantFilter", condition = "salon_id = :salonId")
 @Table(name = "payment", indexes = {
         @Index(name = "idx_payment_appointment",  columnList = "appointment_id"),
         @Index(name = "idx_payment_collected_at", columnList = "collected_at"),

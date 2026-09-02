@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<entity-mappings xmlns="https://jakarta.ee/xml/ns/persistence/orm"
+                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                 xsi:schemaLocation="https://jakarta.ee/xml/ns/persistence/orm
+                                     https://jakarta.ee/xml/ns/persistence/orm/orm_3_0.xsd"
+                 version="3.0">
+
+    <!--
+      TenantEntityListener'ı tüm entity'ler için varsayılan dinleyici olarak bağlar.
+      Böylece yeni bir tenant entity'si eklendiğinde ayrıca @EntityListeners yazmak
+      gerekmez — izolasyon unutulmaya karşı dayanıklı kalır.
+    -->
+    <persistence-unit-metadata>
+        <persistence-unit-defaults>
+            <entity-listeners>
+                <entity-listener class="com.gscrm.tenant.TenantEntityListener">
+                    <pre-persist method-name="onPrePersist"/>
+                    <post-load method-name="onPostLoad"/>
+                </entity-listener>
+            </entity-listeners>
+        </persistence-unit-defaults>
+    </persistence-unit-metadata>
+
+</entity-mappings>

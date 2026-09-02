@@ -3,11 +3,13 @@ package com.gscrm.model;
 import com.gscrm.model.enums.AuditAction;
 import com.gscrm.tenant.TenantEntity;
 import jakarta.persistence.*;
+import org.hibernate.annotations.Filter;
 import lombok.*;
 
 import java.time.LocalDateTime;
 
 @Entity
+@Filter(name = "tenantFilter", condition = "salon_id = :salonId")
 @Table(name = "audit_log_entry", indexes = {
         @Index(name = "idx_audit_created_at", columnList = "created_at")
 })

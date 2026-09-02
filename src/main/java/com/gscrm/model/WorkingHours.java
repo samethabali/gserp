@@ -2,12 +2,14 @@ package com.gscrm.model;
 
 import com.gscrm.tenant.TenantEntity;
 import jakarta.persistence.*;
+import org.hibernate.annotations.Filter;
 import lombok.*;
 
 import java.time.DayOfWeek;
 import java.time.LocalTime;
 
 @Entity
+@Filter(name = "tenantFilter", condition = "salon_id = :salonId")
 @Table(name = "working_hours")
 @Data
 @Builder

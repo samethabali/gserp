@@ -17,6 +17,7 @@ import java.util.List;
  */
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class ServiceTemplateService {
 
     private final ServiceDefinitionRepository serviceDefinitionRepository;

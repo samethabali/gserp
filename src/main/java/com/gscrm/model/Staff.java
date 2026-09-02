@@ -4,6 +4,7 @@ import com.gscrm.model.enums.ServiceCategory;
 import com.gscrm.model.enums.StaffRole;
 import com.gscrm.tenant.TenantEntity;
 import jakarta.persistence.*;
+import org.hibernate.annotations.Filter;
 import lombok.*;
 
 import java.time.LocalDateTime;
@@ -11,6 +12,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 @Entity
+@Filter(name = "tenantFilter", condition = "salon_id = :salonId")
 @Table(name = "staff")
 @Data
 @Builder

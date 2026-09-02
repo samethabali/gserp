@@ -13,6 +13,7 @@ import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class SalonSettingsService {
 
     private final SalonSettingRepository repository;

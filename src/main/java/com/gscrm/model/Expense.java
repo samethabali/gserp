@@ -3,6 +3,7 @@ package com.gscrm.model;
 import com.gscrm.model.enums.ExpenseCategory;
 import com.gscrm.tenant.TenantEntity;
 import jakarta.persistence.*;
+import org.hibernate.annotations.Filter;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -10,6 +11,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
+@Filter(name = "tenantFilter", condition = "salon_id = :salonId")
 @Table(name = "expense", indexes = @Index(name = "idx_expense_date", columnList = "expense_date"))
 @Data @Builder @NoArgsConstructor @AllArgsConstructor
 public class Expense implements TenantEntity {

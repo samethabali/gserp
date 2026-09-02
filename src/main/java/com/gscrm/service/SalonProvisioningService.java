@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class SalonProvisioningService {
 
     private final OrganizationRepository organizationRepository;

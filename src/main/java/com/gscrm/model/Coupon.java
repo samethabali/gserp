@@ -3,12 +3,15 @@ package com.gscrm.model;
 import com.gscrm.model.enums.DiscountType;
 import com.gscrm.tenant.TenantEntity;
 import jakarta.persistence.*;
+import org.hibernate.annotations.Filter;
 import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
+@Filter(name = "tenantFilter",
+        condition = "(scope = 'GLOBAL' or (scope = 'ORG' and organization_id = :orgId) or salon_id = :salonId)")
 @Table(name = "coupon")
 @Data
 @Builder
@@ -66,4 +69,14 @@ public class Coupon implements TenantEntity {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    /**
+     * ORG ve GLOBAL kapsamlı kuponlar, oluşturuldukları şubeden başka şubelerde de
+     * geçerlidir; bu yüzden sahiplik kontrolünü tetiklemezler. Kapsamın gerçekten
+     * geçerli olup olmadığını {@code CampaignService.assertCouponScope} doğrular.
+     */
+    @Override
+    public boolean isCrossSalonReadable() {
+        return !"SALON".equals(scope);
+    }
 }

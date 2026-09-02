@@ -15,6 +15,7 @@ import com.gscrm.repository.SalonRepository;
 import com.gscrm.repository.ServiceDefinitionRepository;
 import com.gscrm.repository.StaffRepository;
 import com.gscrm.tenant.TenantContext;
+import com.gscrm.tenant.TenantFilterSupport;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +37,7 @@ public class DashboardService {
     private final ServiceDefinitionRepository serviceDefinitionRepository;
     private final SalonRepository salonRepository;
     private final OrganizationRepository organizationRepository;
+    private final TenantFilterSupport tenantFilterSupport;
 
     public DashboardResponse getDailySummary(LocalDate date) {
         Long salonId = TenantContext.requireSalonId();
@@ -151,7 +153,19 @@ public class DashboardService {
         return result;
     }
 
+    /**
+     * Organizasyon geneli özet — tenant filtresinden muaf tek okuma yolu.
+     *
+     * <p>Filtre mevcut şubeye kısıtlar; bu rapor ise organizasyonun tüm şubelerini
+     * gezer. Muafiyet güvenlidir çünkü {@code organizationId} çağıran tarafta
+     * (OrganizationController) kullanıcının kendi organizasyonu olarak doğrulanır
+     * ve aşağıdaki sorguların hepsi zaten salon bazında açıkça kapsamlıdır.
+     */
     public OrgSummaryResponse getOrgSummary(Long organizationId) {
+        return tenantFilterSupport.runUnfiltered(() -> buildOrgSummary(organizationId));
+    }
+
+    private OrgSummaryResponse buildOrgSummary(Long organizationId) {
         Organization org = organizationRepository.findById(organizationId)
                 .orElseThrow(() -> new IllegalArgumentException("Organizasyon bulunamadı"));
         LocalDate today = LocalDate.now();

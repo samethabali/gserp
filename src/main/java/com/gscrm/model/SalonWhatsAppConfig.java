@@ -1,17 +1,20 @@
 package com.gscrm.model;
 
+import com.gscrm.tenant.TenantEntity;
 import jakarta.persistence.*;
+import org.hibernate.annotations.Filter;
 import lombok.*;
 
 import java.time.LocalDateTime;
 
 @Entity
+@Filter(name = "tenantFilter", condition = "salon_id = :salonId")
 @Table(name = "salon_whatsapp_config")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class SalonWhatsAppConfig {
+public class SalonWhatsAppConfig implements TenantEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -2,12 +2,14 @@ package com.gscrm.model;
 
 import com.gscrm.tenant.TenantEntity;
 import jakarta.persistence.*;
+import org.hibernate.annotations.Filter;
 import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
+@Filter(name = "tenantFilter", condition = "salon_id = :salonId")
 @Table(name = "product_sale", indexes = {
         @Index(name = "idx_product_sale_sold_at", columnList = "sold_at"),
         @Index(name = "idx_product_sale_product", columnList = "product_id"),

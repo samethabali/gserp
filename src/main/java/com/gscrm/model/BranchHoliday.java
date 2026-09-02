@@ -1,17 +1,20 @@
 package com.gscrm.model;
 
+import com.gscrm.tenant.TenantEntity;
 import jakarta.persistence.*;
+import org.hibernate.annotations.Filter;
 import lombok.*;
 
 import java.time.LocalDate;
 
 @Entity
+@Filter(name = "tenantFilter", condition = "salon_id = :salonId")
 @Table(name = "branch_holiday")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class BranchHoliday {
+public class BranchHoliday implements TenantEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

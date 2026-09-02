@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class InventoryService {
 
     private final BranchStockRepository branchStockRepository;

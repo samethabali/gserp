@@ -22,6 +22,7 @@ import java.util.Map;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class AppointmentReminderService {
 
     private final AppointmentRepository appointmentRepository;

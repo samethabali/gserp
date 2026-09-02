@@ -19,6 +19,7 @@ import java.util.UUID;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class IyzicoCheckoutService {
 
     private final IyzicoProperties iyzicoProperties;

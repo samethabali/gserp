@@ -19,6 +19,7 @@ import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class InviteCodeService {
 
     private static final String ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";

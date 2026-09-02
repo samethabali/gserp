@@ -3,6 +3,7 @@ package com.gscrm.model;
 import com.gscrm.model.enums.AppointmentStatus;
 import com.gscrm.tenant.TenantEntity;
 import jakarta.persistence.*;
+import org.hibernate.annotations.Filter;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -11,6 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
+@Filter(name = "tenantFilter", condition = "salon_id = :salonId")
 @Table(name = "appointment", indexes = {
         @Index(name = "idx_appointment_staff_start", columnList = "staff_id,start_time"),
         @Index(name = "idx_appointment_start", columnList = "start_time")
