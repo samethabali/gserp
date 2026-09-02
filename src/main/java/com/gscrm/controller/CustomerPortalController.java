@@ -19,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -86,6 +87,7 @@ public class CustomerPortalController {
     }
 
     @PostMapping("/appointments/request")
+    @Transactional
     public ResponseEntity<ApiResponse<AppointmentResponse>> requestAppointment(
             @AuthenticationPrincipal AuthenticatedUser principal,
             @Valid @RequestBody AppointmentCreateRequest req) {
