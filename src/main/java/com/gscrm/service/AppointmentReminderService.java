@@ -57,6 +57,11 @@ public class AppointmentReminderService {
                     String message = String.format("📅 Yarın: %s — %s (%s)", a.getCustomerName(), serviceName, staffName);
                     notificationService.broadcastNotificationForSalon(salonId, "APPOINTMENT_REMINDER", message,
                             Map.of("appointmentId", a.getId()));
+                } catch (RuntimeException ex) {
+                    // Tek bir bozuk kayıt veya geçici bildirim hatası, kalan salonların
+                    // hatırlatmalarını engellememeli. Kayıt kimliği operasyonel takibi sağlar.
+                    log.error("Randevu hatırlatması gönderilemedi: salon={}, appointment={}",
+                            salonId, a.getId(), ex);
                 } finally {
                     TenantContext.clear();
                 }
