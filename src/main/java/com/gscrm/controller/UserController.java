@@ -35,8 +35,8 @@ public class UserController {
     public ResponseEntity<ApiResponse<Void>> resetPassword(
             @PathVariable Long id, @RequestBody Map<String, String> body) {
         String password = body.get("password");
-        if (password == null || password.length() < 6) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Parola en az 6 karakter olmalı"));
+        if (password == null || password.length() < 8 || password.length() > 72) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Parola 8-72 karakter arasında olmalı"));
         }
         userService.resetPassword(id, password);
         return ResponseEntity.ok(ApiResponse.ok("Parola sıfırlandı", null));

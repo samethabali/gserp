@@ -63,9 +63,11 @@ public class SecurityConfig {
             .csrf(csrf -> csrf
                     .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                     .ignoringRequestMatchers(
-                            new AntPathRequestMatcher("/api/auth/**"),
+                            new AntPathRequestMatcher("/api/auth/login", "POST"),
+                            new AntPathRequestMatcher("/api/auth/refresh", "POST"),
+                            new AntPathRequestMatcher("/api/auth/customer/login", "POST"),
+                            new AntPathRequestMatcher("/api/auth/customer/register", "POST"),
                             new AntPathRequestMatcher("/api/booking/**"),
-                            new AntPathRequestMatcher("/api/customer/**"),
                             new AntPathRequestMatcher("/api/onboarding/register"),
                             new AntPathRequestMatcher("/api/webhooks/**")))
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))

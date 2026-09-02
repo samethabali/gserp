@@ -3,12 +3,13 @@ package com.gscrm.security;
 import com.gscrm.dto.response.ApiResponse;
 import com.gscrm.model.User;
 import com.gscrm.repository.UserRepository;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.authentication.AccountStatusUserDetailsChecker;
@@ -43,11 +44,11 @@ public class AuthController {
             @NotBlank @Size(min = 8) String newPassword) {}
 
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<Map<String, String>>> login(@RequestBody LoginRequest req) {
+    public ResponseEntity<ApiResponse<Map<String, String>>> login(@Valid @RequestBody LoginRequest req) {
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(req.username(), req.password()));
-        } catch (BadCredentialsException e) {
+        } catch (AuthenticationException e) {
             return ResponseEntity.status(401).body(ApiResponse.error("Geçersiz kullanıcı adı veya parola"));
         }
         UserDetails user = userDetailsService.loadUserByUsername(req.username());
@@ -58,7 +59,7 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<ApiResponse<Map<String, String>>> refresh(@RequestBody RefreshRequest req) {
+    public ResponseEntity<ApiResponse<Map<String, String>>> refresh(@Valid @RequestBody RefreshRequest req) {
         try {
             String username = jwtService.extractUsername(req.refreshToken());
             UserDetails user = userDetailsService.loadUserByUsername(username);
@@ -79,7 +80,7 @@ public class AuthController {
     @Transactional
     public ResponseEntity<ApiResponse<Void>> changePassword(
             @AuthenticationPrincipal AuthenticatedUser principal,
-            @RequestBody ChangePasswordRequest req) {
+            @Valid @RequestBody ChangePasswordRequest req) {
         User user = userRepository.findById(principal.getId())
                 .orElseThrow(() -> new IllegalStateException("Kullanıcı bulunamadı"));
         if (!passwordEncoder.matches(req.currentPassword(), user.getPasswordHash())) {

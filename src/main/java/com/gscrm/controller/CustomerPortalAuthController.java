@@ -21,6 +21,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -44,7 +45,7 @@ public class CustomerPortalAuthController {
             String lastName,
             @NotBlank @Email String email,
             String phone,
-            @NotBlank @Size(min = 6) String password
+            @NotBlank @Size(min = 8, max = 72) String password
     ) {}
 
     public record CustomerLoginRequest(
@@ -53,6 +54,7 @@ public class CustomerPortalAuthController {
     ) {}
 
     @PostMapping("/register")
+    @Transactional
     public ResponseEntity<ApiResponse<Map<String, String>>> register(@Valid @RequestBody RegisterRequest req) {
         Long salonId = TenantContext.requireSalonId();
         if (customerRepository.existsBySalonIdAndEmail(salonId, req.email())) {
