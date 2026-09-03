@@ -114,19 +114,53 @@ jobs:
               exit 1
             fi
 
+            # --- APP_ENCRYPTION_KEY guvencesi ---------------------------------
+            # Prod guard bu anahtari zorunlu kilar; yoksa app acilista dusuyor.
+            # Anahtari sunucuda uretip .env'de tutuyoruz: GitHub'a hic girmiyor.
+            ENV_FILE="$INSTALL_DIR/.env"
+            if [ ! -f "$ENV_FILE" ]; then
+              echo "[x] $ENV_FILE yok — deploy yapilamaz."
+              exit 1
+            fi
+            if grep -qE '^APP_ENCRYPTION_KEY=.+' "$ENV_FILE"; then
+              echo "[i] APP_ENCRYPTION_KEY zaten tanimli."
+            else
+              echo "[!] APP_ENCRYPTION_KEY tanimsiz — sunucuda uretiliyor (deger loglanmaz)."
+              cp -a "$ENV_FILE" "$ENV_FILE.bak.$(date +%Y%m%d%H%M%S)"
+              grep -v '^APP_ENCRYPTION_KEY=' "$ENV_FILE" > "$ENV_FILE.tmp"
+              printf 'APP_ENCRYPTION_KEY=%s\n' "$(openssl rand -base64 48 | tr -d '\n')" >> "$ENV_FILE.tmp"
+              mv "$ENV_FILE.tmp" "$ENV_FILE"
+              chmod 600 "$ENV_FILE"
+              echo "[+] APP_ENCRYPTION_KEY uretildi ve .env'e eklendi."
+            fi
+
+            # docker-compose.prod.yml elle bakiliyor ve env'i secili bir liste ile
+            # gecirtiyor; ona dokunmamak icin ek env gecisleri ayri bir compose
+            # dosyasinda tutulup -f ile birlestiriliyor.
+            SECRETS_FILE="$INSTALL_DIR/docker-compose.secrets.yml"
+            {
+              printf '%s\n' "# Deploy workflow tarafindan uretildi — elle duzenlemeyin."
+              printf '%s\n' "# docker-compose.prod.yml ile birlikte -f ile yuklenir."
+              printf '%s\n' "services:"
+              printf '%s\n' "  app:"
+              printf '%s\n' "    environment:"
+              printf '%s\n' '      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY}'
+            } > "$SECRETS_FILE"
+            COMPOSE="-f $COMPOSE_FILE -f $SECRETS_FILE"
+
             # Build oncesi yer ac (yalnizca dangling imajlar).
             docker image prune -f >/dev/null 2>&1 || true
             echo "[i] build oncesi disk: $(df -h "$INSTALL_DIR" | awk 'NR==2{print $4" bos"}')"
 
             echo "[*] docker compose build + up ($COMPOSE_FILE)"
-            docker compose -f "$COMPOSE_FILE" build app
-            docker compose -f "$COMPOSE_FILE" up -d
+            docker compose $COMPOSE build app
+            docker compose $COMPOSE up -d
 
             # Konteyner adi compose dosyasindan cozulur; marka/ad degisimlerinde kirilmaz.
-            APP_CID=$(docker compose -f "$COMPOSE_FILE" ps -q app)
+            APP_CID=$(docker compose $COMPOSE ps -q app)
             if [ -z "$APP_CID" ]; then
               echo "[x] app servisi bulunamadi ($COMPOSE_FILE)"
-              docker compose -f "$COMPOSE_FILE" ps
+              docker compose $COMPOSE ps
               exit 1
             fi
 
@@ -149,7 +183,7 @@ jobs:
                 fi
               elif [ "$RUNNING" = "exited" ]; then
                 echo "[x] container cikti (exited). Loglar:"
-                docker compose -f "$COMPOSE_FILE" logs --tail 120 app
+                docker compose $COMPOSE logs --tail 120 app
                 exit 1
               fi
               sleep 5
@@ -157,7 +191,7 @@ jobs:
 
             if [ "$OK" != "1" ]; then
               echo "[x] app saglikli olmadi. Son loglar:"
-              docker compose -f "$COMPOSE_FILE" logs --tail 120 app
+              docker compose $COMPOSE logs --tail 120 app
               exit 1
             fi
             echo "[+] app saglikli"
