@@ -114,30 +114,53 @@ jobs:
               exit 1
             fi
 
-            # --- APP_ENCRYPTION_KEY guvencesi ---------------------------------
-            # Prod guard bu anahtari zorunlu kilar; yoksa app acilista dusuyor.
-            # Anahtari sunucuda uretip .env'de tutuyoruz: GitHub'a hic girmiyor.
+            # --- Zorunlu env guvencesi ----------------------------------------
             ENV_FILE="$INSTALL_DIR/.env"
             if [ ! -f "$ENV_FILE" ]; then
               echo "[x] $ENV_FILE yok — deploy yapilamaz."
               exit 1
             fi
-            if grep -qE '^APP_ENCRYPTION_KEY=.+' "$ENV_FILE"; then
-              echo "[i] APP_ENCRYPTION_KEY zaten tanimli."
-            else
-              echo "[!] APP_ENCRYPTION_KEY tanimsiz — sunucuda uretiliyor (deger loglanmaz)."
-              cp -a "$ENV_FILE" "$ENV_FILE.bak.$(date +%Y%m%d%H%M%S)"
-              grep -v '^APP_ENCRYPTION_KEY=' "$ENV_FILE" > "$ENV_FILE.tmp"
-              printf 'APP_ENCRYPTION_KEY=%s\n' "$(openssl rand -base64 48 | tr -d '\n')" >> "$ENV_FILE.tmp"
+            ENV_BACKED_UP=0
+            backup_env_once() {
+              if [ "$ENV_BACKED_UP" = "0" ]; then
+                cp -a "$ENV_FILE" "$ENV_FILE.bak.$(date +%Y%m%d%H%M%S)"
+                ENV_BACKED_UP=1
+              fi
+            }
+            # Tanimli degilse ekle; tanimliysa asla dokunma (sunucu kaynak dogrudur).
+            ensure_env() {
+              key="$1"; value="$2"; secret="${3:-0}"
+              if grep -qE "^$key=.+" "$ENV_FILE"; then
+                echo "[i] $key zaten tanimli."
+                return
+              fi
+              backup_env_once
+              grep -v "^$key=" "$ENV_FILE" > "$ENV_FILE.tmp"
+              printf '%s=%s\n' "$key" "$value" >> "$ENV_FILE.tmp"
               mv "$ENV_FILE.tmp" "$ENV_FILE"
               chmod 600 "$ENV_FILE"
-              echo "[+] APP_ENCRYPTION_KEY uretildi ve .env'e eklendi."
-            fi
+              if [ "$secret" = "1" ]; then
+                echo "[+] $key uretildi ve .env'e eklendi (deger loglanmadi)."
+              else
+                echo "[+] $key .env'e eklendi: $value"
+              fi
+            }
+
+            # Prod guard bu anahtari zorunlu kilar; yoksa app acilista dusuyor.
+            # Anahtari sunucuda uretiyoruz: GitHub'a hic girmiyor.
+            ensure_env APP_ENCRYPTION_KEY "$(openssl rand -base64 48 | tr -d '\n')" 1
+
+            # Tanimsiz kaldiginda app'in varsayilani gscrm.avesitesi.xyz'ye dusuyor;
+            # canli domain ise gserp.avesitesi.xyz. TenantFilter host'u base ile
+            # eslestiremeyip ilk etiketi ("gserp") salon slug'i saniyor ve her istek
+            # 404 donuyordu.
+            ensure_env APP_TENANT_BASE_DOMAIN "gserp.avesitesi.xyz" 0
 
             # docker-compose.prod.yml elle bakiliyor ve env'i secili bir liste ile
             # gecirtiyor; ona dokunmamak icin ek env gecisleri ayri bir compose
             # dosyasinda tutulup -f ile birlestiriliyor.
-            SECRETS_FILE="$INSTALL_DIR/docker-compose.secrets.yml"
+            EXTRA_ENV_FILE="$INSTALL_DIR/docker-compose.deploy-env.yml"
+            rm -f "$INSTALL_DIR/docker-compose.secrets.yml"   # eski ad
             {
               printf '%s\n' "# Deploy workflow tarafindan uretildi — elle duzenlemeyin."
               printf '%s\n' "# docker-compose.prod.yml ile birlikte -f ile yuklenir."
@@ -145,8 +168,9 @@ jobs:
               printf '%s\n' "  app:"
               printf '%s\n' "    environment:"
               printf '%s\n' '      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY}'
-            } > "$SECRETS_FILE"
-            COMPOSE="-f $COMPOSE_FILE -f $SECRETS_FILE"
+              printf '%s\n' '      APP_TENANT_BASE_DOMAIN: ${APP_TENANT_BASE_DOMAIN}'
+            } > "$EXTRA_ENV_FILE"
+            COMPOSE="-f $COMPOSE_FILE -f $EXTRA_ENV_FILE"
 
             # Build oncesi yer ac (yalnizca dangling imajlar).
             docker image prune -f >/dev/null 2>&1 || true
