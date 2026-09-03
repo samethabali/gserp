@@ -30,6 +30,26 @@ public class SecurityConfig {
     private static final String[] MGMT_RECEPTIONIST = {"ADMIN", "BRANCH_MANAGER", "ORG_OWNER", "PLATFORM_ADMIN", "RECEPTIONIST"};
     private static final String[] STAFF_READ = {"ADMIN", "BRANCH_MANAGER", "ORG_OWNER", "PLATFORM_ADMIN", "RECEPTIONIST", "SPECIALIST"};
 
+    /**
+     * Ortak CSP politikasi. Sablonlarda halen inline <script> bloklari ve inline olay
+     * isleyicileri bulundugu icin 'unsafe-inline' korunuyor; bunlar tasindiginda nonce'a
+     * gecilmelidir. Dis kaynaklar acikca beyaz listeye alinir:
+     *  - cdn.jsdelivr.net        : FullCalendar, Chart.js, SockJS, STOMP
+     *  - fonts.googleapis.com    : Inter font stylesheet (style.css icindeki @import)
+     *  - fonts.gstatic.com       : yukaridaki stylesheet'in cektigi font dosyalari
+     *  - cloudflareinsights.com  : Cloudflare proxy'sinin enjekte ettigi analytics beacon
+     */
+    private static final String CONTENT_SECURITY_POLICY =
+            "default-src 'self'; "
+            + "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://static.cloudflareinsights.com; "
+            + "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; "
+            + "img-src 'self' data: https:; "
+            + "font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net; "
+            + "connect-src 'self' https://cloudflareinsights.com; "
+            + "frame-ancestors 'none'; "
+            + "base-uri 'self'; "
+            + "form-action 'self'";
+
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final TenantAccessFilter tenantAccessFilter;
     private final ShowcaseAccessFilter showcaseAccessFilter;
@@ -110,20 +130,7 @@ public class SecurityConfig {
                             .maxAgeInSeconds(31536000))
                     .permissionsPolicyHeader(pp -> pp.policy(
                             "camera=(), microphone=(), geolocation=(), payment=()"))
-                    // CSP once RAPOR MODUNDA: sablonlarda 16 inline <script> blogu ve
-                    // 112 inline olay isleyicisi var; zorunlu kilmak uygulamayi kirar.
-                    // Ihlaller olculup inline isleyiciler tasindiktan sonra
-                    // contentSecurityPolicy(...) ile zorunlu hale getirilmelidir.
-                    .contentSecurityPolicy(csp -> csp.policyDirectives(
-                            "default-src 'self'; "
-                            + "script-src 'self' 'unsafe-inline'; "
-                            + "style-src 'self' 'unsafe-inline'; "
-                            + "img-src 'self' data: https:; "
-                            + "font-src 'self' data:; "
-                            + "connect-src 'self'; "
-                            + "frame-ancestors 'none'; "
-                            + "base-uri 'self'; "
-                            + "form-action 'self'"))
+                    .contentSecurityPolicy(csp -> csp.policyDirectives(CONTENT_SECURITY_POLICY))
                     .frameOptions(frame -> frame.deny()))
             .exceptionHandling(ex -> ex
                     .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
@@ -167,20 +174,7 @@ public class SecurityConfig {
                             .maxAgeInSeconds(31536000))
                     .permissionsPolicyHeader(pp -> pp.policy(
                             "camera=(), microphone=(), geolocation=(), payment=()"))
-                    // CSP once RAPOR MODUNDA: sablonlarda 16 inline <script> blogu ve
-                    // 112 inline olay isleyicisi var; zorunlu kilmak uygulamayi kirar.
-                    // Ihlaller olculup inline isleyiciler tasindiktan sonra
-                    // contentSecurityPolicy(...) ile zorunlu hale getirilmelidir.
-                    .contentSecurityPolicy(csp -> csp.policyDirectives(
-                            "default-src 'self'; "
-                            + "script-src 'self' 'unsafe-inline'; "
-                            + "style-src 'self' 'unsafe-inline'; "
-                            + "img-src 'self' data: https:; "
-                            + "font-src 'self' data:; "
-                            + "connect-src 'self'; "
-                            + "frame-ancestors 'none'; "
-                            + "base-uri 'self'; "
-                            + "form-action 'self'"))
+                    .contentSecurityPolicy(csp -> csp.policyDirectives(CONTENT_SECURITY_POLICY))
                     .frameOptions(frame -> frame.deny()))
             .formLogin(form -> form
                     .loginPage("/login")
