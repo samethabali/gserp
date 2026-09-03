@@ -9,8 +9,10 @@
 #   VDS_SSH_KEY      Bu kullanıcının PRIVATE SSH anahtarı (tüm içerik)
 #   VDS_SSH_PORT     (opsiyonel) SSH portu — tanımsızsa 22
 #
-# Not: VPS dizini henüz /home/gserp/gserp olabilir; domain/dizin kesimi ayrı onay.
-# Bu workflow ilk kurulumu YAPMAZ; sadece mevcut stack'i günceller.
+# Not: VPS dizini /home/gserp/gserp. Bu workflow ilk kurulumu YAPMAZ; mevcut stack'i
+# günceller. Kurulum dizini yalnızca gserp kullanıcısına açık olduğu için sunucunun
+# durumunu görmenin tek yolu bu workflow'dur: elle tetiklerken "sadece_teshis" ile
+# hiçbir değişiklik yapmadan durum raporu alınabilir.
 
 name: Deploy to VPS
 
@@ -19,7 +21,12 @@ on:
     workflows: [CI]
     types: [completed]
     branches: [production-ready]
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      sadece_teshis:
+        description: "Sadece teşhis: durumu raporla, deploy yapma"
+        type: boolean
+        default: false
 
 concurrency:
   group: vps-deploy
@@ -32,12 +39,16 @@ jobs:
     steps:
       - name: SSH ile VPS'e deploy
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          DIAG_ONLY: ${{ inputs.sadece_teshis && '1' || '0' }}
+          REPO_URL: https://github.com/${{ github.repository }}.git
         with:
           host: ${{ secrets.VDS_HOST }}
           username: ${{ secrets.VDS_USER }}
           key: ${{ secrets.VDS_SSH_KEY }}
           port: ${{ secrets.VDS_SSH_PORT || 22 }}
-          command_timeout: 15m
+          command_timeout: 25m
+          envs: DIAG_ONLY,REPO_URL
           script: |
             set -euo pipefail
 
@@ -47,45 +58,111 @@ jobs:
             # Bu dosya VPS'e özgüdür (repo'da takip edilmez), silme.
             COMPOSE_FILE="$INSTALL_DIR/docker-compose.prod.yml"
 
+            # git'in kimlik sorması, etkileşimsiz oturumda "could not read Username"
+            # hatasıyla deploy'u kilitliyordu. Sorma, hemen hata ver.
+            export GIT_TERMINAL_PROMPT=0
+            export GIT_ASKPASS=/bin/true
+
             cd "$INSTALL_DIR"
 
-            echo "[*] Mevcut: $(git rev-parse --short HEAD)"
-            git fetch --all --tags --prune
+            echo "===== TESHIS ====="
+            echo "[i] dizin   : $INSTALL_DIR"
+            echo "[i] HEAD    : $(git rev-parse --short HEAD 2>&1 || echo '?')"
+            echo "[i] branch  : $(git rev-parse --abbrev-ref HEAD 2>&1 || echo '?')"
+            echo "[i] remote  : $(git remote get-url origin 2>&1 || echo 'yok')"
+            echo "[i] compose : $([ -f "$COMPOSE_FILE" ] && echo VAR || echo 'YOK -> deploy yapilamaz')"
+            echo "[i] .env    : $([ -f "$INSTALL_DIR/.env" ] && echo VAR || echo YOK)"
+            if [ -f "$INSTALL_DIR/.env" ]; then
+              # Degerleri ASLA yazdirma; sadece hangi anahtarlarin tanimli oldugunu goster.
+              echo "[i] .env anahtarlari: $(grep -oE '^[A-Z0-9_]+' "$INSTALL_DIR/.env" | sort | tr '\n' ' ')"
+            fi
+            echo "[i] calisan container:"
+            docker ps --filter name=gserp --format '    {{.Names}}  {{.Status}}  {{.Ports}}' || true
+            echo "[i] gserp imajlari:"
+            docker images --format '    {{.Repository}}:{{.Tag}}  {{.Size}}' | grep -iE 'gserp|gscrm' || echo "    yok"
+            echo "[i] disk    : $(df -h "$INSTALL_DIR" | awk 'NR==2{print $4" bos / "$2" ("$5" dolu)"}')"
+            echo "[i] kirli dosyalar:"
+            git status --porcelain | head -20 || true
+            echo "=================="
+
+            if [ "${DIAG_ONLY:-0}" = "1" ]; then
+              echo "[=] sadece_teshis modu — hicbir degisiklik yapilmadi."
+              exit 0
+            fi
+
+            # Repo public; remote'u her deployda dogru URL'e sabitle ki kimlik
+            # dogrulama isteyen eski/yanlis bir URL deploy'u bir daha kilitlemesin.
+            CUR_URL=$(git remote get-url origin 2>/dev/null || echo "")
+            if [ "$CUR_URL" != "$REPO_URL" ]; then
+              echo "[!] remote duzeltiliyor: '$CUR_URL' -> '$REPO_URL'"
+              git remote set-url origin "$REPO_URL"
+            fi
+
+            echo "[*] fetch + checkout $BRANCH"
+            git fetch origin --tags --prune
             git checkout "$BRANCH"
-            git pull --ff-only
-            echo "[+] Güncel: $(git rev-parse --short HEAD)"
+            if ! git merge --ff-only "origin/$BRANCH"; then
+              echo "[x] ff-only guncelleme basarisiz — sunucudaki kopya ayrismis."
+              echo "    Yerel commitler:"
+              git log --oneline "origin/$BRANCH..HEAD" | head -20
+              exit 1
+            fi
+            echo "[+] Guncel: $(git rev-parse --short HEAD)"
+
+            if [ ! -f "$COMPOSE_FILE" ]; then
+              echo "[x] $COMPOSE_FILE yok — bu workflow ilk kurulumu yapmaz."
+              exit 1
+            fi
+
+            # Build oncesi yer ac (yalnizca dangling imajlar).
+            docker image prune -f >/dev/null 2>&1 || true
+            echo "[i] build oncesi disk: $(df -h "$INSTALL_DIR" | awk 'NR==2{print $4" bos"}')"
 
             echo "[*] docker compose build + up ($COMPOSE_FILE)"
             docker compose -f "$COMPOSE_FILE" build app
             docker compose -f "$COMPOSE_FILE" up -d
 
-            # Konteyner adı compose dosyasından çözülür; marka/ad değişimlerinde kırılmaz.
+            # Konteyner adi compose dosyasindan cozulur; marka/ad degisimlerinde kirilmaz.
             APP_CID=$(docker compose -f "$COMPOSE_FILE" ps -q app)
             if [ -z "$APP_CID" ]; then
-              echo "[x] app servisi bulunamadı ($COMPOSE_FILE)"
+              echo "[x] app servisi bulunamadi ($COMPOSE_FILE)"
               docker compose -f "$COMPOSE_FILE" ps
               exit 1
             fi
 
-            echo "[*] App healthy bekleniyor (max 120s) — cid=${APP_CID:0:12}"
-            DEADLINE=$(( $(date +%s) + 120 ))
-            STATUS=missing
+            # Compose'da healthcheck tanimli degilse .State.Health bos kaliyor ve
+            # bekleme dongusu bosuna doluyordu; o durumda HTTP ucundan dogrula.
+            HAS_HEALTH=$(docker inspect --format='{{if .State.Health}}yes{{else}}no{{end}}' "$APP_CID")
+            APP_PORT=$(docker inspect --format='{{range $p, $c := .NetworkSettings.Ports}}{{range $c}}{{.HostPort}} {{end}}{{end}}' "$APP_CID" | awk '{print $1}')
+            APP_PORT=${APP_PORT:-8989}
+            echo "[*] App ayaga kalkmasi bekleniyor (max 240s) — cid=${APP_CID:0:12}, health=$HAS_HEALTH, port=$APP_PORT"
+
+            DEADLINE=$(( $(date +%s) + 240 ))
+            OK=0
             while [ "$(date +%s)" -lt "$DEADLINE" ]; do
-              STATUS=$(docker inspect --format='{{.State.Health.Status}}' "$APP_CID" 2>/dev/null || echo missing)
-              if [ "$STATUS" = "healthy" ]; then
-                echo "[+] app healthy"
-                break
+              RUNNING=$(docker inspect --format='{{.State.Status}}' "$APP_CID" 2>/dev/null || echo missing)
+              if [ "$RUNNING" = "running" ]; then
+                if [ "$HAS_HEALTH" = "yes" ]; then
+                  if [ "$(docker inspect --format='{{.State.Health.Status}}' "$APP_CID")" = "healthy" ]; then OK=1; break; fi
+                else
+                  if curl -fsS --max-time 5 "http://127.0.0.1:${APP_PORT}/actuator/health" >/dev/null 2>&1; then OK=1; break; fi
+                fi
+              elif [ "$RUNNING" = "exited" ]; then
+                echo "[x] container cikti (exited). Loglar:"
+                docker compose -f "$COMPOSE_FILE" logs --tail 120 app
+                exit 1
               fi
               sleep 5
             done
 
-            if [ "$STATUS" != "healthy" ]; then
-              echo "[x] app healthy olmadı (durum: $STATUS). Son loglar:"
-              docker compose -f "$COMPOSE_FILE" logs --tail 80 app
+            if [ "$OK" != "1" ]; then
+              echo "[x] app saglikli olmadi. Son loglar:"
+              docker compose -f "$COMPOSE_FILE" logs --tail 120 app
               exit 1
             fi
+            echo "[+] app saglikli"
 
-            # Eski/dangling imajları temizle (disk şişmesin)
+            # Eski/dangling imajlari temizle (disk sismesin)
             docker image prune -f >/dev/null 2>&1 || true
 
             echo "[+] Deploy tamam: $(git rev-parse --short HEAD)"
