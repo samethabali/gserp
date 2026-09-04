@@ -96,12 +96,7 @@
                 <label class="form-label" for="salonName">Salon adı</label>
                 <input type="text" class="form-input" id="salonName" placeholder="Örn. Aves Kadıköy" required>
             </div>
-            <div class="form-group">
-                <label class="form-label" for="salonSlug">İşletme adresi</label>
-                <input type="text" class="form-input" id="salonSlug" placeholder="aves-kadikoy" required
-                       autocomplete="off" pattern="[a-z0-9][a-z0-9-]{1,62}">
-                <span class="field-hint">Randevu sayfanız: <strong id="slugPreview">salonunuz</strong></span>
-            </div>
+
             <div class="form-group">
                 <label class="form-label" for="contactEmail">İletişim e-postası <span style="color:var(--text-muted);font-weight:400;">(opsiyonel)</span></label>
                 <input type="email" class="form-input" id="contactEmail" placeholder="iletisim@salonunuz.com" autocomplete="email">
@@ -149,11 +144,7 @@ const successBox = document.getElementById('successBox');
 const submitBtn = document.getElementById('submitBtn');
 const inviteInput = document.getElementById('inviteCode');
 const salonNameInput = document.getElementById('salonName');
-const slugInput = document.getElementById('salonSlug');
-const slugPreview = document.getElementById('slugPreview');
 const passInput = document.getElementById('adminPass');
-
-let slugTouched = false;
 
 // ─── Slug türetme (Türkçe karakter destekli) ───
 const TR_MAP = { 'ç': 'c', 'ğ': 'g', 'ı': 'i', 'ö': 'o', 'ş': 's', 'ü': 'u', 'İ': 'i' };
@@ -167,23 +158,6 @@ function slugify(value) {
         .replace(/^-+/, '')
         .slice(0, 63);
 }
-
-function renderSlugPreview() {
-    const slug = slugInput.value.replace(/-+$/, '') || 'salonunuz';
-    slugPreview.textContent = bookingUrl(slug);
-}
-
-salonNameInput.addEventListener('input', () => {
-    if (slugTouched) return;
-    slugInput.value = slugify(salonNameInput.value);
-    renderSlugPreview();
-});
-
-slugInput.addEventListener('input', () => {
-    slugTouched = slugInput.value.trim() !== '';
-    slugInput.value = slugify(slugInput.value);
-    renderSlugPreview();
-});
 
 // ─── Davet kodu maskesi: GSCRM-XXXX-XXXX ───
 inviteInput.addEventListener('input', () => {
@@ -209,7 +183,6 @@ if (params.get('code')) {
     inviteInput.value = params.get('code').toUpperCase();
     document.getElementById('orgName').focus();
 }
-renderSlugPreview();
 
 // ─── Doğrulama ───
 function validate(body) {
@@ -222,7 +195,7 @@ function validate(body) {
     if (!body.organizationName) return 'Organizasyon adı gerekli.';
     if (!body.salonName) return 'Salon adı gerekli.';
     if (!/^[a-z0-9][a-z0-9-]{1,62}$/.test(body.salonSlug)) {
-        return 'İşletme adresi en az 2 karakter olmalı; sadece küçük harf, rakam ve tire içerebilir.';
+        return 'Salon adınızdan geçersiz bir işletme adresi oluştu.';
     }
     if (body.adminUsername.length < 3) return 'Kullanıcı adı en az 3 karakter olmalı.';
     if (body.adminPassword.length < 8) return 'Şifre en az 8 karakter olmalı.';
@@ -243,7 +216,7 @@ form.addEventListener('submit', async (e) => {
         inviteCode: inviteInput.value.trim(),
         organizationName: document.getElementById('orgName').value.trim(),
         salonName: salonNameInput.value.trim(),
-        salonSlug: slugInput.value.trim().toLowerCase().replace(/-+$/, ''),
+        salonSlug: slugify(salonNameInput.value.trim()),
         contactEmail: document.getElementById('contactEmail').value.trim(),
         adminUsername: document.getElementById('adminUser').value.trim(),
         adminPassword: passInput.value
