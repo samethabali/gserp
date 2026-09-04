@@ -1,6 +1,8 @@
 package com.gscrm.dto.request;
 
 import com.gscrm.model.enums.OrganizationType;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -36,4 +38,15 @@ public class TenantProvisionRequest {
     private String inviteCode;
 
     private boolean showcase;
+
+    /**
+     * Ücretsiz kullanım süresi (gün).
+     *
+     * <p>Davetle kayıtta kodun {@code trialDays} değerinden doldurulur; elle
+     * provision'da boş bırakılırsa {@code app.default-trial-days} geçerlidir.
+     * Süre daha önce servis içinde 14 güne sabitlenmişti.
+     */
+    @Min(1)
+    @Max(365)
+    private Integer trialDays;
 }

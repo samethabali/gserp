@@ -53,4 +53,8 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
               OR (c.email IS NOT NULL AND LOWER(c.email) LIKE LOWER(CONCAT('%', :query, '%'))))
            """)
     List<Customer> searchBySalonIdAndQuery(@Param("salonId") Long salonId, @Param("query") String query);
+
+    /** Platform panelindeki kiracı listesi için salon başına müşteri sayısı (tek sorgu). */
+    @Query("SELECT c.salonId, COUNT(c) FROM Customer c WHERE c.salonId IN :salonIds GROUP BY c.salonId")
+    java.util.List<Object[]> countGroupedBySalonIds(@Param("salonIds") java.util.Collection<Long> salonIds);
 }

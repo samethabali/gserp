@@ -39,7 +39,7 @@ Diğer demo kullanıcıları (aynı parola `admin`):
 | `mgr-kadikoy` | Şube yöneticisi | `belleza-kadikoy` |
 | `mgr-besiktas` | Şube yöneticisi | `belleza-besiktas` |
 
-> Pilot senaryolar dev profilinde `PilotScenarioSeeder` ile yüklenir. Lokalde tenant header: `X-Salon-Slug: <slug>` veya subdomain.
+> Pilot senaryolar dev profilinde `PilotScenarioSeeder` ile yüklenir. Lokalde tenant: giriş sonrası oturum, public randevu için `/b/<slug>` ya da `X-Salon-Slug: <slug>` başlığı.
 
 ## URL’ler
 
@@ -107,7 +107,7 @@ Canlı ortam:
 | Sayfa | URL |
 |-------|-----|
 | Giriş | https://gscrm.avesitesi.xyz/login |
-| Demo salon (subdomain) | https://default.gscrm.avesitesi.xyz/login |
+| Demo salon (randevu sayfası) | https://gscrm.avesitesi.xyz/b/default |
 | Public booking | https://default.gscrm.avesitesi.xyz/booking |
 
 Deploy: `production-ready` push sonrası GitHub Actions **Deploy to VPS** veya [deploy-vps.md](deploy-vps.md).

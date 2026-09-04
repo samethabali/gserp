@@ -3,6 +3,7 @@ package com.gscrm.service;
 import com.gscrm.model.*;
 import com.gscrm.repository.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -146,13 +148,25 @@ public class SubscriptionService {
         return YearMonth.now().format(DateTimeFormatter.ofPattern("yyyy-MM"));
     }
 
+    /**
+     * Organizasyon yazma yapabilir mi?
+     *
+     * <p>Abonelik satırı yoksa yanıt <b>hayır</b>. Önceki {@code orElse(true)}
+     * fail-open davranışıyla, satırı silinmiş ya da hiç oluşturulmamış bir
+     * organizasyon süresiz ücretsiz kullanıma açık kalıyordu — üstelik sessizce.
+     * Eksik satır bir yapılandırma hatasıdır; görülebilmesi için loglanır.
+     */
     public boolean isWriteAllowed(Long organizationId) {
         if (organizationId == null) {
             return true;
         }
         return subscriptionRepository.findByOrganizationId(organizationId)
                 .map(this::isSubscriptionWritable)
-                .orElse(true);
+                .orElseGet(() -> {
+                    log.error("Organizasyon #{} için abonelik kaydı yok; yazma işlemleri kapatıldı.",
+                            organizationId);
+                    return false;
+                });
     }
 
     public Map<String, Object> getSubscriptionStatus(Long organizationId) {

@@ -3,11 +3,26 @@ package com.gscrm.repository;
 import com.gscrm.model.Salon;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 public interface SalonRepository extends JpaRepository<Salon, Long> {
 
     Optional<Salon> findBySlugAndActiveTrue(String slug);
 
-    java.util.List<Salon> findByOrganizationIdAndActiveTrue(Long organizationId);
+    List<Salon> findByOrganizationIdAndActiveTrue(Long organizationId);
+
+    /**
+     * Slug çakışma kontrolü aktiflikten bağımsız olmalı.
+     *
+     * <p>Kontrol {@code findBySlugAndActiveTrue} ile yapılırken askıya alınmış bir
+     * salonun slug'ı uygulama kontrolünü geçiyor, ardından DB unique kısıtında
+     * patlıyordu: kullanıcı "bu slug kullanılıyor" yerine 500 alıyordu.
+     */
+    boolean existsBySlug(String slug);
+
+    List<Salon> findByOrganizationId(Long organizationId);
+
+    List<Salon> findByOrganizationIdIn(Collection<Long> organizationIds);
 }

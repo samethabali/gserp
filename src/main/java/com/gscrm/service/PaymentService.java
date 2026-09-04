@@ -12,6 +12,7 @@ import com.gscrm.repository.AppointmentRepository;
 import com.gscrm.repository.CustomerRepository;
 import com.gscrm.repository.PaymentRepository;
 import com.gscrm.tenant.TenantContext;
+import com.gscrm.util.FieldDiff;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -60,7 +61,13 @@ public class PaymentService {
             updateCustomerBalance(appt.getCustomerPhone(), appt.getFinalPrice(), req.getAmount(), req.getStatus());
         }
         activityEventService.recordForCustomerPhone("PAYMENT", "PAYMENT", saved.getId(),
-                appt.getCustomerPhone(), "Tahsilat: " + saved.getAmount());
+                appt.getCustomerPhone(), "Tahsilat: " + saved.getAmount(),
+                FieldDiff.create()
+                        .compare("tutar", null, saved.getAmount())
+                        .compare("yontem", null, saved.getMethod() != null ? saved.getMethod().name() : null)
+                        .compare("durum", null, saved.getStatus() != null ? saved.getStatus().name() : null)
+                        .compare("not", null, saved.getDeferredNote())
+                        .toJson());
 
         return toResponse(saved);
     }

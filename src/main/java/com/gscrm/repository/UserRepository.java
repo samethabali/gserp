@@ -46,4 +46,30 @@ public interface UserRepository extends JpaRepository<User, Long> {
             + "and u.role not in :excludedRoles")
     long countSeatUsersByOrganization(@Param("orgId") Long organizationId,
                                       @Param("excludedRoles") List<UserRole> excludedRoles);
+
+    /**
+     * Platform panelindeki kiracı listesi için salon başına kullanıcı sayısı.
+     *
+     * <p>Tek sorgu: liste her satır için ayrı sayım yapsaydı kiracı sayısı kadar
+     * sorgu çalışırdı.
+     */
+    @Query("SELECT u.salonId, COUNT(u) FROM User u WHERE u.salonId IN :salonIds GROUP BY u.salonId")
+    java.util.List<Object[]> countGroupedBySalonIds(@Param("salonIds") java.util.Collection<Long> salonIds);
+
+    /**
+     * Salon başına, "hesabına gir" için hedeflenecek yönetici kullanıcı.
+     *
+     * <p>Panel bunu bilmeden impersonation yapamıyordu; kullanıcı id'sini elle
+     * sormak yerine en düşük id'li yönetici seçilir.
+     */
+    @Query("""
+            SELECT u.salonId, MIN(u.id) FROM User u
+            WHERE u.salonId IN :salonIds
+              AND u.role IN (com.gscrm.model.enums.UserRole.ADMIN,
+                             com.gscrm.model.enums.UserRole.BRANCH_MANAGER,
+                             com.gscrm.model.enums.UserRole.ORG_OWNER)
+              AND u.enabled = true
+            GROUP BY u.salonId
+            """)
+    java.util.List<Object[]> findAdminUserIdsBySalonIds(@Param("salonIds") java.util.Collection<Long> salonIds);
 }

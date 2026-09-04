@@ -48,4 +48,24 @@ public class ImpersonationService {
 
         return "/";
     }
+
+    /**
+     * Açık impersonation kaydını kapatır.
+     *
+     * <p>{@code ended_at} hiçbir zaman yazılmıyordu: kütükte her oturum süresiz
+     * açık görünüyor, "platform admin bu hesapta ne kadar kaldı" sorusu
+     * yanıtsız kalıyordu. Çıkışta çağrılır.
+     */
+    @Transactional
+    public void endImpersonation(Long platformUserId) {
+        if (platformUserId == null) {
+            return;
+        }
+        impersonationLogRepository
+                .findFirstByPlatformUserIdAndEndedAtIsNullOrderByStartedAtDesc(platformUserId)
+                .ifPresent(log -> {
+                    log.setEndedAt(LocalDateTime.now());
+                    impersonationLogRepository.save(log);
+                });
+    }
 }

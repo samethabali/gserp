@@ -35,13 +35,55 @@
             </div>
         </header>
         <div class="page-content">
-            <div class="glass-card" style="padding:0;overflow:hidden;">
+            <div class="glass-card" style="padding:16px;margin-bottom:16px;">
+                <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;">
+                    <div>
+                        <label class="form-label" for="fltFrom">Başlangıç</label>
+                        <input type="date" id="fltFrom" class="form-input" style="min-width:150px;">
+                    </div>
+                    <div>
+                        <label class="form-label" for="fltTo">Bitiş</label>
+                        <input type="date" id="fltTo" class="form-input" style="min-width:150px;">
+                    </div>
+                    <div>
+                        <label class="form-label" for="fltAction">İşlem türü</label>
+                        <select id="fltAction" class="form-input" style="min-width:180px;">
+                            <option value="">Tümü</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label" for="fltUser">Kullanıcı</label>
+                        <input type="text" id="fltUser" class="form-input" placeholder="kullanıcı adı" style="min-width:150px;">
+                    </div>
+                    <div style="flex:1;min-width:180px;">
+                        <label class="form-label" for="fltQuery">Ara</label>
+                        <input type="text" id="fltQuery" class="form-input" placeholder="özet içinde ara">
+                    </div>
+                    <button class="btn btn-primary" onclick="applyFilters()">Filtrele</button>
+                    <button class="btn btn-secondary" onclick="resetFilters()">Temizle</button>
+                    <button class="btn btn-secondary" onclick="exportCsv()">⬇️ CSV</button>
+                </div>
+            </div>
+
+            <div class="glass-card" style="padding:0;overflow:auto;">
                 <table class="data-table">
                     <thead>
-                        <tr><th>Zaman</th><th>İşlem</th><th>Tür</th><th>Özet</th><th>Kullanıcı</th></tr>
+                        <tr>
+                            <th>Zaman</th><th>İşlem</th><th>Sonuç</th><th>Tür</th>
+                            <th>Özet</th><th>Değişiklik</th><th>Kullanıcı</th><th>IP</th>
+                        </tr>
                     </thead>
                     <tbody id="auditTableBody"></tbody>
                 </table>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:14px;">
+                <span id="auditSummary" style="color:var(--color-text-muted);font-size:0.85rem;"></span>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <button class="btn btn-secondary btn-xs" id="prevPage" onclick="gotoPage(state.page - 1)">← Önceki</button>
+                    <span id="pageLabel" style="font-size:0.85rem;"></span>
+                    <button class="btn btn-secondary btn-xs" id="nextPage" onclick="gotoPage(state.page + 1)">Sonraki →</button>
+                </div>
             </div>
         </div>
     </main>
@@ -49,23 +91,145 @@
 <script th:replace="~{fragments/assets :: app-js}"></script>
 <script th:replace="~{fragments/assets :: custom-select-js}"></script>
 <script>
-    const actionLabels = { CREATE: '🟢 Oluşturma', UPDATE: '🟡 Güncelleme', DELETE: '🔴 Silme', STATUS_CHANGE: '🔵 Durum Değişikliği' };
+    // Etiket haritası ActivityEvent.action değerlerini karşılar. Eskiden AuditAction
+    // sabitlerini bekliyordu; veri ActivityEvent olduğu için satırların çoğu ham
+    // "POST" / "PUT" görünüyordu.
+    const actionLabels = {
+        CREATE: '🟢 Oluşturma', UPDATE: '🟡 Güncelleme', DELETE: '🔴 Silme',
+        STATUS_CHANGE: '🔵 Durum değişikliği', BOOKING: '📅 Online randevu',
+        PAYMENT: '💳 Tahsilat', VIEW: '👁️ Görüntüleme', EXPORT: '📤 Dışa aktarma',
+        SETTING_CHANGE: '⚙️ Ayar değişikliği',
+        LOGIN_SUCCESS: '🔑 Giriş', LOGIN_FAILED: '⛔ Başarısız giriş',
+        LOGOUT: '🚪 Çıkış', PASSWORD_CHANGE: '🔒 Parola değişimi',
+        PASSWORD_RESET: '🔒 Parola sıfırlama', TOKEN_REFRESH: '♻️ Anahtar yenileme',
+        ACTIVATE: '✅ Aktifleştirme', DEACTIVATE: '⏸️ Devre dışı',
+        SUSPEND: '⏸️ Askıya alma', REVOKE: '🚫 İptal',
+        IMPERSONATE_START: '🎭 Hesabına giriş',
+        GET: 'Görüntüleme', POST: 'Oluşturma', PUT: 'Güncelleme', PATCH: 'Güncelleme'
+    };
 
-    async function loadAudit() {
-        const res = await fetch('/api/audit?limit=100');
-        const json = await res.json();
-        const logs = (json.data || []).reverse();
-        document.getElementById('auditTableBody').innerHTML = logs.map(l => `
-            <tr>
-                <td style="font-variant-numeric:tabular-nums;font-size:0.8rem;">${l.createdAt ? new Date(l.createdAt).toLocaleString('tr-TR') : '-'}</td>
-                <td>${actionLabels[l.action] || l.action}</td>
-                <td><span class="badge badge-scheduled">${l.entityType}</span></td>
-                <td style="max-width:320px;">${l.summary || '—'}</td>
-                <td>${l.actorUsername || '—'}</td>
-            </tr>
-        `).join('');
+    const outcomeLabels = {
+        SUCCESS: '<span class="badge badge-completed">Başarılı</span>',
+        DENIED: '<span class="badge badge-cancelled">Reddedildi</span>',
+        ERROR: '<span class="badge badge-cancelled">Hata</span>'
+    };
+
+    const state = { page: 0, size: 50, totalPages: 0, totalElements: 0 };
+
+    function filterParams() {
+        const p = new URLSearchParams();
+        const from = document.getElementById('fltFrom').value;
+        const to = document.getElementById('fltTo').value;
+        if (from) p.set('from', from + 'T00:00:00');
+        if (to) p.set('to', to + 'T23:59:59');
+        const action = document.getElementById('fltAction').value;
+        if (action) p.set('action', action);
+        const user = document.getElementById('fltUser').value.trim();
+        if (user) p.set('user', user);
+        const q = document.getElementById('fltQuery').value.trim();
+        if (q) p.set('q', q);
+        return p;
     }
 
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, c =>
+            ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    // detail alanı FieldDiff JSON'u taşır: {"alan":{"eski":...,"yeni":...}}
+    function renderDiff(detail) {
+        if (!detail) return '—';
+        try {
+            const parsed = JSON.parse(detail);
+            const parts = Object.entries(parsed).map(function (entry) {
+                const field = entry[0];
+                const change = entry[1];
+                if (change && typeof change === 'object' && 'yeni' in change) {
+                    return escapeHtml(field) + ': ' + escapeHtml(change.eski) + ' → ' + escapeHtml(change.yeni);
+                }
+                return escapeHtml(field) + ': ' + escapeHtml(JSON.stringify(change));
+            });
+            return parts.length ? parts.join('<br>') : '—';
+        } catch (e) {
+            return escapeHtml(detail);
+        }
+    }
+
+    function rowHtml(l) {
+        const time = l.createdAt ? new Date(l.createdAt).toLocaleString('tr-TR') : '-';
+        const status = l.httpStatus ? ' <small>' + l.httpStatus + '</small>' : '';
+        return '<tr>'
+            + '<td style="font-variant-numeric:tabular-nums;font-size:0.8rem;white-space:nowrap;">' + time + '</td>'
+            + '<td>' + escapeHtml(actionLabels[l.action] || l.action) + '</td>'
+            + '<td>' + (outcomeLabels[l.outcome] || escapeHtml(l.outcome || '')) + status + '</td>'
+            + '<td><span class="badge badge-scheduled">' + escapeHtml(l.entityType) + '</span></td>'
+            + '<td style="max-width:280px;">' + escapeHtml(l.summary || '—') + '</td>'
+            + '<td style="max-width:260px;font-size:0.78rem;">' + renderDiff(l.detail) + '</td>'
+            + '<td>' + escapeHtml(l.actorUsername || '—') + '</td>'
+            + '<td style="font-size:0.78rem;">' + escapeHtml(l.ip || '—') + '</td>'
+            + '</tr>';
+    }
+
+    async function loadAudit() {
+        const params = filterParams();
+        params.set('page', state.page);
+        params.set('size', state.size);
+        const res = await fetch('/api/audit?' + params.toString());
+        const json = await res.json();
+        const data = json.data || {};
+        const rows = data.content || [];
+
+        state.totalPages = data.totalPages || 0;
+        state.totalElements = data.totalElements || 0;
+
+        // Sıralama sunucuda (en yeni üstte); istemcide reverse() etmeye gerek yok.
+        document.getElementById('auditTableBody').innerHTML = rows.length
+            ? rows.map(rowHtml).join('')
+            : '<tr><td colspan="8" style="text-align:center;padding:24px;">Kayıt bulunamadı</td></tr>';
+
+        document.getElementById('auditSummary').textContent = state.totalElements + ' kayıt';
+        document.getElementById('pageLabel').textContent =
+            state.totalPages ? (state.page + 1) + ' / ' + state.totalPages : '—';
+        document.getElementById('prevPage').disabled = state.page <= 0;
+        document.getElementById('nextPage').disabled = state.page + 1 >= state.totalPages;
+    }
+
+    function gotoPage(page) {
+        if (page < 0 || (state.totalPages && page >= state.totalPages)) return;
+        state.page = page;
+        loadAudit();
+    }
+
+    function applyFilters() {
+        state.page = 0;
+        loadAudit();
+    }
+
+    function resetFilters() {
+        ['fltFrom', 'fltTo', 'fltUser', 'fltQuery'].forEach(function (id) {
+            document.getElementById(id).value = '';
+        });
+        document.getElementById('fltAction').value = '';
+        applyFilters();
+    }
+
+    function exportCsv() {
+        window.location = '/api/audit/export?' + filterParams().toString();
+    }
+
+    async function loadActions() {
+        const res = await fetch('/api/audit/actions');
+        const json = await res.json();
+        const select = document.getElementById('fltAction');
+        (json.data || []).forEach(function (action) {
+            const opt = document.createElement('option');
+            opt.value = action;
+            opt.textContent = actionLabels[action] || action;
+            select.appendChild(opt);
+        });
+    }
+
+    loadActions();
     loadAudit();
 </script>
 </body>

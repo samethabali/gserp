@@ -85,11 +85,14 @@ public class PageController {
     }
 
     /**
-     * Eski randevu adresi. Kiracı oturumdan veya parametreden çözülebiliyorsa çalışır;
-     * çözülemiyorsa TenantFilter zaten girişe yönlendirir.
+     * Randevu adresi. Kiracı oturumdan veya parametreden çözülebiliyorsa randevu sayfasını;
+     * işletme belirtilmemişse "işletme seçilmedi" bilgilendirme sayfasını döndürür.
      */
     @GetMapping("/booking")
     public String booking() {
+        if (TenantContext.getSalonId() == null) {
+            return "booking-no-salon";
+        }
         return "booking";
     }
 

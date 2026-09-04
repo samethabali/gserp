@@ -35,7 +35,7 @@ Bu doküman demo hazırlığı, deploy ve SaaS ürünleştirme adımlarını tek
 | Ortam | Giriş | Tenant |
 |-------|--------|--------|
 | Lokal | http://localhost:8989/login | `default` (otomatik) |
-| VDS (ana) | https://gscrm.avesitesi.xyz/login | header/subdomain |
+| VDS (ana) | https://gscrm.avesitesi.xyz/login | oturum / JWT / `/b/{slug}` |
 | VDS (demo salon) | https://default.gscrm.avesitesi.xyz/login | `default` |
 
 ---
@@ -57,7 +57,7 @@ Manuel tetik: Actions → **Deploy to VPS** → Run workflow.
 deploy_yap(proje="gscrm", deploy_yontemi="image_transfer")
 ```
 
-Profil: `deploy_kurallari.yaml` → port **5004**, domain `gscrm.avesitesi.xyz`, wildcard `*.gscrm.avesitesi.xyz`.
+Profil: `deploy_kurallari.yaml` → port **5004**, tek domain `gscrm.avesitesi.xyz` (wildcard yok).
 
 ### Prod demo verisi
 
@@ -143,7 +143,7 @@ Prod DB'de demo kullanıcı yoksa:
 | Kota | Kullanıcı/şube sayacı | Kota UI enforcement |
 | Onboarding | 5 adım wizard | Login redirect, hizmet şablonu |
 | Franchise | Org API, branch scope | Switcher, impersonation, seed B |
-| Tenant | `X-Salon-Slug`, subdomain, ✅ cross-tenant erişim engeli (`TenantAccessFilter`), ✅ JWT-tenant bağı | Custom domain (CNAME), veri katmanı RLS |
+| Tenant | oturum / JWT / `/b/{slug}`, ✅ cross-tenant erişim engeli (`TenantAccessFilter`), ✅ JWT-tenant bağı, ✅ slug-kimlik uyuşmazlığı reddi | Custom domain (CNAME), veri katmanı RLS |
 | Bildirim | Uygulama içi (WebSocket) | SMS, e-posta transactional |
 | Audit | `audit_log` API | Platform-wide arama, export |
 
@@ -170,7 +170,7 @@ Sprint 5 (güvenlik)          → ✅ D1 sır şifreleme, D5 backup verify scrip
 | [saas/pilot-scenarios.md](saas/pilot-scenarios.md) | Senaryo A/B |
 | [saas/pricing.md](saas/pricing.md) | Plan & metrikler |
 | [deploy-vps.md](deploy-vps.md) | VPS kurulum |
-| [saas/nginx-wildcard.md](saas/nginx-wildcard.md) | Wildcard subdomain |
+| [saas/nginx-single-domain.md](saas/nginx-single-domain.md) | Tek domain, yol tabanlı kiracı |
 
 ---
 

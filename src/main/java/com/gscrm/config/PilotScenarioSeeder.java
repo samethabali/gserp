@@ -34,6 +34,8 @@ public class PilotScenarioSeeder implements CommandLineRunner {
     private static final String SCENARIO_B_SLUG_KADIKOY = "belleza-kadikoy";
     private static final String SCENARIO_B_SLUG_BESIKTAS = "belleza-besiktas";
 
+    /** Deneme süresi tek yerden gelir; aynı sabit daha önce üç ayrı dosyada tekrarlanıyordu. */
+    private final AppProperties appProperties;
     private final SalonRepository salonRepository;
     private final OrganizationRepository organizationRepository;
     private final UserRepository userRepository;
@@ -136,7 +138,7 @@ public class PilotScenarioSeeder implements CommandLineRunner {
                 .organizationId(org.getId())
                 .planId(solo.getId())
                 .status("TRIAL")
-                .trialEnd(now.plusDays(14))
+                .trialEnd(now.plusDays(appProperties.getDefaultTrialDays()))
                 .createdAt(now)
                 .build());
     }
@@ -227,7 +229,7 @@ public class PilotScenarioSeeder implements CommandLineRunner {
                 .organizationId(org.getId())
                 .planId(franchise.getId())
                 .status("TRIAL")
-                .trialEnd(now.plusDays(14))
+                .trialEnd(now.plusDays(appProperties.getDefaultTrialDays()))
                 .createdAt(now)
                 .build());
 

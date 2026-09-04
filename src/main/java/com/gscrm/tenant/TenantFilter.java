@@ -114,6 +114,10 @@ public class TenantFilter extends OncePerRequestFilter {
         }
 
         if (salon == null) {
+            if ("/booking".equals(path) && explicitSlug == null) {
+                filterChain.doFilter(request, response);
+                return;
+            }
             handleUnresolved(request, response, explicitSlug);
             return;
         }
@@ -188,9 +192,14 @@ public class TenantFilter extends OncePerRequestFilter {
      */
     private void handleUnresolved(HttpServletRequest request, HttpServletResponse response, String explicitSlug)
             throws IOException {
-        if (request.getRequestURI().startsWith("/api/")) {
+        String path = request.getRequestURI();
+        if (path.startsWith("/api/")) {
             HttpStatus status = explicitSlug != null ? HttpStatus.NOT_FOUND : HttpStatus.BAD_REQUEST;
             deny(response, status, explicitSlug != null ? "İşletme bulunamadı" : "İşletme belirtilmedi");
+            return;
+        }
+        if (path.startsWith("/b/")) {
+            response.sendRedirect("/booking");
             return;
         }
         response.sendRedirect("/login");

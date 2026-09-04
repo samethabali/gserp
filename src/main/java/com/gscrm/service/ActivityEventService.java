@@ -191,6 +191,12 @@ public class ActivityEventService {
                 blankToNull(action), blankToNull(username), blankToNull(query), pageable);
     }
 
+    /** Kütük sayfasının işlem türü filtresi; listeyi verinin kendisi belirler. */
+    @Transactional(readOnly = true)
+    public List<String> distinctActions() {
+        return activityEventRepository.findDistinctActions(TenantContext.requireSalonId());
+    }
+
     @Transactional(readOnly = true)
     public List<ActivityEvent> listForCustomer(Long customerId, int limit) {
         Long salonId = TenantContext.requireSalonId();

@@ -4,6 +4,7 @@
 <!-- GSCRM ortak statik asset'ler — cache bust için app.asset-version kullanılır -->
 <th:block th:fragment="styles">
     <meta name="robots" content="noindex, nofollow" th:if="${showcase}">
+    <meta name="current-salon-slug" th:content="${T(com.gscrm.tenant.TenantContext).getSlug()}">
     <link rel="stylesheet"
           th:href="@{/css/style.css(v=${@environment.getProperty('app.asset-version', '1')})}">
     <style>

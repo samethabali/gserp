@@ -1,5 +1,6 @@
 package com.gscrm.service;
 
+import com.gscrm.config.AppProperties;
 import com.gscrm.dto.request.TenantProvisionRequest;
 import com.gscrm.dto.response.TenantProvisionResponse;
 import com.gscrm.model.*;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +28,16 @@ public class SalonProvisioningService {
     private final SubscriptionPlanRepository subscriptionPlanRepository;
     private final OrganizationSubscriptionRepository organizationSubscriptionRepository;
 
+    /**
+     * Ürünün kendi yolları. Bir işletme bunlardan birini slug olarak alırsa
+     * {@code /b/{slug}} altında kendi sayfasını gölgeler; kontrol daha önce hiç yoktu.
+     */
+    private static final Set<String> RESERVED_SLUGS = Set.of(
+            "www", "api", "app", "platform", "admin", "static", "health", "actuator",
+            "default", "gscrm", "b", "s", "login", "logout", "onboarding", "customer",
+            "org", "settings");
+
+    private final AppProperties appProperties;
     private final PasswordEncoder passwordEncoder;
     private final ServiceTemplateService serviceTemplateService;
     private final StaffRepository staffRepository;
@@ -34,8 +46,12 @@ public class SalonProvisioningService {
     @Transactional
     public TenantProvisionResponse provision(TenantProvisionRequest request) {
         String slug = request.getSalonSlug().trim().toLowerCase();
-        if (salonRepository.findBySlugAndActiveTrue(slug).isPresent()) {
-            throw new IllegalArgumentException("Bu slug zaten kullanılıyor: " + slug);
+        if (RESERVED_SLUGS.contains(slug)) {
+            throw new IllegalArgumentException("Bu adres sistem tarafından ayrılmış, başka bir adres seçin: " + slug);
+        }
+        // Aktiflikten bağımsız kontrol: askıya alınmış bir salonun slug'ı da doludur.
+        if (salonRepository.existsBySlug(slug)) {
+            throw new IllegalArgumentException("Bu adres zaten kullanılıyor: " + slug);
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -88,7 +104,10 @@ public class SalonProvisioningService {
                         request.getPlanCode() != null ? request.getPlanCode() : "SOLO")
                 .orElseThrow(() -> new IllegalArgumentException("Plan bulunamadı"));
 
-        LocalDateTime trialEnd = now.plusDays(14);
+        int trialDays = request.getTrialDays() != null && request.getTrialDays() > 0
+                ? request.getTrialDays()
+                : appProperties.getDefaultTrialDays();
+        LocalDateTime trialEnd = now.plusDays(trialDays);
         organizationSubscriptionRepository.save(OrganizationSubscription.builder()
                 .organizationId(org.getId())
                 .planId(plan.getId())

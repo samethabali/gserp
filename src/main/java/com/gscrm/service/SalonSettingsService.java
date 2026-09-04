@@ -3,6 +3,7 @@ package com.gscrm.service;
 import com.gscrm.model.SalonSetting;
 import com.gscrm.repository.SalonSettingRepository;
 import com.gscrm.tenant.TenantContext;
+import com.gscrm.util.FieldDiff;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +18,7 @@ import java.util.Map;
 public class SalonSettingsService {
 
     private final SalonSettingRepository repository;
+    private final ActivityEventService activityEventService;
 
     @Transactional(readOnly = true)
     public String get(String key, String defaultValue) {
@@ -44,9 +46,16 @@ public class SalonSettingsService {
         Long salonId = TenantContext.requireSalonId();
         SalonSetting setting = repository.findBySalonIdAndKey(salonId, key)
                 .orElse(SalonSetting.builder().salonId(salonId).key(key).build());
+        String previous = setting.getValue();
         setting.setSalonId(salonId);
         setting.setValue(value);
         setting.setUpdatedAt(LocalDateTime.now());
         repository.save(setting);
+
+        // Ayar değişiklikleri iz bırakmıyordu: çalışma saati ya da doğrulama anahtarı
+        // değiştiğinde kimin ne zaman değiştirdiği hiçbir yerde görünmüyordu.
+        activityEventService.recordChange("SETTING_CHANGE", "SALON_SETTING", setting.getId(), null,
+                "Ayar değişti: " + key,
+                FieldDiff.create().compare(key, previous, value).toJson());
     }
 }

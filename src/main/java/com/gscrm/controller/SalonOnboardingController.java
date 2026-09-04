@@ -6,8 +6,10 @@ import com.gscrm.dto.response.TenantProvisionResponse;
 import com.gscrm.model.OnboardingState;
 import com.gscrm.repository.OnboardingStateRepository;
 import com.gscrm.service.InviteCodeService;
+import com.gscrm.security.ClientIpResolver;
 import com.gscrm.service.SalonProvisioningService;
 import com.gscrm.tenant.TenantContext;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -26,11 +28,14 @@ public class SalonOnboardingController {
     private final SalonProvisioningService provisioningService;
     private final InviteCodeService inviteCodeService;
     private final OnboardingStateRepository onboardingStateRepository;
+    private final ClientIpResolver clientIpResolver;
 
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<TenantProvisionResponse>> register(
-            @Valid @RequestBody TenantProvisionRequest request) {
-        TenantProvisionResponse result = inviteCodeService.registerWithInvite(request);
+            @Valid @RequestBody TenantProvisionRequest request,
+            HttpServletRequest httpRequest) {
+        TenantProvisionResponse result =
+                inviteCodeService.registerWithInvite(request, clientIpResolver.resolve(httpRequest));
         return ResponseEntity.ok(ApiResponse.ok("Kayıt tamamlandı", result));
     }
 

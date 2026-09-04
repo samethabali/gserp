@@ -46,7 +46,16 @@ class TenantFilterCoverageTest {
      * <p>{@code UsageMeter}: salon değil organizasyon kapsamlıdır — kota sayaçları
      * org genelinde toplanır, salona kısıtlamak faturalandırmayı bozar.
      */
-    private static final List<String> INTENTIONALLY_UNFILTERED = List.of("User", "UsageMeter");
+    /**
+     * Kiracı filtresinden bilerek muaf tutulan entity'ler.
+     *
+     * <p>{@code InviteRedemption} platform kapsamındadır: yalnızca PLATFORM_ADMIN
+     * okur ve sorgular davet koduna ya da organizasyona göre çalışır, kiracı
+     * bağlamına göre değil. Kiracı filtresi uygulansaydı panel hiçbir kullanım
+     * kaydı göremezdi — platform uçlarında {@code TenantContext} zaten boştur.
+     */
+    private static final List<String> INTENTIONALLY_UNFILTERED =
+            List.of("User", "UsageMeter", "InviteRedemption");
 
     @Test
     @DisplayName("salon_id taşıyan her entity @Filter ile işaretli")

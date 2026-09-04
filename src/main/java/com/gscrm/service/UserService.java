@@ -5,6 +5,7 @@ import com.gscrm.model.User;
 import com.gscrm.model.enums.UserRole;
 import com.gscrm.repository.UserRepository;
 import com.gscrm.tenant.TenantContext;
+import com.gscrm.util.FieldDiff;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,7 @@ import java.util.Map;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final ActivityEventService activityEventService;
     private final PasswordEncoder passwordEncoder;
     private final QuotaEnforcementService quotaEnforcementService;
 
@@ -63,7 +65,10 @@ public class UserService {
                 .mustChangePassword(true)
                 .createdAt(LocalDateTime.now())
                 .build();
-        return userRepository.save(user);
+        User saved = userRepository.save(user);
+        activityEventService.record("CREATE", "USER", saved.getId(), null,
+                "Kullanıcı oluşturuldu: " + saved.getUsername() + " (" + saved.getRole() + ")");
+        return saved;
     }
 
     @Transactional
@@ -76,7 +81,11 @@ public class UserService {
         user.setPasswordChangedAt(null);
         // Yönetici parolayı sıfırladıysa, eski parolayla açılmış oturumlar kapanmalı.
         user.setTokenVersion(user.getTokenVersion() + 1);
-        return userRepository.save(user);
+        User saved = userRepository.save(user);
+        // Parolanın kendisi hiçbir koşulda kütüğe girmez; yalnızca sıfırlandığı bilgisi.
+        activityEventService.record("PASSWORD_RESET", "USER", saved.getId(), null,
+                "Parola sıfırlandı: " + saved.getUsername());
+        return saved;
     }
 
     @Transactional
@@ -84,12 +93,17 @@ public class UserService {
         Long salonId = TenantContext.requireSalonId();
         User user = userRepository.findByIdAndSalonId(id, salonId)
                 .orElseThrow(() -> new IllegalArgumentException("Kullanıcı bulunamadı"));
+        boolean prevEnabled = user.isEnabled();
         user.setEnabled(enabled);
         if (!enabled) {
             // Devre dışı bırakma, dağıtılmış token'ları da anında geçersizleştirmeli;
             // aksi halde kullanıcı yenileme token'ıyla günlerce erişmeye devam eder.
             user.setTokenVersion(user.getTokenVersion() + 1);
         }
-        return userRepository.save(user);
+        User saved = userRepository.save(user);
+        activityEventService.recordChange(enabled ? "ACTIVATE" : "DEACTIVATE", "USER", saved.getId(), null,
+                (enabled ? "Kullanıcı aktifleştirildi: " : "Kullanıcı devre dışı bırakıldı: ") + saved.getUsername(),
+                FieldDiff.create().compare("aktif", prevEnabled, saved.isEnabled()).toJson());
+        return saved;
     }
 }

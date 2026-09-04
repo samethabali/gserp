@@ -175,9 +175,7 @@ async function initSalonSwitcher() {
     const json = await api('GET', '/api/org/salons');
     if (!json.success || !json.data || json.data.length < 2) return;
     wrap.style.display = 'block';
-    const current = document.cookie.split(';').map(c => c.trim())
-        .find(c => c.startsWith('gscrm-salon-slug='));
-    const currentSlug = current ? decodeURIComponent(current.split('=')[1]) : '';
+    const currentSlug = document.querySelector('meta[name="current-salon-slug"]')?.content || '';
     select.innerHTML = json.data.map(s =>
         `<option value="${s.slug}"${s.slug === currentSlug ? ' selected' : ''}>${s.name}</option>`
     ).join('');
@@ -185,6 +183,9 @@ async function initSalonSwitcher() {
         const slug = select.value;
         const res = await api('POST', '/api/org/switch-salon', { slug });
         if (res.success) {
+            if (res.data && res.data.token) {
+                try { localStorage.setItem('accessToken', res.data.token); } catch (_) {}
+            }
             window.location.href = res.data.redirectUrl || '/';
         } else {
             showToast(res.message || 'Şube değiştirilemedi', 'error');

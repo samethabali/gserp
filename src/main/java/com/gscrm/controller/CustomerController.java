@@ -45,10 +45,21 @@ public class CustomerController {
         return ResponseEntity.ok(ApiResponse.ok(customerService.getRecentCustomers(limit)));
     }
 
+    /**
+     * Müşteri kartı.
+     *
+     * <p>KVKK kapsamında kişisel veriye erişim iz bırakmalı: kartın açılması
+     * {@code VIEW} olarak kütüğe yazılır. Genel listeler bilinçli olarak
+     * loglanmaz — her sayfa yenilemesi satır üretir ve kütüğü okunamaz hale getirir.
+     */
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<CustomerDetailResponse>> getDetail(@PathVariable Long id) {
         return customerService.getDetail(id)
-                .map(d -> ResponseEntity.ok(ApiResponse.ok(d)))
+                .map(d -> {
+                    activityEventService.record("VIEW", "CUSTOMER", id, id,
+                            "Müşteri kartı görüntülendi");
+                    return ResponseEntity.ok(ApiResponse.ok(d));
+                })
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -92,13 +103,20 @@ public class CustomerController {
     @GetMapping("/lookup")
     public ResponseEntity<ApiResponse<CustomerResponse>> lookup(@RequestParam String phone) {
         return customerService.lookupByPhone(phone)
-                .map(c -> ResponseEntity.ok(ApiResponse.ok(c)))
+                .map(c -> {
+                    activityEventService.record("VIEW", "CUSTOMER", c.getId(), c.getId(),
+                            "Müşteri telefonla sorgulandı");
+                    return ResponseEntity.ok(ApiResponse.ok(c));
+                })
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/{id}/export")
     public ResponseEntity<ApiResponse<Map<String, Object>>> export(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok(gdprService.exportCustomer(id)));
+        Map<String, Object> data = gdprService.exportCustomer(id);
+        activityEventService.record("EXPORT", "CUSTOMER", id, id,
+                "Müşteri verisi dışa aktarıldı (KVKK)");
+        return ResponseEntity.ok(ApiResponse.ok(data));
     }
 
     @DeleteMapping("/{id}/gdpr")

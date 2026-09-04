@@ -3,6 +3,7 @@ package com.gscrm.security;
 import com.gscrm.dto.response.ApiResponse;
 import com.gscrm.model.User;
 import com.gscrm.repository.UserRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -33,6 +34,7 @@ public class AuthController {
     private final JwtService jwtService;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuthEventLogger authEventLogger;
 
     /** Devre dışı/kilitli hesapların token yenilemesini engeller. */
     private final UserDetailsChecker accountStatusChecker = new AccountStatusUserDetailsChecker();
@@ -44,14 +46,19 @@ public class AuthController {
             @NotBlank @Size(min = 8) String newPassword) {}
 
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<Map<String, String>>> login(@Valid @RequestBody LoginRequest req) {
+    public ResponseEntity<ApiResponse<Map<String, String>>> login(@Valid @RequestBody LoginRequest req,
+                                                                  HttpServletRequest request) {
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(req.username(), req.password()));
         } catch (AuthenticationException e) {
+            authEventLogger.loginFailed(request, req.username(), e.getClass().getSimpleName());
             return ResponseEntity.status(401).body(ApiResponse.error("Geçersiz kullanıcı adı veya parola"));
         }
         UserDetails user = userDetailsService.loadUserByUsername(req.username());
+        if (user instanceof AuthenticatedUser authenticated) {
+            authEventLogger.loginSucceeded(request, authenticated);
+        }
         return ResponseEntity.ok(ApiResponse.ok(Map.of(
                 "accessToken", jwtService.generateToken(user),
                 "refreshToken", jwtService.generateRefreshToken(user)
@@ -59,7 +66,8 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<ApiResponse<Map<String, String>>> refresh(@Valid @RequestBody RefreshRequest req) {
+    public ResponseEntity<ApiResponse<Map<String, String>>> refresh(@Valid @RequestBody RefreshRequest req,
+                                                                    HttpServletRequest request) {
         try {
             String username = jwtService.extractUsername(req.refreshToken());
             UserDetails user = userDetailsService.loadUserByUsername(username);
@@ -67,6 +75,9 @@ public class AuthController {
             accountStatusChecker.check(user);
             if (!jwtService.validateRefreshToken(req.refreshToken(), user)) {
                 return ResponseEntity.status(401).body(ApiResponse.error("Geçersiz refresh token"));
+            }
+            if (user instanceof AuthenticatedUser authenticated) {
+                authEventLogger.tokenRefreshed(request, authenticated);
             }
             return ResponseEntity.ok(ApiResponse.ok(Map.of(
                     "accessToken", jwtService.generateToken(user)
@@ -80,7 +91,8 @@ public class AuthController {
     @Transactional
     public ResponseEntity<ApiResponse<Void>> changePassword(
             @AuthenticationPrincipal AuthenticatedUser principal,
-            @Valid @RequestBody ChangePasswordRequest req) {
+            @Valid @RequestBody ChangePasswordRequest req,
+            HttpServletRequest request) {
         User user = userRepository.findById(principal.getId())
                 .orElseThrow(() -> new IllegalStateException("Kullanıcı bulunamadı"));
         if (!passwordEncoder.matches(req.currentPassword(), user.getPasswordHash())) {
@@ -92,6 +104,7 @@ public class AuthController {
         // Eski parolayla üretilmiş tüm token'ları geçersiz kıl.
         user.setTokenVersion(user.getTokenVersion() + 1);
         userRepository.save(user);
+        authEventLogger.passwordChanged(request, principal);
         return ResponseEntity.ok(ApiResponse.ok("Parola güncellendi", null));
     }
 }

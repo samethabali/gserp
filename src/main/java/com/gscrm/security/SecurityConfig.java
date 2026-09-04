@@ -56,6 +56,7 @@ public class SecurityConfig {
     private final ActivityAuditFilter activityAuditFilter;
     private final MustChangePasswordSuccessHandler mustChangePasswordSuccessHandler;
     private final LoginAuditHandlers.AuditingFailureHandler loginFailureHandler;
+    private final LoginAuditHandlers.AuditingAccessDeniedHandler accessDeniedHandler;
     private final LoginAuditHandlers.AuditingLogoutSuccessHandler logoutSuccessHandler;
     private final UserDetailsService userDetailsService;
 
@@ -135,7 +136,8 @@ public class SecurityConfig {
                     .contentSecurityPolicy(csp -> csp.policyDirectives(CONTENT_SECURITY_POLICY))
                     .frameOptions(frame -> frame.deny()))
             .exceptionHandling(ex -> ex
-                    .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
+                    .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
+                    .accessDeniedHandler(accessDeniedHandler))
             .authenticationProvider(authenticationProvider())
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
             // Kimlik yerleştikten hemen sonra tenant erişim doğrulaması yapılmalı.
@@ -188,6 +190,7 @@ public class SecurityConfig {
             .logout(logout -> logout
                     .logoutSuccessHandler(logoutSuccessHandler)
                     .permitAll())
+            .exceptionHandling(ex -> ex.accessDeniedHandler(accessDeniedHandler))
             .authenticationProvider(authenticationProvider())
             .addFilterAfter(showcaseAccessFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();

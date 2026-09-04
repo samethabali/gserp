@@ -3,6 +3,7 @@ package com.gscrm.service;
 import com.gscrm.model.ServiceDefinition;
 import com.gscrm.repository.ServiceDefinitionRepository;
 import com.gscrm.tenant.TenantContext;
+import com.gscrm.util.FieldDiff;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +19,7 @@ import java.util.Optional;
 public class ServiceDefinitionService {
 
     private final ServiceDefinitionRepository serviceRepository;
+    private final ActivityEventService activityEventService;
 
     public List<ServiceDefinition> getAll() {
         return serviceRepository.findAll();
@@ -40,13 +42,24 @@ public class ServiceDefinitionService {
         if (sd.getRequiredResourceIds() == null) {
             sd.setRequiredResourceIds(new ArrayList<>());
         }
-        return serviceRepository.save(sd);
+        ServiceDefinition saved = serviceRepository.save(sd);
+        activityEventService.record("CREATE", "SERVICE", saved.getId(), null,
+                "Hizmet eklendi: " + saved.getName());
+        return saved;
     }
 
     @Transactional
     public ServiceDefinition update(Long id, ServiceDefinition updated) {
         ServiceDefinition existing = serviceRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Hizmet bulunamadı: " + id));
+
+        // Setter'lardan önce: fiyat ve süre değişimi kütükte görünsün.
+        String prevName = existing.getName();
+        int prevDuration = existing.getDurationMinutes();
+        var prevPrice = existing.getBasePrice();
+        var prevCategory = existing.getCategory();
+        boolean prevActive = existing.isActive();
+
         existing.setName(updated.getName());
         existing.setDurationMinutes(updated.getDurationMinutes());
         existing.setBasePrice(updated.getBasePrice());
@@ -57,6 +70,16 @@ public class ServiceDefinitionService {
             existing.getRequiredResourceIds().clear();
             existing.getRequiredResourceIds().addAll(updated.getRequiredResourceIds());
         }
-        return serviceRepository.save(existing);
+        ServiceDefinition saved = serviceRepository.save(existing);
+        activityEventService.recordChange("UPDATE", "SERVICE", saved.getId(), null,
+                "Hizmet güncellendi: " + saved.getName(),
+                FieldDiff.create()
+                        .compare("ad", prevName, saved.getName())
+                        .compare("sureDk", prevDuration, saved.getDurationMinutes())
+                        .compare("fiyat", prevPrice, saved.getBasePrice())
+                        .compare("kategori", prevCategory, saved.getCategory())
+                        .compare("aktif", prevActive, saved.isActive())
+                        .toJson());
+        return saved;
     }
 }

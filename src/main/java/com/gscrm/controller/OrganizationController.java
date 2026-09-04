@@ -30,6 +30,7 @@ public class OrganizationController {
     private final BranchScopeService branchScopeService;
     private final OrganizationContextService organizationContextService;
     private final DashboardService dashboardService;
+    private final com.gscrm.security.JwtService jwtService;
 
     @GetMapping("/salons")
     public ResponseEntity<ApiResponse<List<Salon>>> listSalons() {
@@ -67,10 +68,17 @@ public class OrganizationController {
         branchScopeService.assertCanAccessSalon(salon.getId(), user);
 
         request.getSession(true).setAttribute(TenantContext.SESSION_AUTH_SALON_ID, salon.getId());
+        AuthenticatedUser switchedUser = new AuthenticatedUser(
+                user.getId(), user.getUsername(), user.getPassword(), user.isEnabled(),
+                user.getRole(), user.getStaffId(), user.getCustomerId(),
+                salon.getId(), user.getOrganizationId(), user.isMustChangePassword(),
+                user.getTokenVersion(), user.getAuthorities());
+        String token = jwtService.generateToken(switchedUser);
 
         return ResponseEntity.ok(ApiResponse.ok(Map.of(
                 "slug", salon.getSlug(),
                 "salonId", String.valueOf(salon.getId()),
+                "token", token,
                 "redirectUrl", "/")));
     }
 

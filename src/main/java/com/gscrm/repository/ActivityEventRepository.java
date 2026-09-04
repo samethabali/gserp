@@ -46,4 +46,8 @@ public interface ActivityEventRepository extends JpaRepository<ActivityEvent, Lo
     @Modifying
     @Query("DELETE FROM ActivityEvent e WHERE e.createdAt < :cutoff")
     int deleteByCreatedAtBefore(@Param("cutoff") LocalDateTime cutoff);
+
+    /** Kiracı listesindeki "son işlem" kolonu; salon başına en yeni kayıt zamanı. */
+    @Query("SELECT e.salonId, MAX(e.createdAt) FROM ActivityEvent e WHERE e.salonId IN :salonIds GROUP BY e.salonId")
+    List<Object[]> findLastActivityGroupedBySalonIds(@Param("salonIds") java.util.Collection<Long> salonIds);
 }
