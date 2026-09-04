@@ -79,12 +79,19 @@ function panelStaff() {
         <a href="/staff" class="btn btn-secondary" target="_blank">Personel sayfasını aç →</a>`;
 }
 
+// Kanonik adres /{slug}; "/booking" yalnızca oturumdaki kiracıyla çözülür ve
+// paylaşıldığında "işletme seçilmedi" hatası verir.
+function bookingPath() {
+    const slug = document.querySelector('meta[name="current-salon-slug"]')?.content?.trim();
+    return slug ? '/' + slug : '/booking';
+}
+
 function panelCompleted() {
     return `
         <h2>Kurulum tamamlandı 🎉</h2>
         <p class="settings-desc">Takvimden randevu oluşturabilir veya booking sayfanızı paylaşabilirsiniz.</p>
         <a href="/" class="btn btn-primary">Takvime git</a>
-        <a href="/booking" class="btn btn-secondary" target="_blank" style="margin-left:8px;">Booking sayfası</a>`;
+        <a href="${bookingPath()}" class="btn btn-secondary" target="_blank" style="margin-left:8px;">Booking sayfası</a>`;
 }
 
 const PANELS = [panelSalonInfo, panelServices, panelStaff, panelCompleted];

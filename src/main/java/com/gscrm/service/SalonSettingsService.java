@@ -7,6 +7,7 @@ import com.gscrm.repository.SalonRepository;
 import com.gscrm.repository.SalonSettingRepository;
 import com.gscrm.tenant.PublicBookingPath;
 import com.gscrm.tenant.TenantContext;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import com.gscrm.util.FieldDiff;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -123,9 +124,23 @@ public class SalonSettingsService {
         while (base.endsWith("/")) {
             base = base.substring(0, base.length() - 1);
         }
-        // Taban adres yapılandırılmamışsa göreli yol dön: panel yine de linki
-        // gösterebilsin, "null/b/salon" gibi bozuk bir adres üretmeyelim.
+        // Yapılandırılmamışsa adresi isteğin kendisinden türet. Sabit bir varsayılan
+        // (eskiden http://localhost:8989) salon sahibine paylaşamayacağı bir link
+        // gösteriyordu; istek zaten doğru genel adresi taşıyor.
+        if (base.isEmpty()) {
+            base = currentOrigin();
+        }
         return base + "/" + slug;
+    }
+
+    /** Vekil başlıkları {@code forward-headers-strategy: framework} ile çözülmüş genel adres. */
+    private String currentOrigin() {
+        try {
+            return ServletUriComponentsBuilder.fromCurrentContextPath().build().toUriString();
+        } catch (IllegalStateException e) {
+            // HTTP isteği dışında (zamanlanmış iş, test) çağrıldıysa göreli yol kalsın.
+            return "";
+        }
     }
 
     @Transactional

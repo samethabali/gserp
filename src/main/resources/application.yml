@@ -23,7 +23,11 @@ spring:
 
 app:
   asset-version: "20260817-1"
-  public-base-url: ${APP_PUBLIC_BASE_URL:http://localhost:8989}
+  # Boş bırakılırsa adres isteğin kendisinden türetilir (forward-headers-strategy
+  # açık olduğu için vekil arkasında da doğru). Varsayılan "http://localhost:8989"
+  # idi ve env geçilmediğinde salon sahibine randevu linki olarak localhost
+  # gösteriliyordu.
+  public-base-url: ${APP_PUBLIC_BASE_URL:}
   default-trial-days: 14
   jwt:
     # Base64-encoded en az 256-bit secret. Prod'da ${JWT_SECRET} ile geçersiz kılınmalı.

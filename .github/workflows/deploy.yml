@@ -167,7 +167,7 @@ jobs:
             # Tek domain, yol tabanli kiraci: alt alan adi cozumlemesi kaldirildi.
             # Bu deger artik kiraci cozmez, yalnizca paylasilabilir link uretir
             # (davet linki, isletmenin randevu linki).
-            set_public_env APP_PUBLIC_BASE_URL "https://gserp.avesitesi.xyz"
+            set_public_env APP_PUBLIC_BASE_URL "https://gscrm.avesitesi.xyz"
 
             # Platform admin hic seed edilmiyordu; davet kodu paneline girilemiyordu.
             # Parola sunucuda uretilir, ilk giriste degistirilmesi zorunlu.

@@ -109,6 +109,27 @@ class UiPageRenderIT {
                 .isNull();
     }
 
+    /**
+     * Menüdeki "Booking Sayfası" bağlantısı kanonik adrese gitmeli.
+     *
+     * <p>Sabit {@code /booking} yalnızca oturumdaki kiracıyla çözülüyordu: yeni
+     * sekmede açılan adres paylaşılamıyor, oturumsuz açıldığında "işletme
+     * belirtilmedi" hatası veriyordu.
+     */
+    @org.junit.jupiter.api.Test
+    @DisplayName("menüdeki booking bağlantısı /{slug} adresine gider")
+    void sidebarBookingLinkUsesCanonicalSlug() throws Exception {
+        String body = mockMvc.perform(get("/dashboard")
+                        .with(authentication(authFor(UserRole.BRANCH_MANAGER)))
+                        .header("X-Salon-Slug", slug))
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(body)
+                .as("menü kanonik randevu adresini göstermeli")
+                .contains("href=\"/" + slug + "\"")
+                .doesNotContain("href=\"/booking\"");
+    }
+
     @ParameterizedTest(name = "{0} herkese açık olarak render edilir")
     @CsvSource({"/login", "/booking", "/privacy", "/customer/login", "/customer/register", "/onboarding/wizard"})
     void publicPagesRender(String path) throws Exception {
