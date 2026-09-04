@@ -22,7 +22,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.access.AccessDeniedException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -69,7 +68,7 @@ class InviteCodeServiceTest {
     void registerWithoutCodeDenied() {
         TenantProvisionRequest request = new TenantProvisionRequest();
         assertThatThrownBy(() -> inviteCodeService.registerWithInvite(request, IP))
-                .isInstanceOf(AccessDeniedException.class);
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -78,7 +77,7 @@ class InviteCodeServiceTest {
         request.setInviteCode("GSCRM-XXXX-YYYY");
         when(inviteCodeRepository.findByCodeForUpdate("GSCRM-XXXX-YYYY")).thenReturn(Optional.empty());
         assertThatThrownBy(() -> inviteCodeService.registerWithInvite(request, IP))
-                .isInstanceOf(AccessDeniedException.class);
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     /**
@@ -178,7 +177,7 @@ class InviteCodeServiceTest {
         TenantProvisionRequest request = new TenantProvisionRequest();
         request.setInviteCode("GSCRM-AB12-CD34");
         assertThatThrownBy(() -> inviteCodeService.registerWithInvite(request, IP))
-                .isInstanceOf(AccessDeniedException.class);
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -195,7 +194,7 @@ class InviteCodeServiceTest {
         TenantProvisionRequest request = new TenantProvisionRequest();
         request.setInviteCode("GSCRM-AB12-CD34");
         assertThatThrownBy(() -> inviteCodeService.registerWithInvite(request, IP))
-                .isInstanceOf(AccessDeniedException.class);
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     /** Süre kontrolü sınırda da reddeder: {@code expiresAt == now} artık geçerli değil. */
@@ -214,7 +213,7 @@ class InviteCodeServiceTest {
         TenantProvisionRequest request = new TenantProvisionRequest();
         request.setInviteCode("GSCRM-AB12-CD34");
         assertThatThrownBy(() -> inviteCodeService.registerWithInvite(request, IP))
-                .isInstanceOf(AccessDeniedException.class)
+                .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("süresi");
     }
 

@@ -71,14 +71,14 @@ class CustomerPortalAuthIT {
     }
 
     /**
-     * Gerçek akış: müşteri {@code /b/{slug}} ile geliyor, o ziyaret salonu oturuma
+     * Gerçek akış: müşteri {@code /{slug}} ile geliyor, o ziyaret salonu oturuma
      * yazıyor ve kayıt ucu kiracıyı oradan çözüyor.
      */
     @Test
-    @DisplayName("kayıt, /b/{slug} ziyaretinden gelen oturum kiracısıyla çalışır")
+    @DisplayName("kayıt, /{slug} ziyaretinden gelen oturum kiracısıyla çalışır")
     void registerResolvesTenantFromPublicSession() throws Exception {
         MockHttpSession session = new MockHttpSession();
-        mockMvc.perform(get("/b/" + slug).session(session)).andExpect(status().isOk());
+        mockMvc.perform(get("/" + slug).session(session)).andExpect(status().isOk());
 
         mockMvc.perform(post("/api/auth/customer/register")
                         .session(session)
