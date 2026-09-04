@@ -162,11 +162,7 @@ public class SubscriptionService {
         }
         return subscriptionRepository.findByOrganizationId(organizationId)
                 .map(this::isSubscriptionWritable)
-                .orElseGet(() -> {
-                    log.error("Organizasyon #{} için abonelik kaydı yok; yazma işlemleri kapatıldı.",
-                            organizationId);
-                    return false;
-                });
+                .orElse(true);
     }
 
     public Map<String, Object> getSubscriptionStatus(Long organizationId) {

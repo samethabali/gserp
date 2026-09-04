@@ -58,6 +58,7 @@ public class TenantFilter extends OncePerRequestFilter {
     /** Kiracı bağlamı gerekmeyen yollar. Statik dosyalar dahil — aksi hâlde giriş sayfası bile çizilemiyordu. */
     private static final List<String> BYPASS_PREFIXES = List.of(
             "/actuator",
+            "/api/auth",
             "/api/platform",
             "/api/onboarding/register",
             "/css/",
