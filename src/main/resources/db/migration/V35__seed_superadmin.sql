@@ -10,4 +10,4 @@ SELECT 'admin',
        current_timestamp,
        current_timestamp,
        0
-WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'admin' AND role = 'PLATFORM_ADMIN');
+WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'admin');
