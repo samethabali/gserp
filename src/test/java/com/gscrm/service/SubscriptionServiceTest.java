@@ -34,6 +34,17 @@ class SubscriptionServiceTest {
     @InjectMocks
     private SubscriptionService subscriptionService;
 
+    /**
+     * Abonelik satırı olmayan organizasyon süresiz ücretsiz yazabiliyordu
+     * ({@code orElse(true)}); javadoc bunun düzeltildiğini söylerken kod hâlâ
+     * fail-open'dı. Bu test davranışı kilitler.
+     */
+    @Test
+    void isWriteAllowed_noSubscriptionRowDeniesWrite() {
+        when(subscriptionRepository.findByOrganizationId(42L)).thenReturn(Optional.empty());
+        assertThat(subscriptionService.isWriteAllowed(42L)).isFalse();
+    }
+
     @Test
     void isWriteAllowed_activeSubscription() {
         when(subscriptionRepository.findByOrganizationId(1L)).thenReturn(Optional.of(

@@ -7,8 +7,11 @@ import com.gscrm.model.enums.UserRole;
 import com.gscrm.repository.CustomerRepository;
 import com.gscrm.repository.UserRepository;
 import com.gscrm.security.JwtService;
+import com.gscrm.security.AuthEventLogger;
+import com.gscrm.security.AuthenticatedUser;
 import com.gscrm.tenant.TenantContext;
 import com.gscrm.validation.PhoneNumber;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -40,6 +43,7 @@ public class CustomerPortalAuthController {
     private final AuthenticationManager authenticationManager;
     private final UserDetailsService userDetailsService;
     private final JwtService jwtService;
+    private final AuthEventLogger authEventLogger;
 
     public record RegisterRequest(
             @NotBlank String firstName,
@@ -56,7 +60,7 @@ public class CustomerPortalAuthController {
 
     @PostMapping("/register")
     @Transactional
-    public ResponseEntity<ApiResponse<Map<String, String>>> register(@Valid @RequestBody RegisterRequest req) {
+    public ResponseEntity<ApiResponse<Map<String, String>>> register(HttpServletRequest request, @Valid @RequestBody RegisterRequest req) {
         Long salonId = TenantContext.requireSalonId();
         if (customerRepository.existsBySalonIdAndEmail(salonId, req.email())) {
             return ResponseEntity.badRequest()
@@ -94,6 +98,9 @@ public class CustomerPortalAuthController {
                 .build());
 
         UserDetails userDetails = buildUserDetails(savedUser);
+        
+        authEventLogger.loginSucceeded(request, (AuthenticatedUser) userDetailsService.loadUserByUsername(req.email()));
+
         return ResponseEntity.ok(ApiResponse.ok("Kayıt başarılı", Map.of(
                 "accessToken", jwtService.generateToken(userDetails),
                 "refreshToken", jwtService.generateRefreshToken(userDetails)
@@ -101,21 +108,24 @@ public class CustomerPortalAuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<Map<String, String>>> login(@Valid @RequestBody CustomerLoginRequest req) {
+    public ResponseEntity<ApiResponse<Map<String, String>>> login(HttpServletRequest request, @Valid @RequestBody CustomerLoginRequest req) {
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(req.email(), req.password()));
         } catch (BadCredentialsException e) {
+            authEventLogger.loginFailed(request, req.email(), "Geçersiz e-posta veya parola");
             return ResponseEntity.status(401).body(ApiResponse.error("Geçersiz e-posta veya parola"));
         }
 
         User user = userRepository.findBySalonIdAndUsername(TenantContext.requireSalonId(), req.email())
                 .orElse(null);
         if (user == null || user.getRole() != UserRole.CUSTOMER) {
+            authEventLogger.loginFailed(request, req.email(), "Bu hesap müşteri portalına erişemez");
             return ResponseEntity.status(403).body(ApiResponse.error("Bu hesap müşteri portalına erişemez"));
         }
 
         UserDetails userDetails = userDetailsService.loadUserByUsername(req.email());
+        authEventLogger.loginSucceeded(request, (AuthenticatedUser) userDetails);
         return ResponseEntity.ok(ApiResponse.ok(Map.of(
                 "accessToken", jwtService.generateToken(userDetails),
                 "refreshToken", jwtService.generateRefreshToken(userDetails)

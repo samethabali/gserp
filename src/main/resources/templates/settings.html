@@ -35,6 +35,25 @@
         <div class="page-content">
             <div class="settings-stack">
 
+                <!-- Randevu linki -->
+                <div class="glass-card settings-card">
+                    <h2>Randevu linkiniz</h2>
+                    <p class="settings-desc">
+                        Müşterileriniz bu adresten online randevu alır. Sosyal medya profilinize,
+                        mesajlarınıza veya kartvizitinize ekleyebilirsiniz.
+                    </p>
+                    <div class="form-row" style="align-items:flex-end;gap:8px;">
+                        <div class="form-group" style="flex:1;margin-bottom:0;">
+                            <label class="form-label" for="bookingUrl">Adres</label>
+                            <input type="text" class="form-input" id="bookingUrl" readonly>
+                        </div>
+                        <button class="btn btn-secondary" type="button" onclick="copyBookingUrl()">Kopyala</button>
+                    </div>
+                    <p class="settings-desc" id="bookingUrlHint" style="margin-top:8px;display:none;">
+                        Bu adres henüz yapılandırılmadı; sistem yöneticinizle iletişime geçin.
+                    </p>
+                </div>
+
                 <!-- White-label -->
                 <div class="glass-card settings-card">
                     <h2>White-label Görünüm</h2>
@@ -105,6 +124,25 @@ async function loadSettings() {
     document.getElementById('logoUrl').value = s.logoUrl || '';
     document.getElementById('primaryColor').value = s.primaryColor || '#e91e8c';
     document.getElementById('smsVerificationEnabled').checked = s.smsVerificationEnabled === 'true';
+
+    // Randevu linki bugune kadar yalnizca kayit sihirbazinda bir kez gorunuyordu;
+    // o ekran gecildikten sonra isletme kendi adresini bulamiyordu.
+    const bookingUrl = s.bookingUrl || '';
+    document.getElementById('bookingUrl').value = bookingUrl;
+    document.getElementById('bookingUrlHint').style.display = bookingUrl ? 'none' : 'block';
+}
+
+async function copyBookingUrl() {
+    const value = document.getElementById('bookingUrl').value;
+    if (!value) return;
+    try {
+        await navigator.clipboard.writeText(value);
+        showToast('Randevu linki kopyalandı', 'success');
+    } catch (_) {
+        // Guvensiz baglamda (http) clipboard API yok: kullanici elle kopyalayabilsin.
+        document.getElementById('bookingUrl').select();
+        showToast('Link seçildi, kopyalamak için Ctrl+C', 'info');
+    }
 }
 
 async function saveSettings() {

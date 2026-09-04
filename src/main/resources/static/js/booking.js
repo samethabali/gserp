@@ -206,7 +206,15 @@ async function loadStaff() {
     // Burada role'e bakmak bir donem her uzmani eliyordu — payload role tasimiyor.
     const staff = json.data || [];
     const grid = document.getElementById('staffGrid');
-    if (!staff.length) { grid.innerHTML = '<p style="color:var(--text-muted);">Uzman bulunamadı</p>'; return; }
+    // Yeni kiracida hizmet menusu ekiliyor ama personel eklenmiyor; bu liste bos
+    // donuyordu ve ziyaretci bos bir adimda kaliyordu. Mesaj bilerek notr:
+    // "personel ekleyin" isletme sahibine soylenir, randevu almak isteyene degil.
+    if (!staff.length) {
+        grid.innerHTML = '<p style="color:var(--text-muted);">'
+            + 'Bu işletme şu anda online randevu almıyor. '
+            + 'Lütfen işletmeyle doğrudan iletişime geçin.</p>';
+        return;
+    }
 
     grid.innerHTML = staff.map(s => `
         <div class="staff-option" onclick="selectStaff(${s.id},'${esc(s.name)}')" id="stf_${s.id}">

@@ -14,6 +14,19 @@ public class OnboardingRedirectService {
         if (user.isMustChangePassword()) {
             return "/change-password";
         }
+        return determineSetupUrl(user);
+    }
+
+    /**
+     * Parola değişimi sonrası hedef.
+     *
+     * <p>Yeni kiracının admin kullanıcısı {@code mustChangePassword=true} ile
+     * açılıyor, dolayısıyla ilk giriş her zaman {@code /change-password}'a düşüyor
+     * ve oradan doğrudan ana sayfaya gidiliyordu: kurulum sihirbazı ilk oturumda
+     * hiç görünmüyordu. Parola değişince onboarding kontrolü burada yapılır —
+     * {@code mustChangePassword} dalına takılmadan.
+     */
+    public String determineSetupUrl(AuthenticatedUser user) {
         if (user.getSalonId() == null) {
             return "/";
         }

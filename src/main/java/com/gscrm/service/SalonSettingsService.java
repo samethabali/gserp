@@ -1,5 +1,6 @@
 package com.gscrm.service;
 
+import com.gscrm.config.AppProperties;
 import com.gscrm.model.SalonSetting;
 import com.gscrm.repository.SalonSettingRepository;
 import com.gscrm.tenant.TenantContext;
@@ -19,6 +20,7 @@ public class SalonSettingsService {
 
     private final SalonSettingRepository repository;
     private final ActivityEventService activityEventService;
+    private final AppProperties appProperties;
 
     @Transactional(readOnly = true)
     public String get(String key, String defaultValue) {
@@ -39,6 +41,35 @@ public class SalonSettingsService {
                 !TenantContext.isShowcase() && Boolean.parseBoolean(get("booking.sms_verification_enabled", "false"))
                         ? "true" : "false");
         return map;
+    }
+
+    /**
+     * Panelde gösterilen ayarlar: herkese açık alanlar + işletmenin randevu linki.
+     *
+     * <p>Link {@code app.public-base-url} + {@code /b/{slug}} olarak üretiliyor ve
+     * bugüne kadar yalnızca kayıt sihirbazında bir kez görünüyordu; salon sahibi
+     * o ekranı geçtikten sonra kendi randevu adresini bulabileceği bir yer yoktu.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, String> getManagementSettings() {
+        Map<String, String> map = new HashMap<>(getPublicSettings());
+        map.put("bookingUrl", bookingUrl());
+        return map;
+    }
+
+    private String bookingUrl() {
+        String slug = TenantContext.getSlug();
+        if (slug == null || slug.isBlank()) {
+            return "";
+        }
+        String base = appProperties.getPublicBaseUrl();
+        base = base == null ? "" : base.trim();
+        while (base.endsWith("/")) {
+            base = base.substring(0, base.length() - 1);
+        }
+        // Taban adres yapılandırılmamışsa göreli yol dön: panel yine de linki
+        // gösterebilsin, "null/b/salon" gibi bozuk bir adres üretmeyelim.
+        return base + "/b/" + slug;
     }
 
     @Transactional

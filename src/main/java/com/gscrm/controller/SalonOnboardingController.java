@@ -17,6 +17,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -24,6 +25,17 @@ import java.util.Map;
 @RequestMapping("/api/onboarding")
 @RequiredArgsConstructor
 public class SalonOnboardingController {
+
+    /**
+     * Kurulum adımları — tek kaynak.
+     *
+     * <p>Uç, gövdeden gelen adımı doğrulamadan yazıyordu: istemci doğrudan
+     * {@code COMPLETED} göndererek sihirbazı atlayabiliyor, yazım hatası da
+     * sessizce kalıcı hâle geliyordu. {@code onboarding/setup.html} içindeki
+     * {@code STEPS} dizisi bu anahtarların aynısını taşımalı (orada ek olarak
+     * başlık ve simge var).
+     */
+    private static final List<String> STEPS = List.of("SALON_INFO", "SERVICES", "STAFF", "COMPLETED");
 
     private final SalonProvisioningService provisioningService;
     private final InviteCodeService inviteCodeService;
@@ -44,20 +56,21 @@ public class SalonOnboardingController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> getSteps() {
         Long salonId = TenantContext.requireSalonId();
         OnboardingState state = requireOrCreateState(salonId);
-        return ResponseEntity.ok(ApiResponse.ok(Map.of(
-                "salonId", salonId,
-                "currentStep", state.getCurrentStep(),
-                "completedAt", state.getCompletedAt(),
-                "steps", List.of("SALON_INFO", "SERVICES", "STAFF", "COMPLETED"))));
+        return ResponseEntity.ok(ApiResponse.ok(stepPayload(salonId, state)));
     }
 
+    // Kurulum salonun yapılandırmasını değiştiriyor; herhangi bir kimlikli kullanıcı
+    // (ör. SPECIALIST) adımı COMPLETED yapabiliyordu. Sayfanın kendisi zaten MGMT istiyor.
     @PutMapping("/steps")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> updateStep(@RequestBody Map<String, String> body) {
         Long salonId = TenantContext.requireSalonId();
         OnboardingState state = requireOrCreateState(salonId);
         String step = body.get("currentStep");
         if (step != null && !step.isBlank()) {
+            if (!STEPS.contains(step)) {
+                throw new IllegalArgumentException("Geçersiz kurulum adımı: " + step);
+            }
             state.setCurrentStep(step);
         }
         if ("COMPLETED".equals(step)) {
@@ -65,16 +78,32 @@ public class SalonOnboardingController {
         }
         state.setUpdatedAt(LocalDateTime.now());
         onboardingStateRepository.save(state);
-        return ResponseEntity.ok(ApiResponse.ok(Map.of(
-                "currentStep", state.getCurrentStep(),
-                "completedAt", state.getCompletedAt())));
+        return ResponseEntity.ok(ApiResponse.ok(stepPayload(salonId, state)));
+    }
+
+    /**
+     * Yanıt gövdesi.
+     *
+     * <p>{@code Map.of} null değer kabul etmiyor: kurulum tamamlanmadan
+     * {@code completedAt} null olduğu için bu uç <b>her yeni kiracıda</b>
+     * NullPointerException ile 500 dönüyordu — yani sihirbaz tam da ihtiyaç
+     * duyulduğu anda açılmıyordu. {@code HashMap} null değere izin verir.
+     */
+    private Map<String, Object> stepPayload(Long salonId, OnboardingState state) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("salonId", salonId);
+        payload.put("currentStep", state.getCurrentStep());
+        payload.put("completedAt", state.getCompletedAt());
+        payload.put("steps", STEPS);
+        return payload;
     }
 
     private OnboardingState requireOrCreateState(Long salonId) {
         return onboardingStateRepository.findBySalonId(salonId)
                 .orElseGet(() -> onboardingStateRepository.save(OnboardingState.builder()
                         .salonId(salonId)
-                        .currentStep("COMPLETED")
+                        // Kayıp satır kurulumu "bitmiş" göstermemeli: sihirbaz baştan başlasın.
+                        .currentStep("SALON_INFO")
                         .updatedAt(LocalDateTime.now())
                         .build()));
     }

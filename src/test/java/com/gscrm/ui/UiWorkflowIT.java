@@ -32,6 +32,9 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import com.gscrm.repository.OrganizationSubscriptionRepository;
+import com.gscrm.repository.SubscriptionPlanRepository;
+import com.gscrm.support.SubscriptionFixtures;
 
 /**
  * Bir resepsiyonistin günlük akışını uçtan uca yürütür.
@@ -63,6 +66,11 @@ class UiWorkflowIT {
     @Autowired private ExpenseRepository expenseRepository;
     @Autowired private CustomerRepository customerRepository;
 
+    @Autowired private OrganizationSubscriptionRepository subscriptionRepository;
+
+    @Autowired private SubscriptionPlanRepository subscriptionPlanRepository;
+
+
     private Long orgId;
     private Long salonId;
     private Long staffId;
@@ -81,6 +89,7 @@ class UiWorkflowIT {
                     .organizationId(orgId).slug(slug).name("Akis Salonu")
                     .timezone("Europe/Istanbul").active(true).createdAt(now).build());
             salonId = salon.getId();
+            SubscriptionFixtures.seedTrial(subscriptionRepository, subscriptionPlanRepository, orgId);
             staffId = staffRepository.save(Staff.builder().salonId(salonId).name("Zeynep")
                     .role(StaffRole.SPECIALIST).colorHex("#aa00aa").active(true).build()).getId();
             serviceId = serviceDefinitionRepository.save(ServiceDefinition.builder()

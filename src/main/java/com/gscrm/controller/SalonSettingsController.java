@@ -24,7 +24,7 @@ public class SalonSettingsController {
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN')")
     public ResponseEntity<ApiResponse<Map<String, String>>> getAll() {
-        return ResponseEntity.ok(ApiResponse.ok(salonSettingsService.getPublicSettings()));
+        return ResponseEntity.ok(ApiResponse.ok(salonSettingsService.getManagementSettings()));
     }
 
     @PutMapping

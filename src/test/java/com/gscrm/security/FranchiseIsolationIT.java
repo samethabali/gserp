@@ -36,6 +36,9 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import com.gscrm.repository.OrganizationSubscriptionRepository;
+import com.gscrm.repository.SubscriptionPlanRepository;
+import com.gscrm.support.SubscriptionFixtures;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -63,6 +66,11 @@ class FranchiseIsolationIT {
 
     @Autowired
     private AppointmentRepository appointmentRepository;
+
+    @Autowired private OrganizationSubscriptionRepository subscriptionRepository;
+
+    @Autowired private SubscriptionPlanRepository subscriptionPlanRepository;
+
 
     private Long kadikoySalonId;
     private Long besiktasAppointmentId;
@@ -95,6 +103,7 @@ class FranchiseIsolationIT {
                 .createdAt(now)
                 .build());
         kadikoySalonId = kadikoy.getId();
+        SubscriptionFixtures.seedTrial(subscriptionRepository, subscriptionPlanRepository, org.getId());
 
         Staff kadikoyStaff = staffRepository.save(Staff.builder()
                 .salonId(kadikoy.getId())

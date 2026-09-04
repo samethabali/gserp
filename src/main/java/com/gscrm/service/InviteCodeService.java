@@ -39,6 +39,7 @@ public class InviteCodeService {
     private final OrganizationRepository organizationRepository;
     private final SubscriptionPlanRepository subscriptionPlanRepository;
     private final SalonProvisioningService salonProvisioningService;
+    private final ActivityEventService activityEventService;
 
     @Transactional
     public InviteCode create(InviteCreateRequest request, Long createdBy) {
@@ -128,6 +129,13 @@ public class InviteCodeService {
             org.setInviteCodeId(invite.getId());
             organizationRepository.save(org);
         });
+
+        // Kayıt anında kiracı bağlamı henüz yok, bu yüzden ActivityAuditFilter
+        // sessizce çıkıyor ve davetin kullanıldığı denetim kütüğünde hiç görünmüyordu:
+        // bilgi yalnızca invite_redemption tablosunda kalıyordu.
+        activityEventService.recordPlatform("REDEEM", "INVITE_CODE", invite.getId(),
+                "Davet kodu kullanıldı: " + invite.getCode() + " → " + result.getSalonSlug(),
+                null, ip);
 
         return result;
     }

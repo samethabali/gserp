@@ -35,6 +35,7 @@ public class AuthController {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthEventLogger authEventLogger;
+    private final OnboardingRedirectService onboardingRedirectService;
 
     /** Devre dışı/kilitli hesapların token yenilemesini engeller. */
     private final UserDetailsChecker accountStatusChecker = new AccountStatusUserDetailsChecker();
@@ -89,7 +90,7 @@ public class AuthController {
 
     @PostMapping("/change-password")
     @Transactional
-    public ResponseEntity<ApiResponse<Void>> changePassword(
+    public ResponseEntity<ApiResponse<Map<String, String>>> changePassword(
             @AuthenticationPrincipal AuthenticatedUser principal,
             @Valid @RequestBody ChangePasswordRequest req,
             HttpServletRequest request) {
@@ -105,6 +106,9 @@ public class AuthController {
         user.setTokenVersion(user.getTokenVersion() + 1);
         userRepository.save(user);
         authEventLogger.passwordChanged(request, principal);
-        return ResponseEntity.ok(ApiResponse.ok("Parola güncellendi", null));
+        // Hedefi sunucu belirler: sayfa sabit "/" diyordu ve kurulumu tamamlanmamış
+        // yeni kiracı sihirbazı hiç görmeden takvime düşüyordu.
+        return ResponseEntity.ok(ApiResponse.ok("Parola güncellendi",
+                Map.of("nextUrl", onboardingRedirectService.determineSetupUrl(principal))));
     }
 }

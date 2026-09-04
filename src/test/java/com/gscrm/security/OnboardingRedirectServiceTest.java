@@ -49,6 +49,30 @@ class OnboardingRedirectServiceTest {
         assertThat(onboardingRedirectService.determinePostLoginUrl(user)).isEqualTo("/");
     }
 
+    /**
+     * Parola değişimi sonrası hedef. {@code determinePostLoginUrl}
+     * {@code mustChangePassword} dalında kısa devre yaptığı için yeni kiracı
+     * sihirbazı ilk oturumda hiç görmüyordu; parola değişince kontrol burada yapılır.
+     */
+    @Test
+    void afterPasswordChangeGoesToSetupWhenOnboardingIncomplete() {
+        when(onboardingStateRepository.findBySalonId(1L)).thenReturn(Optional.of(
+                OnboardingState.builder().salonId(1L).currentStep("SALON_INFO").build()));
+
+        // Kullanıcı hâlâ mustChangePassword=true taşıyor: prensipal parola
+        // değişiminden önceki hâliyle geliyor, yine de sihirbaza gitmeli.
+        assertThat(onboardingRedirectService.determineSetupUrl(user(1L, true)))
+                .isEqualTo("/onboarding/setup");
+    }
+
+    @Test
+    void afterPasswordChangeGoesToCalendarWhenOnboardingCompleted() {
+        when(onboardingStateRepository.findBySalonId(1L)).thenReturn(Optional.of(
+                OnboardingState.builder().salonId(1L).currentStep("COMPLETED").build()));
+
+        assertThat(onboardingRedirectService.determineSetupUrl(user(1L, true))).isEqualTo("/");
+    }
+
     private AuthenticatedUser user(Long salonId, boolean mustChangePassword) {
         return new AuthenticatedUser(
                 1L, "demo", "hash", true, UserRole.BRANCH_MANAGER,

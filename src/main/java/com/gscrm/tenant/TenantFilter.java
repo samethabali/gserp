@@ -73,12 +73,27 @@ public class TenantFilter extends OncePerRequestFilter {
             "/favicon.ico",
             "/onboarding/wizard");
 
+    /**
+     * {@code /api/auth} önekinden geri alınan yollar.
+     *
+     * <p>Personel kimlik uçları kiracı bilmeden çalışmalı, bu yüzden {@code /api/auth}
+     * bypass listesinde. Ama müşteri portalı kayıt/giriş uçları aynı önek altında
+     * duruyor ve ilk satırlarında {@code TenantContext.requireSalonId()} çağırıyor:
+     * bypass yüzünden bağlam hiç kurulmuyor ve akış {@code IllegalStateException}
+     * ile düşüyordu. Müşteri {@code /b/{slug}} üzerinden geldiği için bağlam
+     * oturumdaki public salon seçiminden çözülebiliyor.
+     */
+    private static final List<String> BYPASS_EXCEPTIONS = List.of("/api/auth/customer");
+
     private final SalonRepository salonRepository;
     private final JwtService jwtService;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
+        if (BYPASS_EXCEPTIONS.stream().anyMatch(path::startsWith)) {
+            return false;
+        }
         return BYPASS_EXACT.contains(path)
                 || BYPASS_PREFIXES.stream().anyMatch(path::startsWith);
     }

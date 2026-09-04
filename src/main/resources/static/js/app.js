@@ -211,6 +211,33 @@ async function initShowcaseAndBilling() {
         return;
     }
     await initSubscriptionBanner();
+    await initBookingReadinessHint();
+}
+
+/**
+ * "Randevu sayfan bos" uyarisi.
+ *
+ * Provisioning hizmet menusunu ekiyor ama personel eklemiyor; uzman yokken
+ * /api/booking/staff bos donuyor ve isletmenin randevu linki ziyaretciye bos
+ * gorunuyor. Uyari bilerek yalnizca panelde: ziyaretciye gosterilen mesaj notr
+ * kalmali, eylem cagrisi isletme sahibine ait. Kontrol booking sayfasinin
+ * kullandigi ucun aynisiyla yapiliyor ki iki taraf ayni gercegi gorsun.
+ */
+async function initBookingReadinessHint() {
+    if (window.location.pathname !== '/dashboard') return;
+    const main = document.querySelector('.main-content');
+    if (!main || document.getElementById('bookingReadinessBanner')) return;
+
+    const json = await api('GET', '/api/booking/staff');
+    if (!json.success || !Array.isArray(json.data) || json.data.length) return;
+
+    const banner = document.createElement('div');
+    banner.id = 'bookingReadinessBanner';
+    banner.className = 'subscription-banner subscription-banner--warn';
+    banner.innerHTML = 'Randevu sayfanız henüz boş görünüyor: online randevu '
+        + 'alabilmek için en az bir uzman eklemelisiniz. '
+        + '<a href="/staff">Personel ekle</a>';
+    main.insertBefore(banner, main.firstChild);
 }
 
 async function initSubscriptionBanner() {
