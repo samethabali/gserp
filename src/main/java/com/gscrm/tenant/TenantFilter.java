@@ -18,8 +18,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * İsteği bir salona (kiracıya) bağlar.
@@ -52,9 +50,6 @@ public class TenantFilter extends OncePerRequestFilter {
 
     private static final String SALON_SLUG_HEADER = "X-Salon-Slug";
     private static final String SALON_SLUG_PARAM = "salonSlug";
-    private static final Pattern PUBLIC_BOOKING_PATH =
-            Pattern.compile("^/b/([a-z0-9][a-z0-9-]{1,62})(/.*)?$");
-
     /** Kiracı bağlamı gerekmeyen yollar. Statik dosyalar dahil — aksi hâlde giriş sayfası bile çizilemiyordu. */
     private static final List<String> BYPASS_PREFIXES = List.of(
             "/actuator",
@@ -173,11 +168,11 @@ public class TenantFilter extends OncePerRequestFilter {
         return null;
     }
 
-    /** Adreste açıkça belirtilen slug: /b/{slug} yolu, salonSlug parametresi veya X-Salon-Slug başlığı. */
+    /** Adreste açıkça belirtilen slug: /{slug}, eski /b/{slug}, parametre veya başlık. */
     private String resolveExplicitSlug(HttpServletRequest request) {
-        Matcher matcher = PUBLIC_BOOKING_PATH.matcher(request.getRequestURI());
-        if (matcher.matches()) {
-            return matcher.group(1);
+        String pathSlug = PublicBookingPath.extractSlug(request.getRequestURI());
+        if (pathSlug != null) {
+            return pathSlug;
         }
         String param = request.getParameter(SALON_SLUG_PARAM);
         if (param != null && !param.isBlank()) {
@@ -214,7 +209,7 @@ public class TenantFilter extends OncePerRequestFilter {
             deny(response, status, explicitSlug != null ? "İşletme bulunamadı" : "İşletme belirtilmedi");
             return;
         }
-        if (path.startsWith("/b/")) {
+        if (path.startsWith("/b/") || PublicBookingPath.isPublicRootPath(path)) {
             response.sendRedirect("/booking");
             return;
         }

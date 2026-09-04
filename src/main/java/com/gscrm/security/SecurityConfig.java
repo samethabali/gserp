@@ -170,6 +170,8 @@ public class SecurityConfig {
                     .requestMatchers("/campaigns", "/expenses", "/products",
                             "/staff", "/resources", "/services", "/customers").hasAnyRole(MGMT_RECEPTIONIST)
                     .requestMatchers("/ws-calendar/**").authenticated()
+                    .requestMatchers(request ->
+                            com.gscrm.tenant.PublicBookingPath.isPublicRootPath(request.getRequestURI())).permitAll()
                     .anyRequest().authenticated())
             .headers(headers -> headers
                     .referrerPolicy(rp -> rp.policy(

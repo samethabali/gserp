@@ -46,7 +46,7 @@ public class SalonSettingsService {
     /**
      * Panelde gösterilen ayarlar: herkese açık alanlar + işletmenin randevu linki.
      *
-     * <p>Link {@code app.public-base-url} + {@code /b/{slug}} olarak üretiliyor ve
+     * <p>Link {@code app.public-base-url} + {@code /{slug}} olarak üretiliyor ve
      * bugüne kadar yalnızca kayıt sihirbazında bir kez görünüyordu; salon sahibi
      * o ekranı geçtikten sonra kendi randevu adresini bulabileceği bir yer yoktu.
      */
@@ -69,7 +69,7 @@ public class SalonSettingsService {
         }
         // Taban adres yapılandırılmamışsa göreli yol dön: panel yine de linki
         // gösterebilsin, "null/b/salon" gibi bozuk bir adres üretmeyelim.
-        return base + "/b/" + slug;
+        return base + "/" + slug;
     }
 
     @Transactional

@@ -72,7 +72,7 @@ class SalonSettingsBookingUrlIT {
                 .andExpect(status().isOk())
                 // Taban adresin sonundaki eğik çizgi tekrarlanmamalı.
                 .andExpect(jsonPath("$.data.bookingUrl")
-                        .value("https://gscrm.example.test/b/" + slug));
+                        .value("https://gscrm.example.test/" + slug));
     }
 
     /** Public uç kiracıya özel bir alan sızdırmamalı: link yalnızca panelde. */

@@ -15,7 +15,7 @@ Bu doküman demo hazırlığı, deploy ve SaaS ürünleştirme adımlarını tek
 | Madde | Durum |
 |-------|--------|
 | UX paketi (custom select, takvim, müşteri seçici) | ✅ |
-| Demo rehberi (`docs/DEMO.md`) + `admin`/`admin` | ✅ |
+| Demo rehberi (`docs/DEMO.md`) + `admin`/`admin123` | ✅ |
 | Demo testleri (`DemoFeaturesIT`, unit testler) | ✅ |
 | Billing UI (`/settings/billing`) | ✅ |
 | Trial salt okunur mod | ✅ |

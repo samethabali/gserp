@@ -66,7 +66,7 @@ mvn spring-boot:run
 
 | Kullanıcı | Şifre | Rol |
 |-----------|-------|-----|
-| `admin` | `admin` | Yönetici (BRANCH_MANAGER) |
+| `admin` | `admin123` | Platform yöneticisi (PLATFORM_ADMIN) |
 | `merve` | `admin` | Resepsiyon |
 | `ayse` | `admin` | Uzman |
 | `fatma` | `admin` | Uzman |

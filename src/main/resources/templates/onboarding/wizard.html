@@ -130,12 +130,12 @@
 </div>
 
 <script th:inline="javascript">
-// Tek domain, yol tabanlı kiracı: adres artık slug.alan-adi değil, /b/{slug}.
+// Tek domain, yol tabanlı kiracı: /{isletme-slug}.
 const PUBLIC_BASE_URL = /*[[${@environment.getProperty('app.public-base-url', '')}]]*/ '';
 
 function bookingUrl(slug) {
     const base = (PUBLIC_BASE_URL || window.location.origin).replace(/\/+$/, '');
-    return base + '/b/' + slug;
+    return base + '/' + slug;
 }
 
 const form = document.getElementById('registerForm');

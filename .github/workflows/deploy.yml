@@ -145,6 +145,20 @@ jobs:
                 echo "[+] $key .env'e eklendi: $value"
               fi
             }
+            # Public değerler kaynak kodundaki kanonik ayarla aynı tutulur.
+            set_public_env() {
+              key="$1"; value="$2"
+              if grep -qxF "$key=$value" "$ENV_FILE"; then
+                echo "[i] $key zaten güncel."
+                return
+              fi
+              backup_env_once
+              grep -v "^$key=" "$ENV_FILE" > "$ENV_FILE.tmp"
+              printf '%s=%s\n' "$key" "$value" >> "$ENV_FILE.tmp"
+              mv "$ENV_FILE.tmp" "$ENV_FILE"
+              chmod 600 "$ENV_FILE"
+              echo "[+] $key güncellendi: $value"
+            }
 
             # Prod guard bu anahtari zorunlu kilar; yoksa app acilista dusuyor.
             # Anahtari sunucuda uretiyoruz: GitHub'a hic girmiyor.
@@ -153,7 +167,7 @@ jobs:
             # Tek domain, yol tabanli kiraci: alt alan adi cozumlemesi kaldirildi.
             # Bu deger artik kiraci cozmez, yalnizca paylasilabilir link uretir
             # (davet linki, isletmenin randevu linki).
-            ensure_env APP_PUBLIC_BASE_URL "https://gscrm.avesitesi.xyz" 0
+            set_public_env APP_PUBLIC_BASE_URL "https://gserp.avesitesi.xyz"
 
             # Platform admin hic seed edilmiyordu; davet kodu paneline girilemiyordu.
             # Parola sunucuda uretilir, ilk giriste degistirilmesi zorunlu.

@@ -31,7 +31,7 @@ $env:SPRING_DATASOURCE_URL = "jdbc:postgresql://localhost:5800/gscrm_dev"
 Write-Host ""
 Write-Host "Uygulama başlatılıyor..." -ForegroundColor Green
 Write-Host "URL: http://localhost:8989" -ForegroundColor Cyan
-Write-Host "Giriş: admin / admin" -ForegroundColor Cyan
+Write-Host "Giriş: admin / admin123" -ForegroundColor Cyan
 Write-Host "Booking: http://localhost:8989/booking" -ForegroundColor Cyan
 Write-Host ""
 mvn spring-boot:run

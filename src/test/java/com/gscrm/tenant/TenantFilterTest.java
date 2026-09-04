@@ -52,6 +52,9 @@ class TenantFilterTest {
     @Test
     void publicBookingPathResolvesSalon() throws Exception {
         mockMvc.perform(get("/b/default"))
+                .andExpect(status().is3xxRedirection());
+
+        mockMvc.perform(get("/default"))
                 .andExpect(status().isOk());
     }
 

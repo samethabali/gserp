@@ -7,13 +7,13 @@ import com.gscrm.model.*;
 import com.gscrm.model.enums.OrganizationType;
 import com.gscrm.model.enums.UserRole;
 import com.gscrm.repository.*;
+import com.gscrm.tenant.PublicBookingPath;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -32,11 +32,6 @@ public class SalonProvisioningService {
      * Ürünün kendi yolları. Bir işletme bunlardan birini slug olarak alırsa
      * {@code /b/{slug}} altında kendi sayfasını gölgeler; kontrol daha önce hiç yoktu.
      */
-    private static final Set<String> RESERVED_SLUGS = Set.of(
-            "www", "api", "app", "platform", "admin", "static", "health", "actuator",
-            "default", "gscrm", "b", "s", "login", "logout", "onboarding", "customer",
-            "org", "settings");
-
     private final AppProperties appProperties;
     private final PasswordEncoder passwordEncoder;
     private final ServiceTemplateService serviceTemplateService;
@@ -46,7 +41,7 @@ public class SalonProvisioningService {
     @Transactional
     public TenantProvisionResponse provision(TenantProvisionRequest request) {
         String slug = request.getSalonSlug().trim().toLowerCase();
-        if (RESERVED_SLUGS.contains(slug)) {
+        if (PublicBookingPath.isReserved(slug)) {
             throw new IllegalArgumentException("Bu adres sistem tarafından ayrılmış, başka bir adres seçin: " + slug);
         }
         // Aktiflikten bağımsız kontrol: askıya alınmış bir salonun slug'ı da doludur.

@@ -79,6 +79,13 @@ public class PageController {
      * devamındaki adımlar da aynı işletmede kalsın.
      */
     @GetMapping("/b/{slug}")
+    public String legacyPublicBooking(HttpServletRequest request) {
+        request.getSession(true).setAttribute(TenantContext.SESSION_PUBLIC_SALON_ID, TenantContext.getSalonId());
+        return "redirect:/" + TenantContext.getSlug();
+    }
+
+    /** Yeni kanonik randevu adresi: https://gserp.avesitesi.xyz/{isletme-adi}. */
+    @GetMapping("/{slug:[a-z0-9][a-z0-9-]*}")
     public String publicBooking(HttpServletRequest request) {
         request.getSession(true).setAttribute(TenantContext.SESSION_PUBLIC_SALON_ID, TenantContext.getSalonId());
         return "booking";

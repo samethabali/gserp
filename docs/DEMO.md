@@ -24,10 +24,10 @@ Manuel başlatma: [DEVELOPMENT.md](../DEVELOPMENT.md)
 |------|--------|
 | URL | http://localhost:8989/login |
 | Kullanıcı | `admin` |
-| Parola | `admin` |
+| Parola | `admin123` |
 | Salon (tenant) | `default` (lokal dev otomatik) |
 
-Diğer demo kullanıcıları (aynı parola `admin`):
+Diğer demo kullanıcılarının parolası `admin`:
 
 | Kullanıcı | Rol | Tenant slug |
 |-----------|-----|-------------|
@@ -98,7 +98,7 @@ Diğer demo kullanıcıları (aynı parola `admin`):
 
 1. Bilgisayarında uygulama çalışırken Windows Güvenlik Duvarı’nda **8989** TCP girişine izin ver.
 2. IP adresini öğren: `ipconfig` → IPv4 (ör. `192.168.1.42`).
-3. Arkadaşlar tarayıcıda: `http://192.168.1.42:8989` — giriş `admin` / `admin`.
+3. Arkadaşlar tarayıcıda: `http://192.168.1.42:8989` — giriş `admin` / `admin123`.
 
 ### İnternet üzerinden (VDS)
 
@@ -120,7 +120,7 @@ Deploy: `production-ready` push sonrası GitHub Actions **Deploy to VPS** veya [
 
 | Sorun | Çözüm |
 |-------|--------|
-| `admin` / `admin` çalışmıyor | DB’yi sıfırla (aşağı) veya parola eski `admin123` ise yeni kurulum yap |
+| `admin` / `admin123` çalışmıyor | Uygulamayı yeniden başlatıp V36 migration'ının uygulandığını kontrol et |
 | Sayfa login’e atıyor | Çıkış yap, tekrar giriş; API 403 ise tarayıcı önbelleğini temizle |
 | Port 8989 dolu | `netstat -ano \| findstr :8989` → PID ile `taskkill /F /PID <pid>` |
 | Eski CSS/JS | **Ctrl+Shift+R** (hard refresh) |

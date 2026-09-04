@@ -557,7 +557,7 @@ SPRING_PROFILES_ACTIVE=prod
 ```bash
 docker compose -f docker-compose.dev.yml up -d db
 mvnw spring-boot:run -Dspring-boot.run.profiles=dev
-# http://localhost:8989 · admin/admin (dev seed)
+# http://localhost:8989 · admin/admin123 (dev seed)
 # Header: X-Salon-Slug: default
 ```
 
