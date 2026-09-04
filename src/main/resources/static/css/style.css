@@ -79,10 +79,12 @@ a:hover { color: var(--color-primary); }
     left: 0;
     bottom: 0;
     z-index: 100;
+    overflow: hidden;
     transition: var(--transition);
 }
 
 .sidebar-brand {
+    flex-shrink: 0;
     padding: 20px 24px;
     border-bottom: 1px solid var(--border-glass);
     display: flex;
@@ -119,11 +121,24 @@ a:hover { color: var(--color-primary); }
 
 .sidebar-nav {
     flex: 1;
+    min-height: 0;
     padding: 16px 12px;
     display: flex;
     flex-direction: column;
     gap: 4px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(155, 89, 182, 0.4) transparent;
 }
+
+.sidebar-nav::-webkit-scrollbar { width: 6px; }
+.sidebar-nav::-webkit-scrollbar-track { background: transparent; }
+.sidebar-nav::-webkit-scrollbar-thumb {
+    background: rgba(155, 89, 182, 0.35);
+    border-radius: 999px;
+}
+.sidebar-nav::-webkit-scrollbar-thumb:hover { background: rgba(155, 89, 182, 0.55); }
 
 .nav-item {
     display: flex;
@@ -137,6 +152,7 @@ a:hover { color: var(--color-primary); }
     transition: var(--transition);
     cursor: pointer;
     border: 1px solid transparent;
+    flex-shrink: 0;
 }
 
 .nav-item:hover {
@@ -161,6 +177,7 @@ a:hover { color: var(--color-primary); }
     color: var(--text-muted);
     padding: 20px 16px 8px;
     font-weight: 600;
+    flex-shrink: 0;
 }
 
 /* ─── Main Content ─── */
