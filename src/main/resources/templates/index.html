@@ -5,7 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="_csrf" th:content="${_csrf.token}"/>
     <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
-    <meta name="salon-id" content="1"/>
+    <!-- Sabit "1" idi: id'si 1 olmayan her kiracı yanlış kanala abone oluyor,
+         kendi randevusunu canlı görmüyor ve 1 numaralı salonun bildirimlerini
+         alıyordu. Kaynak, oturumun çözülmüş kiracısı olmalı. -->
+    <meta name="salon-id" th:content="${T(com.gscrm.tenant.TenantContext).getSalonId()}"/>
     <title>GSCRM — Randevu Takvimi</title>
     <link th:replace="~{fragments/assets :: styles}"/>
     <link rel="stylesheet" media="print" href="/css/print.css">

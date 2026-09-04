@@ -7,13 +7,20 @@ let stompClient = null;
 let wsConnected = false;
 let wsReconnectTimer = null;
 
+// Yedek değer '1' idi: meta boş kaldığında sayfa sessizce 1 numaralı salonun
+// kanalına bağlanıyordu. Kiracı bilinmiyorsa hiç bağlanmamak doğrusu.
 function getSalonTopicPrefix() {
     const meta = document.querySelector('meta[name="salon-id"]');
-    const salonId = meta && meta.content ? meta.content : '1';
-    return '/topic/salon.' + salonId;
+    const salonId = meta && meta.content ? meta.content.trim() : '';
+    return salonId ? '/topic/salon.' + salonId : null;
 }
 
 function connectWebSocket() {
+    if (!getSalonTopicPrefix()) {
+        console.warn('Salon bilinmiyor — canlı güncelleme devre dışı.');
+        updateWsStatus(false);
+        return;
+    }
     try {
         const socket = new SockJS('/ws-calendar');
         stompClient = Stomp.over(socket);
