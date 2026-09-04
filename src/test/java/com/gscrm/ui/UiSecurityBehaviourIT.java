@@ -53,9 +53,15 @@ class UiSecurityBehaviourIT {
     @Autowired private UserDetailsService userDetailsService;
     @Autowired private JwtService jwtService;
     @Autowired private PasswordEncoder passwordEncoder;
+    @Autowired private com.gscrm.security.RateLimitFilter rateLimitFilter;
 
     private Long salonId;
     private String username;
+
+    @org.junit.jupiter.api.AfterEach
+    void tearDown() {
+        rateLimitFilter.reset();
+    }
 
     @BeforeEach
     void seed() {

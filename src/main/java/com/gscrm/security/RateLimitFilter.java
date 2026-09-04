@@ -128,11 +128,19 @@ public class RateLimitFilter extends OncePerRequestFilter {
      */
     private String bucketKey(HttpServletRequest request) {
         String salon = com.gscrm.tenant.TenantContext.getSlug();
-        return (salon != null ? salon : "-") + '|' + request.getRequestURI() + '|'
+        if (salon == null || salon.isBlank()) {
+            salon = request.getHeader("X-Salon-Slug");
+        }
+        if (salon == null || salon.isBlank()) {
+            salon = request.getParameter("salonSlug");
+        }
+        return (salon != null && !salon.isBlank() ? salon.trim().toLowerCase() : "-") + '|' + request.getRequestURI() + '|'
                 + clientIpResolver.resolve(request);
     }
 
-
+    public void reset() {
+        windows.clear();
+    }
 
     private void evictExpired(long now) {
         windows.entrySet().removeIf(e -> now - e.getValue().startedAt() > WINDOW_MILLIS);
