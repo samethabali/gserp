@@ -10,6 +10,7 @@ import com.gscrm.service.CampaignService.CouponValidationResult;
 import com.gscrm.repository.AppointmentRepository;
 import com.gscrm.repository.ServiceDefinitionRepository;
 import com.gscrm.repository.StaffRepository;
+import com.gscrm.util.PhoneNormalizer;
 import com.gscrm.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,7 +23,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Slf4j
@@ -31,16 +34,22 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class AppointmentService {
 
+    /** Aynı numaradan aynı anda onay bekleyebilecek istek sayısı. */
+    private static final int DEFAULT_MAX_PENDING_PER_PHONE = 2;
+
     private final AppointmentRepository appointmentRepository;
     private final ServiceDefinitionRepository serviceRepository;
     private final StaffRepository staffRepository;
     private final SchedulerService schedulerService;
+    private final AvailabilityService availabilityService;
     private final ResourceLockService resourceLockService;
     private final BranchPricingService branchPricingService;
     private final BranchHolidayService branchHolidayService;
     private final AuditService auditService;
     private final ActivityEventService activityEventService;
     private final NotificationService notificationService;
+    private final SalonSettingsService salonSettingsService;
+    private final VerificationCodeService verificationCodeService;
 
     /**
      * Create appointment(s). If numberOfSessions > 1, creates multiple weekly appointments.
@@ -86,6 +95,7 @@ public class AppointmentService {
                     .adjustmentNote(req.getAdjustmentNote())
                     .internalNote(req.getInternalNote())
                     .flags(req.getFlags())
+                    .bodyRegions(req.getBodyRegions())
                     .build();
 
             try {
@@ -169,6 +179,7 @@ public class AppointmentService {
                 .createdAt(now)
                 .updatedAt(now)
                 .resourceIds(new ArrayList<>(lockedResources))
+                .bodyRegions(toRegionSet(req.getBodyRegions()))
                 .flags(new ArrayList<>())
                 .build();
 
@@ -226,6 +237,9 @@ public class AppointmentService {
         if (branchHolidayService.isHoliday(salonId, req.getStartTime().toLocalDate())) {
             throw new ConflictException("Salon bu tarihte kapalı (şube tatili)");
         }
+        requireVerifiedPhone(req);
+        guardPendingRequestCap(salonId, req.getCustomerPhone());
+
         int durationMinutes = branchPricingService.effectiveDuration(req.getServiceId());
         LocalDateTime endTime = req.getStartTime().plusMinutes(durationMinutes);
 
@@ -234,11 +248,10 @@ public class AppointmentService {
         Staff staff = staffRepository.lockByIdAndSalonId(req.getStaffId(), salonId)
                 .orElseThrow(() -> new IllegalArgumentException("Uzman bulunamadı: " + req.getStaffId()));
 
-        if (!schedulerService.isWithinWorkingHours(req.getStaffId(), req.getStartTime(), endTime)) {
-            throw new ConflictException(staff.getName() + " bu saatte çalışma saatleri dışında");
-        }
-        if (!schedulerService.isStaffAvailable(req.getStaffId(), req.getStartTime(), endTime, null)) {
-            throw new ConflictException(staff.getName() + " bu saatte müsait değil");
+        // Online istekte müsaitlik kontrolü, slot listesini üreten servisin ta kendisidir:
+        // arayüzün gösterdiği saat ile burada kabul edilen saat böylece hiç ayrışmaz.
+        if (!availabilityService.isBookable(req.getStaffId(), req.getServiceId(), req.getStartTime())) {
+            throw new ConflictException(staff.getName() + " için seçilen saat artık müsait değil");
         }
 
         BigDecimal basePrice = branchPricingService.effectivePrice(service.getId());
@@ -286,6 +299,7 @@ public class AppointmentService {
                 .createdAt(now)
                 .updatedAt(now)
                 .resourceIds(new ArrayList<>())
+                .bodyRegions(toRegionSet(req.getBodyRegions()))
                 .flags(new ArrayList<>())
                 .build();
 
@@ -301,6 +315,67 @@ public class AppointmentService {
         notificationService.broadcastDashboardRefresh();
 
         return response;
+    }
+
+    /**
+     * SMS doğrulama açıksa, isteğin doğrulanmış bir numaraya ait olmasını şart koşar.
+     *
+     * <p>Bayrak kapalıyken bu metot hiçbir şey yapmaz ve token yok sayılır — akış
+     * bugünkü hâliyle aynı kalır. Açıkken token tek kullanımlık olarak harcanır ve
+     * içindeki numara ile formdaki numaranın aynı olması aranır; aksi hâlde kendi
+     * numarasını doğrulayan biri başkasının numarasıyla randevu yazdırabilirdi.
+     */
+    private void requireVerifiedPhone(AppointmentCreateRequest req) {
+        if (!verificationCodeService.isEnabled()) return;
+
+        String verifiedPhone = verificationCodeService.consume(req.getVerificationToken()).orElse(null);
+        if (verifiedPhone == null) {
+            throw new ConflictException("Telefon doğrulaması gerekiyor. Lütfen numaranıza gelen kodu girin.");
+        }
+        if (!verifiedPhone.equals(PhoneNormalizer.normalizeOrNull(req.getCustomerPhone()))) {
+            // Fırlatınca işlem geri alınır ve token'ın "harcandı" damgası da geri alınır:
+            // uyuşmayan istek token'ı yakmaz, yalnızca başarılı bir randevu yakar.
+            // Bu davranış bilinçli — aksi hâlde tek bir hatalı deneme müşteriyi yeniden
+            // kod istemeye mecbur bırakırdı.
+            throw new ConflictException("Doğrulanan numara ile randevu numarası aynı değil");
+        }
+    }
+
+    /**
+     * Aynı numaradan onay bekleyen istek sayısına tavan koyar.
+     *
+     * <p>Doğrulama kapalıyken tek gerçek fren salon sahibinin onayı; bu tavan onun
+     * kuyruğunu tek bir numaranın doldurmasını engeller. Telefon çözümlenemiyorsa
+     * ham metin üzerinden sayılır — aksi hâlde çöp numara yazmak bariz bir bypass olurdu.
+     * Müşteri portalı da bu metottan geçtiği için o taraf da kapsanır.
+     */
+    private void guardPendingRequestCap(Long salonId, String rawPhone) {
+        if (rawPhone == null || rawPhone.isBlank()) return;
+
+        int cap = DEFAULT_MAX_PENDING_PER_PHONE;
+        try {
+            String configured = salonSettingsService.get(
+                    "booking.max_pending_per_phone", String.valueOf(DEFAULT_MAX_PENDING_PER_PHONE));
+            if (configured != null && !configured.isBlank()) {
+                cap = Integer.parseInt(configured.trim());
+            }
+        } catch (NumberFormatException e) {
+            log.warn("Geçersiz booking.max_pending_per_phone ayarı, varsayılan {} kullanılıyor",
+                    DEFAULT_MAX_PENDING_PER_PHONE);
+        }
+        if (cap <= 0) return;
+
+        String normalized = PhoneNormalizer.normalizeOrNull(rawPhone);
+        long pending = normalized != null
+                ? appointmentRepository.countBySalonIdAndCustomerPhoneNormalizedAndStatus(
+                        salonId, normalized, AppointmentStatus.PENDING_APPROVAL)
+                : appointmentRepository.countBySalonIdAndCustomerPhoneAndStatus(
+                        salonId, rawPhone, AppointmentStatus.PENDING_APPROVAL);
+
+        if (pending >= cap) {
+            throw new ConflictException("Onay bekleyen " + pending + " randevu isteğiniz var. "
+                    + "Salon bunları yanıtlayana kadar yeni istek oluşturamazsınız.");
+        }
     }
 
     /**
@@ -432,6 +507,13 @@ public class AppointmentService {
             appointment.setFinalPrice(appointment.getBasePrice().add(req.getAdjustment()));
         }
 
+        // null = "dokunma", boş liste = "hepsini kaldır". Bölge seçicisi görünmeyen
+        // bir hizmete geçildiğinde arayüz boş liste gönderir ve eski bölgeler silinir.
+        if (req.getBodyRegions() != null) {
+            appointment.getBodyRegions().clear();
+            appointment.getBodyRegions().addAll(toRegionSet(req.getBodyRegions()));
+        }
+
         if (req.getFlags() != null) {
             appointment.getFlags().clear();
             for (var flagReq : req.getFlags()) {
@@ -516,7 +598,10 @@ public class AppointmentService {
      */
     public List<AppointmentResponse> findByCustomerPhone(String phone) {
         Long salonId = TenantContext.requireSalonId();
-        return appointmentRepository.findBySalonIdAndCustomerPhoneOrderByStartTimeDesc(salonId, phone).stream()
+        String normalized = PhoneNormalizer.normalizeOrNull(phone);
+        if (normalized == null) return List.of();
+        return appointmentRepository
+                .findBySalonIdAndCustomerPhoneNormalizedOrderByStartTimeDesc(salonId, normalized).stream()
                 .limit(10)
                 .map(this::toResponse)
                 .toList();
@@ -555,8 +640,29 @@ public class AppointmentService {
                 .sessionGroupId(a.getSessionGroupId())
                 .sessionNumber(a.getSessionNumber())
                 .totalSessions(a.getTotalSessions())
+                .bodyRegions(sortedRegions(a.getBodyRegions()))
                 .flags(a.getFlags())
                 .resourceIds(a.getResourceIds())
                 .build();
+    }
+
+    /** Yinelenenleri ve {@code null}'ları ayıklar; sıra istekteki sırayı korur. */
+    private static Set<BodyRegion> toRegionSet(List<BodyRegion> regions) {
+        Set<BodyRegion> result = new LinkedHashSet<>();
+        if (regions != null) {
+            regions.stream().filter(java.util.Objects::nonNull).forEach(result::add);
+        }
+        return result;
+    }
+
+    /**
+     * Bölgeleri enum sırasına (baştan ayağa) döker.
+     *
+     * <p>Kümenin veritabanından dönüş sırası garanti değil; sabit bir sıra olmadan
+     * aynı randevunun bölge listesi her açılışta farklı dizilebilirdi.
+     */
+    private static List<BodyRegion> sortedRegions(Set<BodyRegion> regions) {
+        if (regions == null || regions.isEmpty()) return List.of();
+        return regions.stream().sorted().toList();
     }
 }

@@ -59,7 +59,9 @@ public class CustomerPortalController {
     public ResponseEntity<ApiResponse<Map<String, List<AppointmentResponse>>>> appointments(
             @AuthenticationPrincipal AuthenticatedUser principal) {
         Customer customer = resolveCustomer(principal);
-        String phone = customer.getPhone();
+        // Portal listeleri normalize telefonla eşleşir: müşterinin randevusu panelde
+        // farklı yazılmış olsa bile kendi geçmişinde görünür.
+        String phoneNormalized = customer.getPhoneNormalized();
         Long salonId = TenantContext.requireSalonId();
 
         List<AppointmentStatus> activeStatuses = List.of(
@@ -73,13 +75,15 @@ public class CustomerPortalController {
                 AppointmentStatus.NO_SHOW
         );
 
-        List<AppointmentResponse> active = phone != null
-                ? appointmentRepository.findBySalonIdAndCustomerPhoneAndStatusIn(salonId, phone, activeStatuses)
+        List<AppointmentResponse> active = phoneNormalized != null
+                ? appointmentRepository.findBySalonIdAndCustomerPhoneNormalizedAndStatusIn(
+                                salonId, phoneNormalized, activeStatuses)
                         .stream().map(appointmentService::toResponse).toList()
                 : List.of();
 
-        List<AppointmentResponse> past = phone != null
-                ? appointmentRepository.findBySalonIdAndCustomerPhoneAndStatusIn(salonId, phone, pastStatuses)
+        List<AppointmentResponse> past = phoneNormalized != null
+                ? appointmentRepository.findBySalonIdAndCustomerPhoneNormalizedAndStatusIn(
+                                salonId, phoneNormalized, pastStatuses)
                         .stream().map(appointmentService::toResponse).toList()
                 : List.of();
 
@@ -138,6 +142,7 @@ public class CustomerPortalController {
                 .serviceId(req.getServiceId())
                 .startTime(req.getStartTime())
                 .internalNote(req.getInternalNote())
+                .bodyRegions(req.getBodyRegions())
                 .adjustmentNote(adjustmentNote)
                 .couponCode(req.getCouponCode())
                 .build();
@@ -165,8 +170,10 @@ public class CustomerPortalController {
             return ResponseEntity.status(404).body(ApiResponse.error("Randevu bulunamadı"));
         }
 
-        String phone = customer.getPhone();
-        if (phone == null || !phone.equals(appointment.getCustomerPhone())) {
+        // Sahiplik kontrolü de normalize telefon üzerinden: ham metin karşılaştırması
+        // müşterinin kendi randevusunu iptal etmesini format farkı yüzünden engelliyordu.
+        String phoneNormalized = customer.getPhoneNormalized();
+        if (phoneNormalized == null || !phoneNormalized.equals(appointment.getCustomerPhoneNormalized())) {
             return ResponseEntity.status(403).body(ApiResponse.error("Bu randevu size ait değil"));
         }
 

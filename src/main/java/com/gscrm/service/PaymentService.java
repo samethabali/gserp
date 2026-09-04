@@ -32,6 +32,7 @@ public class PaymentService {
     private final AppointmentRepository appointmentRepository;
     private final CustomerRepository customerRepository;
     private final ActivityEventService activityEventService;
+    private final CustomerMatchingService customerMatchingService;
 
     @Transactional
     public PaymentResponse collect(PaymentCreateRequest req) {
@@ -65,7 +66,9 @@ public class PaymentService {
     }
 
     private void updateCustomerBalance(String phone, BigDecimal finalPrice, BigDecimal paid, PaymentStatus status) {
-        Optional<Customer> opt = customerRepository.findBySalonIdAndPhone(TenantContext.requireSalonId(), phone);
+        // Normalize eşleştirme şart: online randevu artık farklı yazılmış numarayı
+        // mevcut müşteriye bağlıyor, ham lookup burada sessizce boş dönerdi.
+        Optional<Customer> opt = customerMatchingService.findByPhone(phone);
         if (opt.isEmpty()) return;
 
         Customer customer = opt.get();

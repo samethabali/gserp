@@ -5,6 +5,7 @@ import com.gscrm.repository.ActivityEventRepository;
 import com.gscrm.repository.CustomerRepository;
 import com.gscrm.security.AuthenticatedUser;
 import com.gscrm.tenant.TenantContext;
+import com.gscrm.util.PhoneNormalizer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -60,9 +61,13 @@ public class ActivityEventService {
         Long customerId = null;
         Long salonId = TenantContext.getSalonId();
         if (salonId != null && customerPhone != null && !customerPhone.isBlank()) {
-            customerId = customerRepository.findBySalonIdAndPhone(salonId, customerPhone)
-                    .map(c -> c.getId())
-                    .orElse(null);
+            String normalized = PhoneNormalizer.normalizeOrNull(customerPhone);
+            if (normalized != null) {
+                customerId = customerRepository.findBySalonIdAndPhoneNormalized(salonId, normalized).stream()
+                        .findFirst()
+                        .map(c -> c.getId())
+                        .orElse(null);
+            }
         }
         record(action, entityType, entityId, customerId, summary);
     }

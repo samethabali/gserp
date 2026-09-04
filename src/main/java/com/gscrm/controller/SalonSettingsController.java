@@ -33,6 +33,12 @@ public class SalonSettingsController {
         if (body.containsKey("name")) salonSettingsService.set("salon.name", body.get("name"));
         if (body.containsKey("logoUrl")) salonSettingsService.set("salon.logo_url", body.get("logoUrl"));
         if (body.containsKey("primaryColor")) salonSettingsService.set("salon.primary_color", body.get("primaryColor"));
+        if (body.containsKey("smsVerificationEnabled")) {
+            // Değeri normalize et: ayar okuyan taraf Boolean.parseBoolean kullanıyor,
+            // serbest metin sessizce "false" anlamına gelirdi.
+            salonSettingsService.set("booking.sms_verification_enabled",
+                    Boolean.parseBoolean(body.get("smsVerificationEnabled")) ? "true" : "false");
+        }
         return ResponseEntity.ok(ApiResponse.ok("Ayarlar kaydedildi", null));
     }
 }

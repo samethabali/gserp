@@ -168,6 +168,12 @@
                 </div>
             </div>
 
+            <!-- Epilasyon bölgeleri — yalnızca epilasyon hizmetlerinde görünür -->
+            <div class="form-group" id="bodyRegionGroup" style="display:none;">
+                <label class="form-label">Epilasyon Bölgeleri</label>
+                <div id="appointmentBodyMap"></div>
+            </div>
+
             <div class="form-group">
                 <label class="form-label">Not</label>
                 <textarea class="form-textarea" id="noteInput" placeholder="İç not ekleyin..."></textarea>
@@ -242,6 +248,7 @@
 <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
 <script th:replace="~{fragments/assets :: app-js}"></script>
+<script th:replace="~{fragments/assets :: body-map-js}"></script>
 <script th:replace="~{fragments/assets :: custom-select-js}"></script>
 <script src="/js/websocket.js"></script>
 <script src="/js/calendar.js"></script>

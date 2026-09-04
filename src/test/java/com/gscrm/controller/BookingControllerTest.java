@@ -16,6 +16,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDateTime;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -56,5 +58,74 @@ class BookingControllerTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.message").value("Randevu isteğiniz alındı, salon onayı bekleniyor"))
                 .andExpect(jsonPath("$.data.id").value(42));
+    }
+
+    /**
+     * Tuzak alan doluysa istek sessizce yutulur.
+     *
+     * <p>Yanıt normal başarı yanıtıdır: bota reddedildiğini söylemek, hangi sinyale
+     * takıldığını öğrenip bir sonraki denemede atlamasını sağlardı. Önemli olan
+     * hiçbir randevunun yazılmamasıdır.
+     */
+    @Test
+    void honeypotFieldSilentlyDiscardsTheRequest() throws Exception {
+        AppointmentCreateRequest req = AppointmentCreateRequest.builder()
+                .customerName("Bot")
+                .customerPhone("05551234567")
+                .staffId(1L)
+                .serviceId(1L)
+                .startTime(LocalDateTime.of(2026, 6, 20, 10, 0))
+                .website("http://spam.example")
+                .build();
+
+        mockMvc.perform(post("/api/booking/request")
+                        .header("X-Salon-Slug", "default")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        verify(appointmentService, never()).createRequest(any());
+    }
+
+    /** Form insan hızının çok altında dolduruldu — aynı sessiz tuzak. */
+    @Test
+    void instantSubmissionSilentlyDiscardsTheRequest() throws Exception {
+        AppointmentCreateRequest req = AppointmentCreateRequest.builder()
+                .customerName("Bot")
+                .customerPhone("05551234567")
+                .staffId(1L)
+                .serviceId(1L)
+                .startTime(LocalDateTime.of(2026, 6, 20, 10, 0))
+                .elapsedMs(120L)
+                .build();
+
+        mockMvc.perform(post("/api/booking/request")
+                        .header("X-Salon-Slug", "default")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk());
+
+        verify(appointmentService, never()).createRequest(any());
+    }
+
+    /** Panelin katı regex'i public uca taşındı: çözümlenemeyen numara artık reddedilir. */
+    @Test
+    void unparseablePhoneIsRejectedByValidation() throws Exception {
+        AppointmentCreateRequest req = AppointmentCreateRequest.builder()
+                .customerName("Test Müşteri")
+                .customerPhone("1234567")
+                .staffId(1L)
+                .serviceId(1L)
+                .startTime(LocalDateTime.of(2026, 6, 20, 10, 0))
+                .build();
+
+        mockMvc.perform(post("/api/booking/request")
+                        .header("X-Salon-Slug", "default")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest());
+
+        verify(appointmentService, never()).createRequest(any());
     }
 }

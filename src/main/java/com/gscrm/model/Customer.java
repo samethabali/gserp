@@ -34,6 +34,14 @@ public class Customer implements TenantEntity {
     private String lastName;
 
     private String phone;
+
+    /**
+     * {@code phone}'un kanonik E.164 hâli — müşteri eşleştirmesinin anahtarı.
+     * Doğrudan yazılmaz; {@link #syncNormalizedPhone()} her kayıtta üretir.
+     */
+    @Column(name = "phone_normalized", length = 32)
+    private String phoneNormalized;
+
     private String email;
 
     @Column(columnDefinition = "text")
@@ -51,6 +59,19 @@ public class Customer implements TenantEntity {
     @Column(precision = 12, scale = 2)
     @Builder.Default
     private BigDecimal balance = BigDecimal.ZERO;
+
+    /**
+     * Normalize telefonu her yazımda yeniden üretir.
+     *
+     * <p>Entity düzeyinde durmasının sebebi: müşteri kaydı yazan yol tek değil
+     * (panel CRUD, portal kaydı, online randevu, seeder). Callback olunca hiçbir
+     * çağrı yeri normalizasyonu unutamaz.
+     */
+    @PrePersist
+    @PreUpdate
+    private void syncNormalizedPhone() {
+        this.phoneNormalized = com.gscrm.util.PhoneNormalizer.normalizeOrNull(this.phone);
+    }
 
     public String getFullName() {
         return firstName + " " + lastName;

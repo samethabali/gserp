@@ -1,7 +1,7 @@
 package com.gscrm.dto.request;
 
+import com.gscrm.validation.PhoneNumber;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -15,9 +15,11 @@ public class CustomerCreateRequest {
     @Size(max = 255)
     private String lastName;
 
-    @Pattern(regexp = "^$|^0?5\\d{9}$|^0?5\\d{2}[\\s-]?\\d{3}[\\s-]?\\d{4}$",
-            message = "Geçerli bir telefon numarası girin")
+    @PhoneNumber
     private String phone;
+
+    /** Aynı telefonla kayıtlı müşteri varken yine de eklemek/kaydetmek için. */
+    private boolean allowDuplicate;
 
     @Size(max = 255)
     private String email;

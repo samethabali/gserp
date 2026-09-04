@@ -51,6 +51,8 @@ class CustomerServiceTest {
     private ProductSaleRepository productSaleRepository;
     @Mock
     private ActivityEventService activityEventService;
+    @Mock
+    private CustomerMatchingService customerMatchingService;
 
     @InjectMocks
     private CustomerService customerService;
@@ -80,7 +82,7 @@ class CustomerServiceTest {
                 AppointmentResponse.builder().serviceName("Saç Kesim").staffName("Ayşe").build());
         when(appointmentService.toResponse(other)).thenReturn(
                 AppointmentResponse.builder().serviceName("Manikür").staffName("Fatma").build());
-        when(customerRepository.findBySalonIdAndPhone(SALON_ID, "05321112233"))
+        when(customerMatchingService.findByPhone("05321112233"))
                 .thenReturn(Optional.of(Customer.builder().id(5L).build()));
 
         List<RecentCustomerDto> result = customerService.getRecentCustomers(8);

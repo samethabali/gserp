@@ -1,5 +1,8 @@
 package com.gscrm.dto.request;
 
+import com.gscrm.model.enums.BodyRegion;
+import com.gscrm.validation.PhoneNumber;
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -28,8 +31,26 @@ public class AppointmentCreateRequest {
     private String customerName;
 
     @Size(max = 20, message = "Telefon numarası en fazla 20 karakter olabilir")
-    @Pattern(regexp = "|[0-9+()\\s-]{7,20}", message = "Geçerli bir telefon numarası girin")
+    @PhoneNumber
     private String customerPhone;
+
+    /**
+     * Bot tuzağı: ekranda görünmeyen alan. İnsan doldurmaz, formu otomatik dolduran
+     * betikler doldurur. Bilerek <b>doğrulama anotasyonu yok</b> — {@code @Null}
+     * koysaydık dönen hata mesajı bota hangi alanın tuzak olduğunu söylerdi.
+     */
+    private String website;
+
+    /** Form açıldıktan sonra geçen süre (ms); anında gönderim bot işaretidir. */
+    private Long elapsedMs;
+
+    /**
+     * Telefon doğrulamasından dönen tek kullanımlık kulp.
+     *
+     * <p>Gövdede taşınıyor, header/Bearer olarak değil: JWT filtresine hiç değmemeli.
+     * Doğrulama bayrağı kapalıyken yok sayılır.
+     */
+    private String verificationToken;
 
     @NotNull(message = "Uzman seçilmelidir")
     private Long staffId;
@@ -39,6 +60,15 @@ public class AppointmentCreateRequest {
 
     @NotNull(message = "Başlangıç saati girilmelidir")
     private LocalDateTime startTime;
+
+    /**
+     * Epilasyon randevusunda insan vücudu şablonundan seçilen bölgeler.
+     *
+     * <p>Tip enum: geçersiz bir kod istekten hiç içeri giremez. Tavan, tek istekte
+     * katalogdaki bölge sayısından fazlasını göndermeyi anlamsız kıldığı için var.
+     */
+    @Size(max = 30, message = "En fazla 30 vücut bölgesi seçilebilir")
+    private List<BodyRegion> bodyRegions;
 
     private BigDecimal finalPrice;
     private BigDecimal adjustment;

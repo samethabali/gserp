@@ -27,6 +27,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import com.gscrm.dto.response.ProductSaleResponse;
+import com.gscrm.exception.ConflictException;
 import com.gscrm.model.Product;
 import com.gscrm.model.ProductSale;
 import com.gscrm.repository.ProductRepository;
@@ -44,6 +45,7 @@ public class CustomerService {
     private final ProductRepository productRepository;
     private final ProductSaleRepository productSaleRepository;
     private final ActivityEventService activityEventService;
+    private final CustomerMatchingService customerMatchingService;
 
     public List<CustomerResponse> getAll(String query) {
         Long salonId = TenantContext.requireSalonId();
@@ -62,11 +64,13 @@ public class CustomerService {
             LocalDateTime now = LocalDateTime.now();
 
             List<AppointmentResponse> past = appointmentRepository
-                    .findBySalonIdAndCustomerPhoneAndStartTimeBeforeOrderByStartTimeDesc(salonId, c.getPhone(), now)
+                    .findBySalonIdAndCustomerPhoneNormalizedAndStartTimeBeforeOrderByStartTimeDesc(
+                            salonId, c.getPhoneNormalized(), now)
                     .stream().map(appointmentService::toResponse).collect(Collectors.toList());
 
             List<AppointmentResponse> upcoming = appointmentRepository
-                    .findBySalonIdAndCustomerPhoneAndStartTimeAfterOrderByStartTimeAsc(salonId, c.getPhone(), now)
+                    .findBySalonIdAndCustomerPhoneNormalizedAndStartTimeAfterOrderByStartTimeAsc(
+                            salonId, c.getPhoneNormalized(), now)
                     .stream().map(appointmentService::toResponse).collect(Collectors.toList());
 
             List<PaymentResponse> payments = c.getPhone() != null
@@ -119,6 +123,39 @@ public class CustomerService {
         });
     }
 
+    /**
+     * Aynı normalize telefonla kayıtlı müşteri varsa 409 ile uyarır.
+     *
+     * <p>Eskiden bu işi {@code uk_customer_salon_phone} eşsiz index'i yapıyordu ama o,
+     * ham metin üzerinde olduğu için "0532 111 22 33" ile "+905321112233"u ayrı
+     * sayıyor, buna karşılık yinelenen kayıtları düzeltmeye çalışan admini keyfî
+     * biçimde engelliyordu. Index V30'da düşürüldü; koruma artık burada ve
+     * normalizasyonu anlıyor. Salon bilinçli olarak devam edebilir.
+     */
+    private void guardDuplicatePhone(String phone, boolean allowDuplicate, Long excludeId) {
+        if (allowDuplicate) return;
+        customerMatchingService.findAllByPhone(phone).stream()
+                .filter(c -> excludeId == null || !excludeId.equals(c.getId()))
+                .findFirst()
+                .ifPresent(existing -> {
+                    throw new ConflictException("Bu telefonla kayıtlı müşteri var: "
+                            + existing.getFullName().trim()
+                            + ". Ayrı kayıt oluşturmak istiyorsanız yinelenen kaydı onaylayın.");
+                });
+    }
+
+    @Transactional
+    public Customer create(Customer customer, boolean allowDuplicate) {
+        guardDuplicatePhone(customer.getPhone(), allowDuplicate, null);
+        return create(customer);
+    }
+
+    @Transactional
+    public Customer update(Long id, Customer updated, boolean allowDuplicate) {
+        guardDuplicatePhone(updated.getPhone(), allowDuplicate, id);
+        return update(id, updated);
+    }
+
     @Transactional
     public Customer create(Customer customer) {
         Long salonId = TenantContext.requireSalonId();
@@ -150,8 +187,7 @@ public class CustomerService {
     }
 
     public Optional<CustomerResponse> lookupByPhone(String phone) {
-        Long salonId = TenantContext.requireSalonId();
-        return customerRepository.findBySalonIdAndPhone(salonId, phone).map(this::toResponse);
+        return customerMatchingService.findByPhone(phone).map(this::toResponse);
     }
 
     public List<RecentCustomerDto> getRecentCustomers(int limit) {
@@ -163,16 +199,23 @@ public class CustomerService {
         Map<String, RecentCustomerDto> seen = new LinkedHashMap<>();
         for (Appointment appointment : recent) {
             String phone = appointment.getCustomerPhone();
-            if (phone == null || phone.isBlank() || seen.containsKey(phone)) {
+            if (phone == null || phone.isBlank()) {
+                continue;
+            }
+            // Tekilleme normalize telefona gore: ayni kisi farkli yazimlarla iki kez listelenmesin.
+            String key = appointment.getCustomerPhoneNormalized() != null
+                    ? appointment.getCustomerPhoneNormalized()
+                    : phone;
+            if (seen.containsKey(key)) {
                 continue;
             }
 
             AppointmentResponse response = appointmentService.toResponse(appointment);
-            Long customerId = customerRepository.findBySalonIdAndPhone(salonId, phone)
+            Long customerId = customerMatchingService.findByPhone(phone)
                     .map(Customer::getId)
                     .orElse(null);
 
-            seen.put(phone, RecentCustomerDto.builder()
+            seen.put(key, RecentCustomerDto.builder()
                     .id(customerId)
                     .fullName(appointment.getCustomerName())
                     .phone(phone)
@@ -190,10 +233,14 @@ public class CustomerService {
 
     private CustomerResponse toResponse(Customer c) {
         Long salonId = TenantContext.requireSalonId();
-        String phone = c.getPhone() != null ? c.getPhone() : "";
-        int total = (int) appointmentRepository.countBySalonIdAndCustomerPhone(salonId, phone);
-        int upcoming = (int) appointmentRepository.countBySalonIdAndCustomerPhoneAndStartTimeAfter(
-                salonId, phone, LocalDateTime.now());
+        // Normalize telefon yoksa hic sayma: eskiden bos string uzerinden sayiliyordu ve
+        // telefonsuz her randevu tek bir musterinin gecmisi gibi gorunuyordu.
+        String normalized = c.getPhoneNormalized();
+        int total = normalized == null ? 0
+                : (int) appointmentRepository.countBySalonIdAndCustomerPhoneNormalized(salonId, normalized);
+        int upcoming = normalized == null ? 0
+                : (int) appointmentRepository.countBySalonIdAndCustomerPhoneNormalizedAndStartTimeAfter(
+                        salonId, normalized, LocalDateTime.now());
 
         return CustomerResponse.builder()
                 .id(c.getId())

@@ -25,6 +25,7 @@ import java.util.stream.Collectors;
 public class ProductService {
 
     private final ProductRepository productRepository;
+    private final CustomerMatchingService customerMatchingService;
     private final ProductSaleRepository productSaleRepository;
     private final CustomerRepository customerRepository;
     private final ActivityEventService activityEventService;
@@ -72,11 +73,9 @@ public class ProductService {
         // Find customer if not directly provided but phone exists
         Long resolvedCustomerId = customerId;
         if (resolvedCustomerId == null && customerPhone != null && !customerPhone.isBlank()) {
-            List<Customer> matching = customerRepository.searchBySalonIdAndQuery(
-                    TenantContext.requireSalonId(), customerPhone.trim());
-            if (!matching.isEmpty()) {
-                resolvedCustomerId = matching.get(0).getId();
-            }
+            resolvedCustomerId = customerMatchingService.findByPhone(customerPhone)
+                    .map(Customer::getId)
+                    .orElse(null);
         }
 
         BigDecimal total = product.getPrice().multiply(BigDecimal.valueOf(quantity));

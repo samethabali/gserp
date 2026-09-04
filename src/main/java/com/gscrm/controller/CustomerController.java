@@ -9,6 +9,7 @@ import com.gscrm.model.Customer;
 import com.gscrm.model.ConsentRecord;
 import com.gscrm.service.ActivityEventService;
 import com.gscrm.service.ConsentService;
+import com.gscrm.service.CustomerMatchingService;
 import com.gscrm.service.CustomerService;
 import com.gscrm.service.GdprService;
 import jakarta.validation.Valid;
@@ -27,6 +28,7 @@ import java.util.Map;
 public class CustomerController {
 
     private final CustomerService customerService;
+    private final CustomerMatchingService customerMatchingService;
     private final GdprService gdprService;
     private final ConsentService consentService;
     private final ActivityEventService activityEventService;
@@ -59,7 +61,7 @@ public class CustomerController {
                 .email(request.getEmail())
                 .notes(request.getNotes())
                 .build();
-        return ResponseEntity.ok(ApiResponse.ok("Müşteri eklendi", customerService.create(customer)));
+        return ResponseEntity.ok(ApiResponse.ok("Müşteri eklendi", customerService.create(customer, request.isAllowDuplicate())));
     }
 
     @PutMapping("/{id}")
@@ -72,7 +74,19 @@ public class CustomerController {
                 .email(request.getEmail())
                 .notes(request.getNotes())
                 .build();
-        return ResponseEntity.ok(ApiResponse.ok("Müşteri güncellendi", customerService.update(id, customer)));
+        return ResponseEntity.ok(ApiResponse.ok("Müşteri güncellendi", customerService.update(id, customer, request.isAllowDuplicate())));
+    }
+
+    /**
+     * Aynı normalize telefonu paylaşan müşteri grupları.
+     *
+     * <p>Birleştirme bilinçli olarak yok: gerçek bir birleştirme randevu, tahsilat,
+     * ürün satışı ve rıza kayıtlarını taşıyıp bakiyeyi mutabık kılmayı gerektirir.
+     * Burada yalnızca tespit var, kararı salon veriyor.
+     */
+    @GetMapping("/duplicates")
+    public ResponseEntity<ApiResponse<List<CustomerMatchingService.DuplicateGroup>>> duplicates() {
+        return ResponseEntity.ok(ApiResponse.ok(customerMatchingService.findDuplicateGroups()));
     }
 
     @GetMapping("/lookup")

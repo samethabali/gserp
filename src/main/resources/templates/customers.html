@@ -46,6 +46,7 @@
                     <input type="text" id="customerSearch" placeholder="İsim, telefon veya e-posta..."
                            oninput="searchCustomers(this.value)">
                 </div>
+                <div id="duplicateBanner" style="display:none;background:rgba(241,196,15,0.12);border:1px solid rgba(241,196,15,0.35);border-radius:var(--radius-sm);padding:10px;margin-bottom:10px;font-size:0.82rem;"></div>
                 <div id="customerList" style="display:flex;flex-direction:column;gap:8px;max-height:calc(100vh - 220px);overflow-y:auto;"></div>
             </div>
 
@@ -58,6 +59,20 @@
             </div>
         </div>
     </main>
+</div>
+
+<!-- Olası Yinelenen Müşteriler -->
+<div class="modal-overlay" id="duplicateModal">
+    <div class="modal" style="max-width:520px;">
+        <div class="modal-header">
+            <h3>Olası Yinelenen Müşteriler</h3>
+            <button class="modal-close" onclick="closeModal('duplicateModal')">✕</button>
+        </div>
+        <div class="modal-body" id="duplicateModalBody"></div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('duplicateModal')">Kapat</button>
+        </div>
+    </div>
 </div>
 
 <!-- Müşteri Ekle/Düzenle Modalı -->

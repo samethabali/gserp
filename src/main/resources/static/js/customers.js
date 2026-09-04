@@ -7,6 +7,7 @@ let selectedCustomerId = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     await loadCustomers();
+    loadDuplicateWarning();
 
     // URL'de ?phone= varsa otomatik arama yap ve müşteriyi seç
     const phoneParam = new URLSearchParams(window.location.search).get('phone');
@@ -278,6 +279,22 @@ async function saveCustomer() {
         return;
     }
 
+    // Aynı telefonla kayıtlı başka müşteri var mı? Sunucu da 409 ile korur; buradaki
+    // kontrol kullanıcıya kimle çakıştığını söyleyip bilinçli devam imkânı verir.
+    if (body.phone) {
+        const existing = await api('GET', `/api/customers/lookup?phone=${encodeURIComponent(body.phone)}`);
+        const match = existing && existing.success ? existing.data : null;
+        if (match && String(match.id) !== String(id)) {
+            const proceed = confirm(
+                `Bu telefonla kayıtlı müşteri zaten var: ${match.fullName}.
+
+` +
+                `Yine de ayrı bir kayıt olarak devam etmek istiyor musunuz?`);
+            if (!proceed) return;
+            body.allowDuplicate = true;
+        }
+    }
+
     const url    = id ? `/api/customers/${id}` : '/api/customers';
     const method = id ? 'PUT' : 'POST';
     const json   = await api(method, url, body);
@@ -286,8 +303,59 @@ async function saveCustomer() {
         showToast(json.message, 'success');
         closeModal('customerModal');
         await loadCustomers();
+        loadDuplicateWarning();
         if (id) selectCustomer(parseInt(id));
     } else {
         showToast(json.message || 'Kayıt başarısız', 'error');
     }
+}
+
+
+// ─── Olası yinelenen müşteriler ───
+//
+// Telefon normalizasyonu (V30) aynı numaranın farklı yazımlarını görünür kıldı.
+// Yinelenenler bilinçli olarak otomatik birleştirilmiyor: gerçek bir birleştirme
+// randevu, tahsilat, ürün satışı ve rıza kayıtlarını taşıyıp bakiyeyi mutabık
+// kılmayı gerektirir. Burada yalnızca tespit var; kararı salon veriyor.
+
+let duplicateGroups = [];
+
+async function loadDuplicateWarning() {
+    const banner = document.getElementById('duplicateBanner');
+    if (!banner) return;
+
+    const json = await api('GET', '/api/customers/duplicates');
+    duplicateGroups = (json && json.success && json.data) ? json.data : [];
+
+    if (!duplicateGroups.length) {
+        banner.style.display = 'none';
+        banner.innerHTML = '';
+        return;
+    }
+
+    banner.style.display = 'block';
+    banner.innerHTML = `⚠️ ${duplicateGroups.length} olası yinelenen müşteri
+        <a href="#" onclick="showDuplicates(); return false;" style="margin-left:6px;">Görüntüle</a>`;
+}
+
+function showDuplicates() {
+    const body = duplicateGroups.map(group => {
+        const rows = (group.members || []).map(m => `
+            <div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--border-glass);">
+                <span>${escapeHtml(m.firstName || '')} ${escapeHtml(m.lastName || '')}</span>
+                <span style="color:var(--text-muted);">${escapeHtml(m.phone || '')}</span>
+                <a href="#" onclick="selectCustomer(${m.id}); closeModal('duplicateModal'); return false;">Aç</a>
+            </div>`).join('');
+        return `<div style="margin-bottom:16px;">
+                    <div style="font-weight:600;margin-bottom:4px;">${escapeHtml(group.normalizedPhone)}</div>
+                    ${rows}
+                </div>`;
+    }).join('');
+
+    const el = document.getElementById('duplicateModalBody');
+    if (el) {
+        el.innerHTML = body + `<p style="color:var(--text-muted);font-size:0.82rem;margin-top:8px;">
+            Kayıtları tek tek açıp düzeltebilirsiniz. Otomatik birleştirme yakında.</p>`;
+    }
+    openModal('duplicateModal');
 }

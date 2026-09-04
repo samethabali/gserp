@@ -11,6 +11,7 @@ import com.gscrm.repository.AppointmentRepository;
 import com.gscrm.repository.CouponRepository;
 import com.gscrm.repository.CouponUsageRepository;
 import com.gscrm.repository.LoyaltyTierRepository;
+import com.gscrm.util.PhoneNormalizer;
 import com.gscrm.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -73,8 +74,7 @@ public class CampaignService {
         }
 
         if (coupon.getMinAppointments() > 0 && customerPhone != null) {
-            long completed = appointmentRepository.countBySalonIdAndCustomerPhoneAndStatus(
-                    TenantContext.requireSalonId(), customerPhone, AppointmentStatus.COMPLETED);
+            long completed = countCompleted(customerPhone);
             if (completed < coupon.getMinAppointments()) {
                 throw new ConflictException("Bu kuponu kullanmak için en az "
                         + coupon.getMinAppointments() + " tamamlanan randevunuz olmalı");
@@ -106,8 +106,7 @@ public class CampaignService {
      */
     public Optional<LoyaltyTier> getApplicableTier(String customerPhone) {
         if (customerPhone == null || customerPhone.isBlank()) return Optional.empty();
-        long completed = appointmentRepository.countBySalonIdAndCustomerPhoneAndStatus(
-                TenantContext.requireSalonId(), customerPhone, AppointmentStatus.COMPLETED);
+        long completed = countCompleted(customerPhone);
         return loyaltyTierRepository.findByActiveTrueOrderByMinCompletedDesc()
                 .stream()
                 .filter(t -> completed >= t.getMinCompleted())
@@ -118,10 +117,9 @@ public class CampaignService {
      * Müşterinin tam sadakat bilgisini döner (portal için).
      */
     public LoyaltyInfo getLoyaltyInfo(String customerPhone) {
-        long completed = customerPhone != null
-                ? appointmentRepository.countBySalonIdAndCustomerPhoneAndStatus(
-                        TenantContext.requireSalonId(), customerPhone, AppointmentStatus.COMPLETED)
-                : 0;
+        long completed = countCompleted(customerPhone);
+
+
 
         List<LoyaltyTier> tiers = loyaltyTierRepository.findByActiveTrueOrderByMinCompletedDesc();
 
@@ -221,4 +219,20 @@ public class CampaignService {
             case GLOBAL -> { /* platform-wide */ }
         }
     }
+
+    /**
+     * Tamamlanmış randevu sayısı — normalize telefon üzerinden.
+     *
+     * <p>Sadakat ve kupon uygunluğu eskiden ham metin eşitliğiyle sayılıyordu:
+     * numarasını her seferinde farklı yazan müşterinin geçmişi birikmiyordu.
+     * Çözümlenemeyen telefon 0 döner; "telefonu bozuk olan herkes" gibi bir
+     * kova oluşmaz.
+     */
+    private long countCompleted(String customerPhone) {
+        String normalized = PhoneNormalizer.normalizeOrNull(customerPhone);
+        if (normalized == null) return 0;
+        return appointmentRepository.countBySalonIdAndCustomerPhoneNormalizedAndStatus(
+                TenantContext.requireSalonId(), normalized, AppointmentStatus.COMPLETED);
+    }
+
 }

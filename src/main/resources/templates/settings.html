@@ -57,6 +57,24 @@
                 </div>
 
                 <div class="glass-card settings-card">
+                    <h2>Online randevu güvenliği</h2>
+                    <p class="settings-desc">
+                        Açıldığında müşteri, randevu isteğini göndermeden önce telefonuna gelen
+                        6 haneli kodu girmek zorunda kalır. Kapalıyken randevu isteği doğrulamasız
+                        alınır; sahte istekleri onay adımı ve istek tavanları frenler.
+                    </p>
+                    <label style="display:flex;gap:8px;align-items:flex-start;font-size:0.88rem;">
+                        <input type="checkbox" id="smsVerificationEnabled" style="margin-top:3px;">
+                        <span>SMS ile telefon doğrulaması zorunlu olsun</span>
+                    </label>
+                    <p class="settings-desc" style="margin-top:8px;">
+                        ⚠️ Gönderim sağlayıcısı tanımlı değilse kod yalnızca sunucu günlüğüne yazılır
+                        ve müşteriye ulaşmaz. Sağlayıcı bağlanmadan bu ayarı canlıda açmayın.
+                    </p>
+                    <button class="btn btn-primary" style="margin-top:12px;" onclick="saveSettings()">💾 Kaydet</button>
+                </div>
+
+                <div class="glass-card settings-card">
                     <h2>Şube tatil günleri</h2>
                     <p class="settings-desc">Bu tarihlerde randevu oluşturulamaz.</p>
                     <div class="form-row">
@@ -86,13 +104,15 @@ async function loadSettings() {
     document.getElementById('salonName').value = s.name || '';
     document.getElementById('logoUrl').value = s.logoUrl || '';
     document.getElementById('primaryColor').value = s.primaryColor || '#e91e8c';
+    document.getElementById('smsVerificationEnabled').checked = s.smsVerificationEnabled === 'true';
 }
 
 async function saveSettings() {
     const body = {
         name: document.getElementById('salonName').value.trim(),
         logoUrl: document.getElementById('logoUrl').value.trim(),
-        primaryColor: document.getElementById('primaryColor').value.trim()
+        primaryColor: document.getElementById('primaryColor').value.trim(),
+        smsVerificationEnabled: document.getElementById('smsVerificationEnabled').checked
     };
     const json = await api('PUT', '/api/settings', body);
     showToast(json.message || 'Kaydedildi', json.success ? 'success' : 'error');

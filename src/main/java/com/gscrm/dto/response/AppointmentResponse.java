@@ -2,6 +2,7 @@ package com.gscrm.dto.response;
 
 import com.gscrm.model.AppointmentFlag;
 import com.gscrm.model.enums.AppointmentStatus;
+import com.gscrm.model.enums.BodyRegion;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -50,6 +51,9 @@ public class AppointmentResponse {
     private String sessionGroupId;
     private Integer sessionNumber;
     private Integer totalSessions;
+
+    /** Epilasyon bölgeleri — {@link BodyRegion} sırasında (baştan ayağa). */
+    private List<BodyRegion> bodyRegions;
 
     // Flags & Resources
     private List<AppointmentFlag> flags;

@@ -8,6 +8,8 @@ let staffData = [];
 let serviceData = [];
 let activeStaffFilters = new Set();
 let customerSearchTimeout;
+/** Randevu modalında seçili olan epilasyon bölgeleri. */
+let selectedBodyRegions = [];
 
 // ─── Initialize ───
 document.addEventListener('DOMContentLoaded', async () => {
@@ -277,6 +279,35 @@ function onServiceChange() {
         document.getElementById('finalPriceInput').value = '';
         document.getElementById('sessionRow').style.display = 'none';
     }
+    applyBodyRegionVisibility();
+}
+
+// ─── Epilasyon Bölgeleri ───
+
+/**
+ * Bölge şablonunu seçili hizmete göre kurar.
+ *
+ * Şablon epilasyon dışı hizmetlerde gizlenir ve seçim de sıfırlanır: kayıt
+ * sırasında boş liste gider, yani hizmeti değiştiren kullanıcı eski bölgeleri
+ * randevuda unutmuş olmaz.
+ */
+function applyBodyRegionVisibility() {
+    const serviceId = parseInt(document.getElementById('serviceSelect').value);
+    const service   = serviceData.find(s => s.id === serviceId);
+    const group     = document.getElementById('bodyRegionGroup');
+    if (!group) return;
+
+    if (!isEpilationService(service)) {
+        group.style.display = 'none';
+        selectedBodyRegions = [];
+        return;
+    }
+
+    group.style.display = '';
+    renderBodyMap(document.getElementById('appointmentBodyMap'), {
+        selected: selectedBodyRegions,
+        onChange: codes => { selectedBodyRegions = codes; },
+    });
 }
 
 function updateFinalPrice() {
@@ -542,6 +573,8 @@ async function applyLastAppointment() {
         document.getElementById('adjustmentInput').value = last.adjustment || 0;
         document.getElementById('adjustmentNoteInput').value = last.adjustmentNote || '';
         document.getElementById('noteInput').value = last.internalNote || '';
+        selectedBodyRegions = last.bodyRegions || [];
+        applyBodyRegionVisibility();
         updateFinalPrice();
         applyFlagsFromAppointment(last.flags);
 
@@ -571,6 +604,8 @@ function openCreateModal() {
     document.getElementById('preferredDaySelect').value = '';
     document.getElementById('sessionRow').style.display = 'none';
     document.getElementById('sessionInfo').style.display = 'none';
+    selectedBodyRegions = [];
+    applyBodyRegionVisibility();
     document.querySelectorAll('.flag-toggle').forEach(btn => {
         btn.classList.remove('btn-primary');
         btn.classList.add('btn-secondary');
@@ -605,6 +640,8 @@ function openEditModal(a) {
     document.getElementById('sessionRow').style.display = 'none';
     document.getElementById('sessionInfo').style.display = 'none';
     document.getElementById('sessionCountInput').value = '1';
+    selectedBodyRegions = a.bodyRegions || [];
+    applyBodyRegionVisibility();
 
     // Set flags
     document.querySelectorAll('.flag-toggle').forEach(btn => {
@@ -661,6 +698,8 @@ async function saveAppointment() {
         adjustment: adjustment ? parseFloat(adjustment) : null,
         adjustmentNote: adjustmentNote || null,
         internalNote: note,
+        // Her zaman gönderilir: boş liste, güncellemede eski bölgeleri temizler.
+        bodyRegions: selectedBodyRegions,
         flags: flags.length > 0 ? flags : null
     };
 
@@ -714,6 +753,12 @@ function showAppointmentDetail(a) {
     // Cancellation reason
     const reasonHtml = a.cancellationReason ? `<div><span class="detail-label">NEDEN</span><br>${a.cancellationReason}</div>` : '';
 
+    // Epilasyon bölgeleri — şablon yalnızca bölge işaretliyse çizilir
+    const regions = a.bodyRegions || [];
+    const regionHtml = regions.length
+        ? `<div><span class="detail-label">BÖLGELER</span><div id="detailBodyMap" style="margin-top:8px;"></div></div>`
+        : '';
+
     document.getElementById('viewModalBody').innerHTML = `
         <div style="display:flex;flex-direction:column;gap:16px;">
             <div style="display:flex;align-items:center;gap:12px;">
@@ -735,11 +780,16 @@ function showAppointmentDetail(a) {
             ${sessionInfo}
             <div><span class="detail-label">DURUM</span><br>${statusBadge(a.status)}</div>
             ${reasonHtml}
+            ${regionHtml}
             ${a.internalNote ? `<div><span class="detail-label">NOT</span><br>${a.internalNote}</div>` : ''}
             ${flags ? `<div><span class="detail-label">NOTLAR</span><br><div class="flag-badges">${flags}</div></div>` : ''}
             <div id="customerHistorySection"></div>
         </div>
     `;
+
+    if (regions.length) {
+        renderBodyMap(document.getElementById('detailBodyMap'), { selected: regions, readonly: true });
+    }
 
     // Status action buttons
     let actions = '';

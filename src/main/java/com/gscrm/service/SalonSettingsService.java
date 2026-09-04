@@ -31,6 +31,11 @@ public class SalonSettingsService {
         map.put("logoUrl", get("salon.logo_url", ""));
         map.put("primaryColor", get("salon.primary_color", "#e91e8c"));
         map.put("showcase", TenantContext.isShowcase() ? "true" : "false");
+        // Booking sayfası doğrulama adımını gösterip göstermeyeceğini buradan öğrenir.
+        // Showcase salonlarda zorla kapalı: demo tenant gerçek gönderim denemesi yapmasın.
+        map.put("smsVerificationEnabled",
+                !TenantContext.isShowcase() && Boolean.parseBoolean(get("booking.sms_verification_enabled", "false"))
+                        ? "true" : "false");
         return map;
     }
 

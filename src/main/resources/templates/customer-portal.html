@@ -100,6 +100,12 @@
         <div class="step-req active" id="req-step1">
             <p style="color:var(--color-text-muted);font-size:0.9rem;margin-bottom:12px;">Hizmet seçin</p>
             <div class="service-grid" id="reqServiceGrid"><div style="color:var(--color-text-muted);padding:20px;text-align:center;grid-column:1/-1;">Yükleniyor...</div></div>
+
+            <div id="reqRegionBox" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border-glass);">
+                <p style="color:var(--color-text-muted);font-size:0.9rem;margin-bottom:12px;">Epilasyon yapılacak bölgeleri şablon üzerinde işaretleyin</p>
+                <div id="reqBodyMap"></div>
+            </div>
+
             <div style="display:flex;justify-content:flex-end;margin-top:16px;gap:8px;">
                 <button class="btn" onclick="closeRequestModal()">İptal</button>
                 <button class="btn btn-primary" onclick="reqNext(1)">Devam →</button>
@@ -164,6 +170,7 @@
     </div>
 </div>
 
+<script th:replace="~{fragments/assets :: body-map-js}"></script>
 <script>
 const TOKEN_KEY = 'customerToken';
 
@@ -215,6 +222,7 @@ function renderAppt(a, showCancel) {
             <div class="appt-info">
                 <div class="appt-name">${a.serviceName}</div>
                 <div class="appt-meta">${fmtDate(a.startTime)} — ${a.staffName}</div>
+                ${(a.bodyRegions || []).length ? `<div class="appt-meta" style="margin-top:2px;">🎯 ${bodyRegionLabels(a.bodyRegions)}</div>` : ''}
                 <div class="appt-meta" style="margin-top:4px;">${statusBadge(a.status)} <span style="margin-left:8px;">₺${parseFloat(a.finalPrice).toFixed(2)}</span></div>
             </div>
             ${cancel}
@@ -282,11 +290,13 @@ async function cancelAppt(id) {
 }
 
 /* ====== RANDEVU İSTEK MODALI ====== */
-let reqState = { serviceId: null, serviceName: '', staffId: null, staffName: '', date: null, startTime: null, step: 1 };
+let reqState = { serviceId: null, serviceName: '', staffId: null, staffName: '', date: null, startTime: null, step: 1, bodyRegions: [] };
 let allStaff = [];
+let allServices = [];
 
 async function openRequestModal() {
-    reqState = { serviceId: null, serviceName: '', staffId: null, staffName: '', date: null, startTime: null, step: 1, couponCode: null, validatedCoupon: null };
+    reqState = { serviceId: null, serviceName: '', staffId: null, staffName: '', date: null, startTime: null, step: 1, couponCode: null, validatedCoupon: null, bodyRegions: [] };
+    document.getElementById('reqRegionBox').style.display = 'none';
     showReqStep(1);
     document.getElementById('requestModal').style.display = 'flex';
     document.getElementById('reqError').style.display = 'none';
@@ -295,6 +305,7 @@ async function openRequestModal() {
     const data = await res.json();
     const grid = document.getElementById('reqServiceGrid');
     if (!data.data || data.data.length === 0) { grid.innerHTML = '<div style="color:var(--color-text-muted);text-align:center;padding:20px;grid-column:1/-1;">Hizmet bulunamadı</div>'; return; }
+    allServices = data.data;
     grid.innerHTML = data.data.map(s => `
         <div class="service-option" onclick="selectService(${s.id},'${s.name.replace(/'/g,"\\'")}',this)">
             <div style="font-weight:600;font-size:0.9rem;">${s.name}</div>
@@ -315,6 +326,19 @@ function selectService(id, name, el) {
     el.classList.add('selected');
     reqState.serviceId = id;
     reqState.serviceName = name;
+
+    // Epilasyon dışı bir hizmete geçilirse bölge seçimi taşınmaz.
+    const box = document.getElementById('reqRegionBox');
+    if (!isEpilationService(allServices.find(s => s.id === id))) {
+        reqState.bodyRegions = [];
+        box.style.display = 'none';
+        return;
+    }
+    box.style.display = 'block';
+    renderBodyMap(document.getElementById('reqBodyMap'), {
+        selected: reqState.bodyRegions,
+        onChange: codes => { reqState.bodyRegions = codes; },
+    });
 }
 
 function selectStaff(id, name, el) {
@@ -335,6 +359,9 @@ function reqNext(from) {
     err.style.display = 'none';
     if (from === 1) {
         if (!reqState.serviceId) { err.textContent = '⚠️ Lütfen bir hizmet seçin'; err.style.display = 'block'; return; }
+        if (document.getElementById('reqRegionBox').style.display !== 'none' && !reqState.bodyRegions.length) {
+            err.textContent = '⚠️ Lütfen en az bir bölge seçin'; err.style.display = 'block'; return;
+        }
         const grid = document.getElementById('reqStaffGrid');
         grid.innerHTML = allStaff.map(s => `
             <div class="staff-option" onclick="selectStaff(${s.id},'${s.name.replace(/'/g,"\\'")}',this)" style="display:flex;align-items:center;gap:8px;">
@@ -375,6 +402,7 @@ function reqNext(from) {
                 : '');
         document.getElementById('reqSummary').innerHTML = `
             <div><strong>Hizmet:</strong> ${reqState.serviceName}</div>
+            ${reqState.bodyRegions.length ? `<div><strong>Bölgeler:</strong> ${bodyRegionLabels(reqState.bodyRegions)}</div>` : ''}
             <div><strong>Uzman:</strong> ${reqState.staffName}</div>
             <div><strong>Tarih / Saat:</strong> ${fmtDate(reqState.startTime)}</div>
             ${discountLine}`;
@@ -446,6 +474,7 @@ async function submitRequest() {
         staffId: reqState.staffId,
         serviceId: reqState.serviceId,
         startTime: reqState.startTime,
+        bodyRegions: reqState.bodyRegions,
         couponCode: reqState.couponCode || null
     });
 

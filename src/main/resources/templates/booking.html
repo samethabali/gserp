@@ -42,56 +42,101 @@
     </div>
 
     <!-- Adım göstergesi -->
-    <div class="step-indicator">
-        <div class="step-dot active" id="dot1"></div>
-        <div class="step-dot" id="dot2"></div>
-        <div class="step-dot" id="dot3"></div>
-        <div class="step-dot" id="dot4"></div>
-        <div class="step-dot" id="dot5"></div>
-    </div>
+    <div class="step-indicator" id="stepIndicator"></div>
 
     <div class="glass-card" style="padding:28px;">
 
         <!-- Adım 1: Hizmet Seç -->
         <div class="step active" id="step1">
-            <h2 style="font-size:1.1rem;margin-bottom:16px;">1. Hizmet Seçin</h2>
+            <h2 class="step-title" data-step-title="Hizmet Seçin" style="font-size:1.1rem;margin-bottom:16px;">1. Hizmet Seçin</h2>
             <div class="service-grid" id="serviceGrid">
                 <div style="color:var(--text-muted);padding:20px;grid-column:1/-1;text-align:center;">Yükleniyor...</div>
             </div>
             <div style="margin-top:20px;text-align:right;">
-                <button class="btn btn-primary" onclick="goStep(2)" id="btnStep1">Devam →</button>
+                <button class="btn btn-primary" onclick="goNext()" id="btnStep1">Devam →</button>
+            </div>
+        </div>
+
+        <!-- Bölge Seçimi (yalnızca epilasyon hizmetlerinde akışa girer) -->
+        <div class="step" id="stepRegion">
+            <h2 class="step-title" data-step-title="Bölge Seçin" style="font-size:1.1rem;margin-bottom:8px;">Bölge Seçin</h2>
+            <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:16px;">
+                Epilasyon yapılacak bölgeleri şablon üzerinde işaretleyin. Birden fazla bölge seçebilirsiniz.
+            </p>
+            <div id="bookingBodyMap"></div>
+            <div style="margin-top:20px;display:flex;justify-content:space-between;">
+                <button class="btn btn-secondary" onclick="goBack()">← Geri</button>
+                <button class="btn btn-primary" onclick="goNext()">Devam →</button>
             </div>
         </div>
 
         <!-- Adım 2: Uzman Seç -->
         <div class="step" id="step2">
-            <h2 style="font-size:1.1rem;margin-bottom:16px;">2. Uzman Seçin</h2>
+            <h2 class="step-title" data-step-title="Uzman Seçin" style="font-size:1.1rem;margin-bottom:16px;">2. Uzman Seçin</h2>
             <div class="staff-grid" id="staffGrid">
                 <div style="color:var(--text-muted);padding:20px;grid-column:1/-1;text-align:center;">Yükleniyor...</div>
             </div>
             <div style="margin-top:20px;display:flex;justify-content:space-between;">
-                <button class="btn btn-secondary" onclick="goStep(1)">← Geri</button>
-                <button class="btn btn-primary" onclick="goStep(3)" id="btnStep2">Devam →</button>
+                <button class="btn btn-secondary" onclick="goBack()">← Geri</button>
+                <button class="btn btn-primary" onclick="goNext()" id="btnStep2">Devam →</button>
             </div>
         </div>
 
         <!-- Adım 3: Tarih & Saat -->
         <div class="step" id="step3">
-            <h2 style="font-size:1.1rem;margin-bottom:16px;">3. Tarih ve Saat Seçin</h2>
+            <h2 class="step-title" data-step-title="Tarih ve Saat Seçin" style="font-size:1.1rem;margin-bottom:16px;">3. Tarih ve Saat Seçin</h2>
             <div class="form-group" style="margin-bottom:16px;">
                 <label class="form-label">Tarih</label>
                 <input type="date" class="form-input" id="bookDate" onchange="loadSlots()">
             </div>
             <div id="slotContainer" style="min-height:80px;"></div>
             <div style="margin-top:20px;display:flex;justify-content:space-between;">
-                <button class="btn btn-secondary" onclick="goStep(2)">← Geri</button>
-                <button class="btn btn-primary" onclick="goStep(4)" id="btnStep3">Devam →</button>
+                <button class="btn btn-secondary" onclick="goBack()">← Geri</button>
+                <button class="btn btn-primary" onclick="goNext()" id="btnStep3">Devam →</button>
+            </div>
+        </div>
+
+
+        <!-- Telefon Doğrulama (yalnızca salon ayarı açıksa akışa girer) -->
+        <div class="step" id="stepVerify">
+            <h2 class="step-title" data-step-title="Telefon Doğrulama" style="font-size:1.1rem;margin-bottom:16px;">Telefon Doğrulama</h2>
+            <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:16px;">
+                Randevunuzu güvenceye almak için numaranıza bir kod göndereceğiz.
+            </p>
+            <div class="form-group">
+                <label class="form-label">Telefon *</label>
+                <input type="tel" class="form-input" id="verifyPhone" placeholder="05XX XXX XXXX"
+                       autocomplete="tel" inputmode="tel">
+            </div>
+            <div style="margin-top:12px;">
+                <button class="btn btn-secondary" id="btnSendCode" onclick="startVerification()">📩 Kod Gönder</button>
+                <span id="verifyStatus" style="margin-left:10px;font-size:0.82rem;color:var(--text-muted);"></span>
+            </div>
+
+            <div id="codeBox" style="display:none;margin-top:18px;">
+                <div class="form-group">
+                    <label class="form-label">Doğrulama Kodu *</label>
+                    <input type="text" class="form-input" id="verifyCode" placeholder="6 haneli kod"
+                           inputmode="numeric" autocomplete="one-time-code" maxlength="6">
+                </div>
+                <button class="btn btn-primary" onclick="confirmVerification()">Doğrula</button>
+            </div>
+
+            <div style="margin-top:20px;display:flex;justify-content:space-between;">
+                <button class="btn btn-secondary" onclick="goBack()">← Geri</button>
             </div>
         </div>
 
         <!-- Adım 4: Bilgiler -->
         <div class="step" id="step4">
-            <h2 style="font-size:1.1rem;margin-bottom:16px;">4. Bilgilerinizi Girin</h2>
+            <h2 class="step-title" data-step-title="Bilgilerinizi Girin" style="font-size:1.1rem;margin-bottom:16px;">4. Bilgilerinizi Girin</h2>
+
+            <div id="recognizedBanner" style="display:none;background:rgba(46,204,113,0.12);border:1px solid rgba(46,204,113,0.35);border-radius:var(--radius-md);padding:14px;margin-bottom:16px;font-size:0.85rem;"></div>
+
+            <!-- Bot tuzağı: ekranda görünmez, insan doldurmaz. -->
+            <input type="text" id="bookWebsite" name="website" tabindex="-1" autocomplete="off"
+                   aria-hidden="true" style="position:absolute;left:-9999px;">
+
             <div class="form-row">
                 <div class="form-group">
                     <label class="form-label">Ad Soyad *</label>
@@ -109,7 +154,7 @@
                 <span><a href="/privacy" target="_blank">KVKK aydınlatma metnini</a> okudum, kişisel verilerimin işlenmesini kabul ediyorum.</span>
             </label>
             <div style="margin-top:20px;display:flex;justify-content:space-between;">
-                <button class="btn btn-secondary" onclick="goStep(3)">← Geri</button>
+                <button class="btn btn-secondary" onclick="goBack()">← Geri</button>
                 <button class="btn btn-primary" onclick="submitBooking()">✅ Randevu Oluştur</button>
             </div>
         </div>
@@ -129,6 +174,7 @@
 
 <div class="toast-container" id="toastContainer"></div>
 <script th:replace="~{fragments/assets :: app-js}"></script>
+<script th:replace="~{fragments/assets :: body-map-js}"></script>
 <script th:replace="~{fragments/assets :: custom-select-js}"></script>
 <script src="/js/booking.js"></script>
 </body>

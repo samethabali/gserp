@@ -35,8 +35,8 @@ public class GdprService {
         export.put("consents", consentRecordRepository.findByCustomerIdAndSalonId(customerId, salonId));
         if (customer.getPhone() != null) {
             export.put("appointments", appointmentRepository
-                    .findBySalonIdAndCustomerPhoneAndStartTimeBeforeOrderByStartTimeDesc(
-                            salonId, customer.getPhone(), LocalDateTime.now().plusYears(10)));
+                    .findBySalonIdAndCustomerPhoneNormalizedAndStartTimeBeforeOrderByStartTimeDesc(
+                            salonId, customer.getPhoneNormalized(), LocalDateTime.now().plusYears(10)));
             export.put("payments", paymentRepository.findByCustomerPhoneOrderByCollectedAtDesc(customer.getPhone()));
         }
         export.put("exportedAt", LocalDateTime.now());

@@ -1,6 +1,7 @@
 package com.gscrm.model;
 
 import com.gscrm.model.enums.AppointmentStatus;
+import com.gscrm.model.enums.BodyRegion;
 import com.gscrm.tenant.TenantEntity;
 import jakarta.persistence.*;
 import org.hibernate.annotations.Filter;
@@ -9,7 +10,9 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Filter(name = "tenantFilter", condition = "salon_id = :salonId")
@@ -35,6 +38,13 @@ public class Appointment implements TenantEntity {
 
     @Column(name = "customer_phone")
     private String customerPhone;
+
+    /**
+     * {@code customerPhone}'un kanonik E.164 hâli — geçmiş, sadakat ve kupon
+     * sorgularının anahtarı. Doğrudan yazılmaz; {@link #syncNormalizedPhone()} üretir.
+     */
+    @Column(name = "customer_phone_normalized", length = 32)
+    private String customerPhoneNormalized;
 
     @Column(name = "staff_id", nullable = false)
     private Long staffId;
@@ -98,9 +108,31 @@ public class Appointment implements TenantEntity {
     @Column(name = "resource_id")
     private List<Long> resourceIds = new ArrayList<>();
 
+    /**
+     * Epilasyonda işlem yapılacak vücut bölgeleri.
+     *
+     * <p>Küme, çünkü aynı bölgenin iki kez seçilmesinin bir anlamı yok; sıra
+     * gösterim tarafında {@link BodyRegion} sırasına göre kurulur.
+     */
+    @Builder.Default
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(
+            name = "appointment_body_region",
+            joinColumns = @JoinColumn(name = "appointment_id"))
+    @Enumerated(EnumType.STRING)
+    @Column(name = "region", length = 32)
+    private Set<BodyRegion> bodyRegions = new LinkedHashSet<>();
+
     /** Quick flags/sticky notes */
     @Builder.Default
     @OneToMany(mappedBy = "appointment", cascade = CascadeType.ALL,
                orphanRemoval = true, fetch = FetchType.EAGER)
     private List<AppointmentFlag> flags = new ArrayList<>();
+
+    /** Normalize telefonu her yazımda yeniden üretir (bkz. Customer'daki eşi). */
+    @PrePersist
+    @PreUpdate
+    private void syncNormalizedPhone() {
+        this.customerPhoneNormalized = com.gscrm.util.PhoneNormalizer.normalizeOrNull(this.customerPhone);
+    }
 }

@@ -1599,3 +1599,115 @@ select.form-select option {
     background: linear-gradient(90deg, var(--color-primary), #c471ed);
     border-radius: 999px;
 }
+
+
+/* ─── Vücut Şablonu (epilasyon bölgeleri) ─── */
+.body-map .bm-root {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.bm-figures {
+    display: flex;
+    gap: 18px;
+    justify-content: center;
+}
+
+.bm-view {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+.bm-figure {
+    width: 132px;
+    height: auto;
+    display: block;
+}
+
+.body-map--readonly .bm-figure { width: 104px; }
+
+.bm-caption {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.bm-region > *,
+.bm-static {
+    fill: rgba(255, 255, 255, 0.06);
+    stroke: var(--border-glass);
+    stroke-width: 1.2;
+    transition: fill 0.18s ease, stroke 0.18s ease;
+}
+
+/* Arka görünümdeki kafa yalnızca siluet; seçilebilir bir bölge değil. */
+.bm-static {
+    fill: rgba(255, 255, 255, 0.03);
+    pointer-events: none;
+}
+
+.body-map:not(.body-map--readonly) .bm-region { cursor: pointer; }
+
+.body-map:not(.body-map--readonly) .bm-region:hover > * {
+    fill: rgba(155, 89, 182, 0.28);
+    stroke: var(--color-primary);
+}
+
+.bm-region:focus { outline: none; }
+
+.bm-region:focus-visible > * {
+    stroke: var(--color-accent);
+    stroke-width: 2;
+}
+
+.bm-region.is-selected > * {
+    fill: var(--color-primary);
+    stroke: var(--color-primary-light);
+}
+
+.bm-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+}
+
+.bm-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: rgba(155, 89, 182, 0.15);
+    border: 1px solid var(--border-active);
+    color: var(--text-primary);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.bm-chip-x {
+    background: none;
+    border: none;
+    padding: 0;
+    line-height: 1;
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.bm-chip-x:hover { color: var(--color-danger); }
+
+.bm-empty {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+@media (max-width: 400px) {
+    .bm-figures { gap: 10px; }
+    .bm-figure { width: 108px; }
+}

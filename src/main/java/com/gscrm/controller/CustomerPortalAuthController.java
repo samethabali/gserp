@@ -8,6 +8,7 @@ import com.gscrm.repository.CustomerRepository;
 import com.gscrm.repository.UserRepository;
 import com.gscrm.security.JwtService;
 import com.gscrm.tenant.TenantContext;
+import com.gscrm.validation.PhoneNumber;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -44,7 +45,7 @@ public class CustomerPortalAuthController {
             @NotBlank String firstName,
             String lastName,
             @NotBlank @Email String email,
-            String phone,
+            @PhoneNumber String phone,
             @NotBlank @Size(min = 8, max = 72) String password
     ) {}
 

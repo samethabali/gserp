@@ -20,6 +20,7 @@ public class ConsentService {
     private final ConsentRecordRepository consentRecordRepository;
     private final CustomerRepository customerRepository;
     private final ActivityEventService activityEventService;
+    private final CustomerMatchingService customerMatchingService;
 
     @Transactional
     public void recordBookingConsents(Long customerId, List<String> types) {
@@ -49,21 +50,16 @@ public class ConsentService {
         }
     }
 
+    /**
+     * Online randevu için müşteriyi bulur/oluşturur ve rızalarını kaydeder.
+     *
+     * <p>Eşleştirme {@link CustomerMatchingService}'e devredildi: burada ham string
+     * eşitliği yapılıyordu ve aynı numaranın farklı yazımları ayrı müşteri
+     * oluşturuyordu.
+     */
     @Transactional
     public Customer findOrCreateCustomerForBooking(String name, String phone, List<String> consentTypes) {
-        Long salonId = TenantContext.requireSalonId();
-        Customer customer = customerRepository.findBySalonIdAndPhone(salonId, phone)
-                .orElseGet(() -> {
-                    String[] parts = splitName(name);
-                    return customerRepository.save(Customer.builder()
-                            .salonId(salonId)
-                            .homeSalonId(salonId)
-                            .firstName(parts[0])
-                            .lastName(parts[1])
-                            .phone(phone)
-                            .createdAt(LocalDateTime.now())
-                            .build());
-                });
+        Customer customer = customerMatchingService.findOrCreate(name, phone);
         if (consentTypes != null && !consentTypes.isEmpty()) {
             recordBookingConsents(customer.getId(), consentTypes);
         }
@@ -87,15 +83,4 @@ public class ConsentService {
         return consentRecordRepository.findByCustomerIdAndSalonId(customerId, TenantContext.requireSalonId());
     }
 
-    private String[] splitName(String fullName) {
-        if (fullName == null || fullName.isBlank()) {
-            return new String[]{"Müşteri", ""};
-        }
-        String trimmed = fullName.trim();
-        int space = trimmed.indexOf(' ');
-        if (space < 0) {
-            return new String[]{trimmed, ""};
-        }
-        return new String[]{trimmed.substring(0, space), trimmed.substring(space + 1).trim()};
-    }
 }

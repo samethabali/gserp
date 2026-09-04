@@ -5,7 +5,6 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
@@ -13,12 +12,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -46,23 +40,21 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final int REGISTER_LIMIT_PER_MINUTE = 5;
     private static final int BOOKING_WRITE_LIMIT_PER_MINUTE = 10;
     private static final int BOOKING_READ_LIMIT_PER_MINUTE = 60;
+    /** Doğrulama kodu üretimi/denemesi genel randevu yazma sınırından daha dar olmalı. */
+    private static final int OTP_START_LIMIT_PER_MINUTE = 3;
+    private static final int OTP_CONFIRM_LIMIT_PER_MINUTE = 6;
 
     private static final long WINDOW_MILLIS = 60_000L;
 
     /** Sayaç haritasının sınırsız büyümesini engelleyen üst sınır. */
     private static final int MAX_TRACKED_KEYS = 50_000;
 
-    private static final Set<String> LOOPBACK = Set.of("127.0.0.1", "0:0:0:0:0:0:0:1", "::1");
-
     private final Map<String, Window> windows = new ConcurrentHashMap<>();
 
-    private final List<String> trustedProxies;
+    private final ClientIpResolver clientIpResolver;
 
-    public RateLimitFilter(@Value("${app.security.trusted-proxies:}") String trustedProxies) {
-        this.trustedProxies = Arrays.stream(trustedProxies.split(","))
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .toList();
+    public RateLimitFilter(ClientIpResolver clientIpResolver) {
+        this.clientIpResolver = clientIpResolver;
     }
 
     @Override
@@ -115,6 +107,13 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (isPost && (uri.equals("/api/onboarding/register") || uri.equals("/customer/register"))) {
             return REGISTER_LIMIT_PER_MINUTE;
         }
+        // Genel /api/booking dalından önce: aksi hâlde OTP uçları 10/dk'yı miras alırdı.
+        if (isPost && uri.equals("/api/booking/verify/start")) {
+            return OTP_START_LIMIT_PER_MINUTE;
+        }
+        if (isPost && uri.equals("/api/booking/verify/confirm")) {
+            return OTP_CONFIRM_LIMIT_PER_MINUTE;
+        }
         if (uri.startsWith("/api/booking")) {
             return isPost ? BOOKING_WRITE_LIMIT_PER_MINUTE : BOOKING_READ_LIMIT_PER_MINUTE;
         }
@@ -129,41 +128,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
      */
     private String bucketKey(HttpServletRequest request) {
         String salon = com.gscrm.tenant.TenantContext.getSlug();
-        return (salon != null ? salon : "-") + '|' + request.getRequestURI() + '|' + clientIp(request);
+        return (salon != null ? salon : "-") + '|' + request.getRequestURI() + '|'
+                + clientIpResolver.resolve(request);
     }
 
-    private String clientIp(HttpServletRequest request) {
-        String remoteAddr = request.getRemoteAddr();
-        if (isTrustedProxy(remoteAddr)) {
-            String forwarded = request.getHeader("X-Forwarded-For");
-            if (forwarded != null && !forwarded.isBlank()) {
-                return forwarded.split(",")[0].trim();
-            }
-        }
-        return remoteAddr != null ? remoteAddr : "unknown";
-    }
 
-    /**
-     * Vekil güvenilir mi? Uygulama loopback'e bağlanıp nginx arkasında çalıştığı için
-     * loopback varsayılan olarak güvenilirdir; ek vekiller
-     * {@code app.security.trusted-proxies} ile tanımlanır.
-     */
-    private boolean isTrustedProxy(String remoteAddr) {
-        if (remoteAddr == null) {
-            return false;
-        }
-        if (LOOPBACK.contains(remoteAddr)) {
-            return true;
-        }
-        if (trustedProxies.contains(remoteAddr)) {
-            return true;
-        }
-        try {
-            return InetAddress.getByName(remoteAddr).isLoopbackAddress();
-        } catch (UnknownHostException e) {
-            return false;
-        }
-    }
 
     private void evictExpired(long now) {
         windows.entrySet().removeIf(e -> now - e.getValue().startedAt() > WINDOW_MILLIS);

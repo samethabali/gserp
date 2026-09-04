@@ -99,4 +99,42 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
     List<Appointment> findBySalonIdAndCustomerPhoneOrderByStartTimeAsc(Long salonId, String phone);
 
     long countBySalonIdAndCustomerPhoneAndStatus(Long salonId, String phone, AppointmentStatus status);
+
+    // ─── Normalize telefon üzerinden eşleştirme ──────────────────────────────
+    // Yukarıdaki ham telefon sorguları "0532 111 22 33" ile "+905321112233"u ayrı
+    // kişi sayıyordu. Çağıranlar normalize değer null iken bu metotları hiç
+    // çağırmamalı: null bir müşteriyi değil, "telefonu çözümlenemeyen herkes"i
+    // eşleştirirdi.
+
+    List<Appointment> findBySalonIdAndCustomerPhoneNormalizedOrderByStartTimeDesc(
+            Long salonId, String phoneNormalized);
+
+    List<Appointment> findBySalonIdAndCustomerPhoneNormalizedOrderByStartTimeAsc(
+            Long salonId, String phoneNormalized);
+
+    long countBySalonIdAndCustomerPhoneNormalized(Long salonId, String phoneNormalized);
+
+    long countBySalonIdAndCustomerPhoneNormalizedAndStartTimeAfter(
+            Long salonId, String phoneNormalized, LocalDateTime after);
+
+    long countBySalonIdAndCustomerPhoneNormalizedAndStatus(
+            Long salonId, String phoneNormalized, AppointmentStatus status);
+
+    List<Appointment> findBySalonIdAndCustomerPhoneNormalizedAndStartTimeBeforeOrderByStartTimeDesc(
+            Long salonId, String phoneNormalized, LocalDateTime before);
+
+    List<Appointment> findBySalonIdAndCustomerPhoneNormalizedAndStartTimeAfterOrderByStartTimeAsc(
+            Long salonId, String phoneNormalized, LocalDateTime after);
+
+    @Query("""
+            select a from Appointment a
+            where a.salonId = :salonId
+              and a.customerPhoneNormalized = :phoneNormalized
+              and a.status in :statuses
+            order by a.startTime asc
+            """)
+    List<Appointment> findBySalonIdAndCustomerPhoneNormalizedAndStatusIn(
+            @Param("salonId") Long salonId,
+            @Param("phoneNormalized") String phoneNormalized,
+            @Param("statuses") List<AppointmentStatus> statuses);
 }

@@ -25,19 +25,42 @@ public class SchedulerService {
 
     /**
      * Validate that the given time range falls within the staff's working hours.
+     *
+     * <p><b>Bilinçli olarak toleranslı:</b> bu aşırı yükleme mesai taşmasına izin verir
+     * (bkz. 4 argümanlı sürüm). Panel takviminde uzmanlar günün son slotunu düzenli
+     * olarak kullanıyor; taşmayı burada yasaklamak mevcut davranışta regresyon olurdu.
+     * Online randevu yolu bu metodu <b>kullanmaz</b> — o taraf {@code AvailabilityService}
+     * üzerinden gider ve mesai bitişini üreteç düzeyinde zaten uygular.
      */
     public boolean isWithinWorkingHours(Long staffId, LocalDateTime start, LocalDateTime end) {
+        return isWithinWorkingHours(staffId, start, end, true);
+    }
+
+    /**
+     * @param allowOverrun {@code false} ise randevunun bitişi de mesai penceresi içinde olmalı.
+     */
+    public boolean isWithinWorkingHours(Long staffId, LocalDateTime start, LocalDateTime end,
+                                        boolean allowOverrun) {
         DayOfWeek dow = start.getDayOfWeek();
         List<WorkingHours> hours = workingHoursRepository.findByStaffId(staffId);
 
-        // Kayıt hiç tanımlanmamışsa kısıtlama uygulanmaz
+        // Kayıt hiç tanımlanmamışsa kısıtlama uygulanmaz.
+        // StaffService.create çalışma saati seed etmediği için yeni uzmanda normal durum budur;
+        // burayı "hiçbir şey uygun değil"e çevirmek panel takvimini kilitler.
         if (hours.isEmpty()) return true;
+
+        boolean sameDay = end == null || start.toLocalDate().equals(end.toLocalDate());
 
         return hours.stream()
                 .filter(wh -> wh.getDayOfWeek() == dow && !wh.isDayOff())
+                .filter(wh -> wh.getStartTime() != null && wh.getEndTime() != null)
                 .anyMatch(wh -> {
                     LocalTime s = start.toLocalTime();
-                    return !s.isBefore(wh.getStartTime()) && s.isBefore(wh.getEndTime());
+                    boolean startOk = !s.isBefore(wh.getStartTime()) && s.isBefore(wh.getEndTime());
+                    if (!startOk) return false;
+                    if (allowOverrun || end == null) return true;
+                    // Ertesi güne sarkan randevu hiçbir pencereye sığmaz.
+                    return sameDay && !end.toLocalTime().isAfter(wh.getEndTime());
                 });
     }
 
