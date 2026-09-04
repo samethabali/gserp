@@ -177,7 +177,7 @@ class InviteRedemptionIT {
         // Reddedilen kayıt işlemi geri sarıldığı için bu satırdan sonra DB'ye
         // dokunulmuyor: hata, paylaşılan test transaction'ını rollback-only yapar.
         mockMvc.perform(registerRequest(code, "ikinci-" + suffix, "ikinci" + suffix))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -193,7 +193,7 @@ class InviteRedemptionIT {
         assertThat(inviteCodeRepository.findById(inviteId).orElseThrow().getUsedCount()).isEqualTo(2);
 
         mockMvc.perform(registerRequest(code, "coklu-c-" + suffix, "cokluc" + suffix))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -209,7 +209,7 @@ class InviteRedemptionIT {
                 .andExpect(status().isOk());
 
         mockMvc.perform(registerRequest(code, "iptal-" + suffix, "iptal" + suffix))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isBadRequest());
     }
 
     /**
@@ -233,7 +233,7 @@ class InviteRedemptionIT {
                 .build());
 
         mockMvc.perform(registerRequest(expired.getCode(), "suresi-" + suffix, "suresi" + suffix))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isBadRequest());
     }
 
     /**

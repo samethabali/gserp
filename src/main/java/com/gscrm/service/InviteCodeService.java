@@ -12,7 +12,6 @@ import com.gscrm.repository.InviteRedemptionRepository;
 import com.gscrm.repository.OrganizationRepository;
 import com.gscrm.repository.SubscriptionPlanRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -97,11 +96,11 @@ public class InviteCodeService {
     public TenantProvisionResponse registerWithInvite(TenantProvisionRequest request, String ip) {
         String raw = request.getInviteCode();
         if (raw == null || raw.isBlank()) {
-            throw new AccessDeniedException("Geçerli bir davet kodu gerekli");
+            throw new IllegalArgumentException("Geçerli bir davet kodu gerekli");
         }
         String code = normalize(raw);
         InviteCode invite = inviteCodeRepository.findByCodeForUpdate(code)
-                .orElseThrow(() -> new AccessDeniedException("Davet kodu geçersiz"));
+                .orElseThrow(() -> new IllegalArgumentException("Davet kodu geçersiz"));
         assertRedeemable(invite);
 
         request.setPlanCode(invite.getPlanCode());
@@ -181,13 +180,13 @@ public class InviteCodeService {
 
     private void assertRedeemable(InviteCode invite) {
         if (invite.getRevokedAt() != null) {
-            throw new AccessDeniedException("Bu davet kodu iptal edilmiş");
+            throw new IllegalArgumentException("Bu davet kodu iptal edilmiş");
         }
         if (invite.getExpiresAt() != null && !invite.getExpiresAt().isAfter(LocalDateTime.now())) {
-            throw new AccessDeniedException("Davet kodunun süresi dolmuş");
+            throw new IllegalArgumentException("Davet kodunun süresi dolmuş");
         }
         if (invite.getUsedCount() >= invite.getMaxUses()) {
-            throw new AccessDeniedException("Davet kodu kullanım hakkını doldurmuş");
+            throw new IllegalArgumentException("Davet kodu kullanım hakkını doldurmuş");
         }
     }
 

@@ -35,7 +35,7 @@ class InviteRegisterIT {
                                   "adminPassword": "password123"
                                 }
                                 """))
-                .andExpect(status().isForbidden())
+                .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false));
     }
 
@@ -53,6 +53,6 @@ class InviteRegisterIT {
                                   "adminPassword": "password123"
                                 }
                                 """))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isBadRequest());
     }
 }
