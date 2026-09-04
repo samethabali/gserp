@@ -54,22 +54,27 @@
                     </p>
                 </div>
 
-                <!-- White-label -->
+                <!-- Marka görünümü -->
                 <div class="glass-card settings-card">
-                    <h2>White-label Görünüm</h2>
+                    <h2>Marka Görünümü</h2>
                     <p class="settings-desc">
-                        Bu ayarlar booking sayfası ve müşteri portalında görünür.
+                        Bu ayarlar randevu sayfasında ve müşteri portalında görünür.
                     </p>
                     <div class="form-group">
                         <label class="form-label">Salon Adı</label>
                         <input type="text" class="form-input" id="salonName" placeholder="Örn. Güzellik Merkezi">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Logo URL (opsiyonel)</label>
-                        <input type="url" class="form-input" id="logoUrl" placeholder="https://...">
+                        <label class="form-label" for="logoFile">Logo Yükle (opsiyonel)</label>
+                        <input type="file" class="form-input" id="logoFile" accept="image/png,image/jpeg,image/webp">
+                        <small class="settings-desc">PNG, JPEG veya WebP · en fazla 512 KB</small>
+                        <div id="logoPreviewWrap" style="display:none;margin-top:10px;align-items:center;gap:12px;">
+                            <img id="logoPreview" alt="Salon logosu önizlemesi" style="max-height:72px;max-width:180px;border-radius:8px;">
+                            <button class="btn btn-secondary btn-xs" type="button" onclick="removeLogo()">Logoyu Kaldır</button>
+                        </div>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Ana Renk (hex)</label>
+                        <label class="form-label">Ana Renk (HEX)</label>
                         <input type="text" class="form-input" id="primaryColor" placeholder="#e91e8c">
                     </div>
                     <button class="btn btn-primary" onclick="saveSettings()">💾 Kaydet</button>
@@ -121,7 +126,8 @@ async function loadSettings() {
     const json = await api('GET', '/api/settings');
     const s = json.data || {};
     document.getElementById('salonName').value = s.name || '';
-    document.getElementById('logoUrl').value = s.logoUrl || '';
+    currentLogoDataUrl = s.logoUrl || '';
+    renderLogoPreview(currentLogoDataUrl);
     document.getElementById('primaryColor').value = s.primaryColor || '#e91e8c';
     document.getElementById('smsVerificationEnabled').checked = s.smsVerificationEnabled === 'true';
 
@@ -148,13 +154,45 @@ async function copyBookingUrl() {
 async function saveSettings() {
     const body = {
         name: document.getElementById('salonName').value.trim(),
-        logoUrl: document.getElementById('logoUrl').value.trim(),
+        logoUrl: currentLogoDataUrl,
         primaryColor: document.getElementById('primaryColor').value.trim(),
         smsVerificationEnabled: document.getElementById('smsVerificationEnabled').checked
     };
     const json = await api('PUT', '/api/settings', body);
     showToast(json.message || 'Kaydedildi', json.success ? 'success' : 'error');
+    if (json.success) await loadSettings();
 }
+
+let currentLogoDataUrl = '';
+
+function renderLogoPreview(value) {
+    const wrap = document.getElementById('logoPreviewWrap');
+    const preview = document.getElementById('logoPreview');
+    wrap.style.display = value ? 'flex' : 'none';
+    preview.src = value || '';
+}
+
+function removeLogo() {
+    currentLogoDataUrl = '';
+    document.getElementById('logoFile').value = '';
+    renderLogoPreview('');
+}
+
+document.getElementById('logoFile').addEventListener('change', event => {
+    const file = event.target.files[0];
+    if (!file) return;
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 512 * 1024) {
+        event.target.value = '';
+        showToast('Logo PNG, JPEG veya WebP formatında ve en fazla 512 KB olmalı', 'warning');
+        return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+        currentLogoDataUrl = reader.result;
+        renderLogoPreview(currentLogoDataUrl);
+    };
+    reader.readAsDataURL(file);
+});
 
 document.addEventListener('DOMContentLoaded', () => {
     loadSettings();

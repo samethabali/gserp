@@ -25,9 +25,12 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import org.springframework.http.MediaType;
 
 /**
  * İşletmenin randevu linki panelden okunabilmeli.
@@ -67,7 +70,7 @@ class SalonSettingsBookingUrlIT {
     @DisplayName("yönetim ayarları randevu linkini döndürür")
     void managementSettingsExposeBookingUrl() throws Exception {
         mockMvc.perform(get("/api/settings")
-                        .with(authentication(authFor(UserRole.BRANCH_MANAGER)))
+                        .with(authentication(authFor(UserRole.PLATFORM_ADMIN)))
                         .header("X-Salon-Slug", slug))
                 .andExpect(status().isOk())
                 // Taban adresin sonundaki eğik çizgi tekrarlanmamalı.
@@ -82,6 +85,25 @@ class SalonSettingsBookingUrlIT {
         mockMvc.perform(get("/api/settings/public").header("X-Salon-Slug", slug))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.bookingUrl").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("salon adı değişince randevu adresi de değişir")
+    void salonNameUpdatesBookingSlug() throws Exception {
+        mockMvc.perform(put("/api/settings")
+                        .with(authentication(authFor(UserRole.PLATFORM_ADMIN)))
+                        .with(csrf())
+                        .header("X-Salon-Slug", slug)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Işıl Güzellik Merkezi\"}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/settings")
+                        .with(authentication(authFor(UserRole.BRANCH_MANAGER)))
+                        .header("X-Salon-Slug", "isil-guzellik-merkezi"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.bookingUrl")
+                        .value("https://gscrm.example.test/isil-guzellik-merkezi"));
     }
 
     private UsernamePasswordAuthenticationToken authFor(UserRole role) {

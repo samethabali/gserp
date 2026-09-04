@@ -47,8 +47,8 @@
 
 <div class="portal-header">
     <div style="display:flex;align-items:center;gap:10px;">
-        <span style="font-size:1.4rem;">💅</span>
-        <strong>Müşteri Paneli</strong>
+        <span id="portalLogo" style="font-size:1.4rem;">💅</span>
+        <div><strong id="portalSalonName">Müşteri Paneli</strong><br><small style="color:var(--color-text-muted);">Müşteri Paneli</small></div>
     </div>
     <div style="display:flex;align-items:center;gap:12px;">
         <span id="customerName" style="color:var(--color-text-muted);font-size:0.9rem;"></span>
@@ -230,6 +230,19 @@ function renderAppt(a, showCancel) {
 }
 
 async function loadPage() {
+    const branding = await api('GET', '/api/settings/public');
+    if (branding && branding.success && branding.data) {
+        const s = branding.data;
+        document.getElementById('portalSalonName').textContent = s.name || 'Müşteri Paneli';
+        if (s.primaryColor) document.documentElement.style.setProperty('--color-primary', s.primaryColor);
+        if (s.logoUrl) {
+            const img = document.createElement('img');
+            img.src = s.logoUrl;
+            img.alt = 'Salon logosu';
+            img.style.cssText = 'max-height:42px;max-width:100px;border-radius:6px;display:block;';
+            document.getElementById('portalLogo').replaceChildren(img);
+        }
+    }
     const me = await api('GET', '/api/customer/me');
     if (!me || !me.success) { logout(); return; }
     document.getElementById('customerName').textContent = me.data.firstName + ' ' + me.data.lastName;
