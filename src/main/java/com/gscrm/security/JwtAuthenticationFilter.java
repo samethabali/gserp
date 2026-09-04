@@ -2,7 +2,9 @@ package com.gscrm.security;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import com.gscrm.tenant.TenantContext;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.lang.NonNull;
@@ -73,9 +75,28 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         userDetails, null, userDetails.getAuthorities());
                 auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(auth);
+                rememberTenant(request, userDetails);
             }
         }
 
         chain.doFilter(request, response);
+    }
+
+    /**
+     * Token'la gelen isteğin salonunu oturuma yazar.
+     *
+     * <p>Müşteri portalı JWT ile giriş yapıp ardından sunucu tarafında çizilen
+     * sayfalara geçiyor; o sayfalarda Authorization başlığı olmadığı için kiracının
+     * oturumda hatırlanması gerekiyor. Yalnızca zaten açılmış bir oturum varsa yazılır,
+     * yani salt-API çağrıları boşuna oturum açmaz.
+     */
+    private void rememberTenant(HttpServletRequest request, UserDetails userDetails) {
+        if (!(userDetails instanceof AuthenticatedUser user) || user.getSalonId() == null) {
+            return;
+        }
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            session.setAttribute(TenantContext.SESSION_AUTH_SALON_ID, user.getSalonId());
+        }
     }
 }

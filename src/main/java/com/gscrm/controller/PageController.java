@@ -1,5 +1,7 @@
 package com.gscrm.controller;
 
+import com.gscrm.tenant.TenantContext;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 
@@ -66,6 +68,26 @@ public class PageController {
         return "products";
     }
 
+    /**
+     * İşletmenin herkese açık randevu sayfası.
+     *
+     * <p>İşletme adresten belirlenir. Daha önce bu bilgi alt alan adından geliyordu;
+     * üretimde wildcard DNS ve sertifika olmadığı için o adresler hiç açılmıyor,
+     * kayıt olan işletmeye verilen adres de çalışmıyordu.
+     *
+     * <p>Seçim oturuma yazılır ki müşteri portalı giriş/kayıt sayfaları gibi
+     * devamındaki adımlar da aynı işletmede kalsın.
+     */
+    @GetMapping("/b/{slug}")
+    public String publicBooking(HttpServletRequest request) {
+        request.getSession(true).setAttribute(TenantContext.SESSION_PUBLIC_SALON_ID, TenantContext.getSalonId());
+        return "booking";
+    }
+
+    /**
+     * Eski randevu adresi. Kiracı oturumdan veya parametreden çözülebiliyorsa çalışır;
+     * çözülemiyorsa TenantFilter zaten girişe yönlendirir.
+     */
     @GetMapping("/booking")
     public String booking() {
         return "booking";

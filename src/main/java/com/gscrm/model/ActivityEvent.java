@@ -20,7 +20,8 @@ public class ActivityEvent implements TenantEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "salon_id", nullable = false)
+    /** Platform kapsamlı işlemlerde (davet kodu, kiracı açma) null olur. */
+    @Column(name = "salon_id")
     private Long salonId;
 
     @Column(name = "customer_id")
@@ -49,6 +50,19 @@ public class ActivityEvent implements TenantEntity {
 
     @Column(length = 64)
     private String ip;
+
+    /** TENANT veya PLATFORM. */
+    @Column(nullable = false, length = 16)
+    @Builder.Default
+    private String scope = "TENANT";
+
+    /** SUCCESS, DENIED veya ERROR. */
+    @Column(nullable = false, length = 16)
+    @Builder.Default
+    private String outcome = "SUCCESS";
+
+    @Column(name = "http_status")
+    private Integer httpStatus;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;

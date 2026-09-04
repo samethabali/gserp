@@ -55,6 +55,8 @@ public class SecurityConfig {
     private final ShowcaseAccessFilter showcaseAccessFilter;
     private final ActivityAuditFilter activityAuditFilter;
     private final MustChangePasswordSuccessHandler mustChangePasswordSuccessHandler;
+    private final LoginAuditHandlers.AuditingFailureHandler loginFailureHandler;
+    private final LoginAuditHandlers.AuditingLogoutSuccessHandler logoutSuccessHandler;
     private final UserDetailsService userDetailsService;
 
     @Bean
@@ -151,7 +153,8 @@ public class SecurityConfig {
                     .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                     .ignoringRequestMatchers(new AntPathRequestMatcher("/ws-calendar/**")))
             .authorizeHttpRequests(auth -> auth
-                    .requestMatchers("/login", "/booking", "/privacy", "/css/**", "/js/**", "/images/**",
+                    .requestMatchers("/login", "/booking", "/b/**", "/privacy",
+                            "/css/**", "/js/**", "/images/**",
                             "/webjars/**", "/favicon.ico",
                             "/actuator/health", "/actuator/info",
                             "/customer/login", "/customer/register",
@@ -180,10 +183,10 @@ public class SecurityConfig {
                     .loginPage("/login")
                     .loginProcessingUrl("/login")
                     .successHandler(mustChangePasswordSuccessHandler)
-                    .failureUrl("/login?error")
+                    .failureHandler(loginFailureHandler)
                     .permitAll())
             .logout(logout -> logout
-                    .logoutSuccessUrl("/login?logout")
+                    .logoutSuccessHandler(logoutSuccessHandler)
                     .permitAll())
             .authenticationProvider(authenticationProvider())
             .addFilterAfter(showcaseAccessFilter, UsernamePasswordAuthenticationFilter.class);

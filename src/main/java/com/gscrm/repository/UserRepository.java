@@ -17,6 +17,19 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByUsername(String username);
 
+    /**
+     * Personel kullanıcısını adıyla bulur (müşteri portalı hesapları hariç).
+     *
+     * <p>Müşteri hesapları e-posta ile kayıt olduğu için salon bazlı tekildir; onları
+     * dışarıda bırakmadan sistem geneli arama, iki işletmede aynı e-postayla kayıtlı
+     * müşterilerde belirsiz sonuç verirdi.
+     */
+    @Query("SELECT u FROM User u WHERE u.username = :username AND u.role <> com.gscrm.model.enums.UserRole.CUSTOMER")
+    Optional<User> findStaffByUsername(@Param("username") String username);
+
+    @Query("SELECT COUNT(u) FROM User u WHERE u.username = :username AND u.role <> com.gscrm.model.enums.UserRole.CUSTOMER")
+    long countStaffByUsername(@Param("username") String username);
+
     Optional<User> findByCustomerId(Long customerId);
 
     List<User> findBySalonId(Long salonId);

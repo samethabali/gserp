@@ -36,4 +36,8 @@ public class Organization {
     @Column(name = "loyalty_policy", nullable = false, length = 16)
     @Builder.Default
     private String loyaltyPolicy = "SALON";
+
+    /** Hangi davet koduyla kayıt olduğu — panelde ters arama için. */
+    @Column(name = "invite_code_id")
+    private Long inviteCodeId;
 }

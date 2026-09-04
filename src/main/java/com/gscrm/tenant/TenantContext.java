@@ -2,6 +2,18 @@ package com.gscrm.tenant;
 
 public final class TenantContext {
 
+    /**
+     * Kimliği doğrulanmış oturumun salonu. Giriş anında yazılır ve o oturum boyunca
+     * kiracıyı belirleyen tek yetkili kaynaktır — URL, başlık veya çerez onu ezemez.
+     */
+    public static final String SESSION_AUTH_SALON_ID = "GSCRM_AUTH_SALON_ID";
+
+    /**
+     * Anonim ziyaretçinin {@code /b/{slug}} adresine girerek seçtiği salon.
+     * Yalnızca kimlik doğrulanmamış isteklerde dikkate alınır.
+     */
+    public static final String SESSION_PUBLIC_SALON_ID = "GSCRM_PUBLIC_SALON_ID";
+
     private static final ThreadLocal<Long> salonId = new ThreadLocal<>();
     private static final ThreadLocal<Long> orgId = new ThreadLocal<>();
     private static final ThreadLocal<String> slug = new ThreadLocal<>();
