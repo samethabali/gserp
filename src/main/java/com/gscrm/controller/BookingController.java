@@ -5,6 +5,7 @@ import com.gscrm.dto.response.ApiResponse;
 import com.gscrm.dto.response.PublicStaffResponse;
 import com.gscrm.dto.response.AppointmentResponse;
 import com.gscrm.model.ServiceDefinition;
+import com.gscrm.model.enums.StaffRole;
 import com.gscrm.repository.ServiceDefinitionRepository;
 import com.gscrm.repository.StaffRepository;
 import com.gscrm.security.BookingAbuseGuard;
@@ -57,10 +58,20 @@ public class BookingController {
         return ResponseEntity.ok(ApiResponse.ok(serviceRepository.findBySalonIdAndActiveTrue(salonId)));
     }
 
+    /**
+     * Randevu alinabilecek uzmanlar.
+     *
+     * <p>Uzman filtresi bilerek burada: {@code PublicStaffResponse} personelin
+     * rolunu disariya vermiyor, dolayisiyla arayuz bu ayrimi yapamaz. Filtre
+     * istemcide dururken bu uc yalnizca ad/renk donmeye gecince sessizce bos
+     * liste uretiyordu — resepsiyonist randevu ekraninda cikmasin diye konulan
+     * kural, hicbir uzmanin cikmamasina donusmustu.
+     */
     @GetMapping("/staff")
     public ResponseEntity<ApiResponse<List<PublicStaffResponse>>> getStaff() {
         Long salonId = TenantContext.requireSalonId();
-        List<PublicStaffResponse> staff = staffRepository.findBySalonIdAndActiveTrue(salonId).stream()
+        List<PublicStaffResponse> staff = staffRepository
+                .findBySalonIdAndActiveTrueAndRole(salonId, StaffRole.SPECIALIST).stream()
                 .map(PublicStaffResponse::from)
                 .toList();
         return ResponseEntity.ok(ApiResponse.ok(staff));

@@ -202,7 +202,9 @@ function renderBookingBodyMap() {
 // ─── Adım 2: Uzmanlar ───
 async function loadStaff() {
     const json = await fetch('/api/booking/staff').then(r => r.json());
-    const staff = (json.data || []).filter(s => s.role === 'SPECIALIST');
+    // Uzman filtresi sunucuda: /api/booking/staff yalnizca aktif SPECIALIST doner.
+    // Burada role'e bakmak bir donem her uzmani eliyordu — payload role tasimiyor.
+    const staff = json.data || [];
     const grid = document.getElementById('staffGrid');
     if (!staff.length) { grid.innerHTML = '<p style="color:var(--text-muted);">Uzman bulunamadı</p>'; return; }
 
