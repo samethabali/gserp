@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -85,19 +86,36 @@ public class InviteCodeService {
     }
 
     public Map<String, Object> toMap(InviteCode invite) {
-        return Map.ofEntries(
-                Map.entry("id", invite.getId()),
-                Map.entry("code", invite.getCode()),
-                Map.entry("kind", invite.getKind().name()),
-                Map.entry("maxUses", invite.getMaxUses()),
-                Map.entry("usedCount", invite.getUsedCount()),
-                Map.entry("expiresAt", invite.getExpiresAt() != null ? invite.getExpiresAt() : ""),
-                Map.entry("revokedAt", invite.getRevokedAt() != null ? invite.getRevokedAt() : ""),
-                Map.entry("planCode", invite.getPlanCode()),
-                Map.entry("note", invite.getNote() != null ? invite.getNote() : ""),
-                Map.entry("createdAt", invite.getCreatedAt()),
-                Map.entry("redeemedOrganizationId", invite.getRedeemedOrganizationId() != null ? invite.getRedeemedOrganizationId() : "")
-        );
+        Map<String, Object> row = new HashMap<>();
+        row.put("id", invite.getId());
+        row.put("code", invite.getCode());
+        row.put("kind", invite.getKind().name());
+        row.put("maxUses", invite.getMaxUses());
+        row.put("usedCount", invite.getUsedCount());
+        row.put("expiresAt", invite.getExpiresAt());
+        row.put("revokedAt", invite.getRevokedAt());
+        row.put("planCode", invite.getPlanCode());
+        row.put("organizationType", invite.getOrganizationType() != null
+                ? invite.getOrganizationType().name() : OrganizationType.STANDALONE.name());
+        row.put("note", invite.getNote());
+        row.put("createdAt", invite.getCreatedAt());
+        row.put("redeemedOrganizationId", invite.getRedeemedOrganizationId());
+        row.put("status", resolveStatus(invite));
+        return row;
+    }
+
+    /** Panelde rozet olarak gösterilen tekil durum; öncelik sırası: iptal > süre doldu > tükendi > kullanımda > yeni. */
+    public String resolveStatus(InviteCode invite) {
+        if (invite.getRevokedAt() != null) {
+            return "REVOKED";
+        }
+        if (invite.getExpiresAt() != null && !invite.getExpiresAt().isAfter(LocalDateTime.now())) {
+            return "EXPIRED";
+        }
+        if (invite.getUsedCount() >= invite.getMaxUses()) {
+            return "USED";
+        }
+        return invite.getUsedCount() > 0 ? "PARTIAL" : "ACTIVE";
     }
 
     private void assertRedeemable(InviteCode invite) {

@@ -7,91 +7,432 @@
     <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
     <title>GSCRM — Platform Tenants</title>
     <link th:replace="~{fragments/assets :: styles}"/>
+    <style>
+        .platform-section { margin-top: 28px; }
+        .platform-section > h2 {
+            font-size: 1.15rem;
+            margin-bottom: 4px;
+        }
+        .section-sub { color: var(--text-muted); font-size: 0.88rem; margin-bottom: 16px; }
+        .invite-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 14px;
+            align-items: end;
+            margin-bottom: 18px;
+        }
+        .invite-form .form-group { margin-bottom: 0; }
+        .invite-form .form-actions { display: flex; gap: 8px; }
+        .invite-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+        .invite-toolbar .form-input, .invite-toolbar .form-select { width: auto; min-width: 180px; }
+        .code-cell {
+            font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            white-space: nowrap;
+        }
+        .status-chip {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            white-space: nowrap;
+        }
+        .status-ACTIVE   { background: rgba(46, 204, 113, 0.14); color: #2ecc71; }
+        .status-PARTIAL  { background: rgba(52, 152, 219, 0.14); color: #3498db; }
+        .status-USED     { background: rgba(155, 89, 182, 0.16); color: #b06fd6; }
+        .status-EXPIRED  { background: rgba(243, 156, 18, 0.14); color: #f39c12; }
+        .status-REVOKED  { background: rgba(231, 76, 60, 0.14); color: #e74c3c; }
+        .usage-bar {
+            width: 72px;
+            height: 5px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.09);
+            overflow: hidden;
+            margin-top: 5px;
+        }
+        .usage-bar span { display: block; height: 100%; background: var(--color-primary, #9b59b6); }
+        .row-actions { display: flex; gap: 6px; justify-content: flex-end; white-space: nowrap; }
+        .table-scroll { overflow-x: auto; }
+        .empty-state {
+            padding: 28px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+        .new-code-banner {
+            display: none;
+            margin-bottom: 16px;
+            padding: 14px 16px;
+            border-radius: 10px;
+            background: rgba(46, 204, 113, 0.1);
+            border: 1px solid rgba(46, 204, 113, 0.3);
+        }
+        .new-code-banner .code-cell { font-size: 1.15rem; color: #2ecc71; }
+        .new-code-banner .banner-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            margin-top: 8px;
+        }
+        .muted { color: var(--text-muted); }
+        .nowrap { white-space: nowrap; }
+    </style>
 </head>
 <body>
+<div class="toast-container" id="toastContainer"></div>
 <div class="app-layout">
     <aside class="sidebar">
-        <div class="sidebar-brand">GSCRM Platform</div>
+        <div class="sidebar-brand">
+            <div class="brand-icon">🌐</div>
+            <div><h1>GSCRM</h1><span class="brand-sub">Platform</span></div>
+        </div>
         <nav th:replace="~{fragments/sidebar-nav :: nav('platform')}"></nav>
     </aside>
     <main class="main-content">
-        <h1>Tenant Yönetimi</h1>
-        <p style="color:var(--text-muted);margin-bottom:16px;">Tüm salon ve organizasyonları görüntüleyin.</p>
-        <div id="tenantList">Yükleniyor...</div>
+        <header class="topbar">
+            <span class="topbar-title">🌐 Platform Yönetimi</span>
+            <div class="topbar-actions">
+                <span class="muted" style="font-size:0.9rem;">👤 <span sec:authentication="name">user</span></span>
+                <form method="post" th:action="@{/logout}" style="display:inline;">
+                    <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                    <button type="submit" class="btn btn-secondary btn-xs">Çıkış</button>
+                </form>
+            </div>
+        </header>
 
-        <section style="margin-top:32px;">
-            <h2>Davet kodları</h2>
-            <form id="inviteForm" style="display:grid;gap:12px;max-width:480px;margin-bottom:16px;">
-                <select id="inviteKind" class="form-input">
-                    <option value="PILOT">PILOT (tam salon)</option>
-                    <option value="SHOWCASE">SHOWCASE (tanıtım)</option>
-                </select>
-                <input type="text" id="inviteNote" placeholder="Not (ör. Salon X)">
-                <button type="submit" class="btn btn-primary">Kod üret</button>
-            </form>
-            <div id="inviteList">Yükleniyor...</div>
-        </section>
+        <div class="page-content">
+            <!-- ─── Davet kodları ─── -->
+            <section class="glass-card platform-section" style="padding:24px;margin-top:0;">
+                <h2>🎟️ Davet kodları</h2>
+                <p class="section-sub">Kod üretin, kimin kullandığını takip edin, gerektiğinde iptal edin.</p>
 
-        <section style="margin-top:32px;">
-            <h2>Yeni Tenant</h2>
-            <form id="provisionForm" style="display:grid;gap:12px;max-width:480px;">
-                <input type="text" id="orgName" placeholder="Organizasyon adı" required>
-                <input type="text" id="salonName" placeholder="Salon adı" required>
-                <input type="text" id="salonSlug" placeholder="slug (ör. yeni-salon)" required>
-                <input type="text" id="adminUser" placeholder="Admin kullanıcı adı" required>
-                <input type="password" id="adminPass" placeholder="Admin şifre" required>
-                <button type="submit" class="btn btn-primary">Oluştur</button>
-            </form>
-        </section>
+                <div class="kpi-grid" id="inviteStats" style="margin-bottom:20px;"></div>
+
+                <div id="newCodeBanner" class="new-code-banner"></div>
+
+                <form id="inviteForm" class="invite-form">
+                    <div class="form-group">
+                        <label class="form-label" for="inviteKind">Tür</label>
+                        <select id="inviteKind" class="form-input">
+                            <option value="PILOT">PILOT — tam salon</option>
+                            <option value="SHOWCASE">SHOWCASE — tanıtım</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="invitePlan">Plan</label>
+                        <select id="invitePlan" class="form-input">
+                            <option value="SOLO">Solo Salon</option>
+                            <option value="FRANCHISE_STARTER">Franchise Starter</option>
+                            <option value="FRANCHISE_PRO">Franchise Pro</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="inviteOrgType">Organizasyon tipi</label>
+                        <select id="inviteOrgType" class="form-input">
+                            <option value="STANDALONE">Tek işletme</option>
+                            <option value="FRANCHISE">Franchise</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="inviteMaxUses">Kullanım hakkı</label>
+                        <input type="number" id="inviteMaxUses" class="form-input" value="1" min="1" max="999">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="inviteExpires">Son geçerlilik</label>
+                        <input type="datetime-local" id="inviteExpires" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="inviteNote">Not / işletme</label>
+                        <input type="text" id="inviteNote" class="form-input" placeholder="Örn. Aves Kadıköy — Ayşe Hanım" maxlength="255">
+                    </div>
+                    <div class="form-group form-actions">
+                        <button type="submit" class="btn btn-primary" id="inviteSubmit">Kod üret</button>
+                    </div>
+                </form>
+
+                <div class="invite-toolbar">
+                    <input type="search" id="inviteSearch" class="form-input" placeholder="🔍 Kod veya not ara">
+                    <select id="inviteStatusFilter" class="form-input">
+                        <option value="">Tüm durumlar</option>
+                        <option value="ACTIVE">Kullanılmadı</option>
+                        <option value="PARTIAL">Kısmen kullanıldı</option>
+                        <option value="USED">Tükendi</option>
+                        <option value="EXPIRED">Süresi doldu</option>
+                        <option value="REVOKED">İptal edildi</option>
+                    </select>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="loadInvites()">↻ Yenile</button>
+                </div>
+
+                <div class="table-scroll" id="inviteList"><p class="empty-state">Yükleniyor…</p></div>
+            </section>
+
+            <!-- ─── Tenantlar ─── -->
+            <section class="glass-card platform-section" style="padding:24px;">
+                <h2>🏢 Tenantlar</h2>
+                <p class="section-sub">Tüm salon ve organizasyonlar.</p>
+                <div class="table-scroll" id="tenantList"><p class="empty-state">Yükleniyor…</p></div>
+            </section>
+
+            <!-- ─── Manuel tenant ─── -->
+            <section class="glass-card platform-section" style="padding:24px;">
+                <h2>➕ Yeni tenant (manuel)</h2>
+                <p class="section-sub">Davet kodu akışını atlayarak doğrudan salon oluşturun.</p>
+                <form id="provisionForm" class="invite-form">
+                    <div class="form-group">
+                        <label class="form-label" for="orgName">Organizasyon adı</label>
+                        <input type="text" id="orgName" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="salonName">Salon adı</label>
+                        <input type="text" id="salonName" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="salonSlug">Subdomain slug</label>
+                        <input type="text" id="salonSlug" class="form-input" placeholder="yeni-salon" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="adminUser">Admin kullanıcı adı</label>
+                        <input type="text" id="adminUser" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="adminPass">Admin şifre</label>
+                        <input type="password" id="adminPass" class="form-input" minlength="8" required>
+                    </div>
+                    <div class="form-group form-actions">
+                        <button type="submit" class="btn btn-primary">Oluştur</button>
+                    </div>
+                </form>
+            </section>
+        </div>
     </main>
 </div>
+
 <script th:replace="~{fragments/assets :: app-js}"></script>
-<script>
+<script th:inline="javascript">
+const BASE_DOMAIN = /*[[${@environment.getProperty('app.tenant.base-domain', '')}]]*/ '';
+
+const STATUS_LABELS = {
+    ACTIVE:  'Kullanılmadı',
+    PARTIAL: 'Kısmen kullanıldı',
+    USED:    'Tükendi',
+    EXPIRED: 'Süresi doldu',
+    REVOKED: 'İptal edildi'
+};
+
+let inviteCache = [];
+
+// ─── Yardımcılar ───
+function inviteLink(code) {
+    const origin = BASE_DOMAIN ? 'https://' + BASE_DOMAIN : window.location.origin;
+    return origin + '/onboarding/wizard?code=' + encodeURIComponent(code);
+}
+
+async function copyText(text, label) {
+    try {
+        await navigator.clipboard.writeText(text);
+        showToast((label || 'Kopyalandı') + ': ' + text, 'success');
+    } catch (e) {
+        showToast('Kopyalanamadı — elle seçin: ' + text, 'warning');
+    }
+}
+
+function copyCode(code) { copyText(code, 'Kod kopyalandı'); }
+function copyLink(code) { copyText(inviteLink(code), 'Davet linki kopyalandı'); }
+
+function fmt(dateStr) {
+    return dateStr ? formatDateTime(dateStr) : '—';
+}
+
+// ─── Davet kodları ───
+function renderInviteStats(rows) {
+    const count = s => rows.filter(r => r.status === s).length;
+    const cards = [
+        { label: 'Toplam kod', value: rows.length, cls: 'purple' },
+        { label: 'Bekleyen', value: count('ACTIVE'), cls: 'green' },
+        { label: 'Kullanıldı', value: count('PARTIAL') + count('USED'), cls: 'blue' },
+        { label: 'Geçersiz', value: count('EXPIRED') + count('REVOKED'), cls: 'orange' }
+    ];
+    document.getElementById('inviteStats').innerHTML = cards.map(c =>
+        `<div class="kpi-card ${c.cls}">
+            <div class="kpi-label">${c.label}</div>
+            <div class="kpi-value">${c.value}</div>
+         </div>`).join('');
+}
+
+function inviteRowHtml(i) {
+    const status = i.status || 'ACTIVE';
+    const pct = i.maxUses > 0 ? Math.min(100, Math.round((i.usedCount / i.maxUses) * 100)) : 0;
+    const org = i.redeemedOrganizationName
+        ? escapeHtml(i.redeemedOrganizationName)
+        : (i.redeemedOrganizationId ? '#' + i.redeemedOrganizationId : '<span class="muted">—</span>');
+    const slugs = (i.redeemedSalonSlugs || []).length
+        ? `<div class="muted" style="font-size:0.76rem;margin-top:3px;">${(i.redeemedSalonSlugs || []).map(escapeHtml).join(', ')}</div>`
+        : '';
+    const canRevoke = status === 'ACTIVE' || status === 'PARTIAL';
+
+    return `<tr>
+        <td>
+            <div class="code-cell">${escapeHtml(i.code)}</div>
+            <div class="muted" style="font-size:0.74rem;">${escapeHtml(i.kind)} · ${escapeHtml(i.planCode || '')}</div>
+        </td>
+        <td><span class="status-chip status-${status}">${STATUS_LABELS[status] || status}</span></td>
+        <td class="nowrap">
+            ${i.usedCount}/${i.maxUses}
+            <div class="usage-bar"><span style="width:${pct}%"></span></div>
+        </td>
+        <td>${org}${slugs}</td>
+        <td>${i.note ? escapeHtml(i.note) : '<span class="muted">—</span>'}</td>
+        <td class="nowrap muted">${fmt(i.createdAt)}</td>
+        <td class="nowrap muted">${fmt(i.expiresAt)}</td>
+        <td>
+            <div class="row-actions">
+                <button class="btn btn-secondary btn-xs" onclick="copyCode('${escapeHtml(i.code)}')" title="Kodu kopyala">📋</button>
+                <button class="btn btn-secondary btn-xs" onclick="copyLink('${escapeHtml(i.code)}')" title="Davet linkini kopyala">🔗</button>
+                ${canRevoke ? `<button class="btn btn-danger btn-xs" onclick="revokeInvite(${i.id})">İptal</button>` : ''}
+            </div>
+        </td>
+    </tr>`;
+}
+
+function renderInvites() {
+    const term = document.getElementById('inviteSearch').value.trim().toLowerCase();
+    const statusFilter = document.getElementById('inviteStatusFilter').value;
+    const list = document.getElementById('inviteList');
+
+    const rows = inviteCache.filter(i => {
+        if (statusFilter && i.status !== statusFilter) return false;
+        if (!term) return true;
+        return (i.code || '').toLowerCase().includes(term)
+            || (i.note || '').toLowerCase().includes(term)
+            || (i.redeemedOrganizationName || '').toLowerCase().includes(term);
+    });
+
+    if (!rows.length) {
+        list.innerHTML = `<p class="empty-state">${inviteCache.length ? 'Filtreye uyan kod yok.' : 'Henüz davet kodu üretilmedi.'}</p>`;
+        return;
+    }
+
+    list.innerHTML = '<table class="data-table"><thead><tr>'
+        + '<th>Kod</th><th>Durum</th><th>Kullanım</th><th>Kullanan işletme</th>'
+        + '<th>Not</th><th>Oluşturma</th><th>Son geçerlilik</th><th></th>'
+        + '</tr></thead><tbody>'
+        + rows.map(inviteRowHtml).join('')
+        + '</tbody></table>';
+}
+
+async function loadInvites() {
+    const json = await api('GET', '/api/platform/invites');
+    if (!json.success) {
+        document.getElementById('inviteList').innerHTML =
+            `<p class="empty-state">${escapeHtml(json.message || 'Davet kodları yüklenemedi')}</p>`;
+        return;
+    }
+    inviteCache = json.data || [];
+    renderInviteStats(inviteCache);
+    renderInvites();
+}
+
+async function revokeInvite(id) {
+    const invite = inviteCache.find(i => i.id === id);
+    if (!confirm(`${invite ? invite.code : 'Bu kod'} iptal edilecek. Devam edilsin mi?`)) return;
+    const json = await api('POST', `/api/platform/invites/${id}/revoke`, {});
+    showToast(json.message || (json.success ? 'İptal edildi' : 'Hata'), json.success ? 'success' : 'error');
+    if (json.success) loadInvites();
+}
+
+function showNewCode(code) {
+    const banner = document.getElementById('newCodeBanner');
+    banner.style.display = 'block';
+    banner.innerHTML =
+        '<div class="muted" style="font-size:0.8rem;">Yeni davet kodu</div>'
+        + `<div class="code-cell">${escapeHtml(code)}</div>`
+        + '<div class="banner-row">'
+        + `<code class="muted" style="font-size:0.78rem;">${escapeHtml(inviteLink(code))}</code>`
+        + `<button class="btn btn-secondary btn-xs" onclick="copyCode('${escapeHtml(code)}')">📋 Kodu kopyala</button>`
+        + `<button class="btn btn-primary btn-xs" onclick="copyLink('${escapeHtml(code)}')">🔗 Davet linkini kopyala</button>`
+        + '</div>';
+    banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+document.getElementById('inviteForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('inviteSubmit');
+    btn.disabled = true;
+    try {
+        const json = await api('POST', '/api/platform/invites', {
+            kind: document.getElementById('inviteKind').value,
+            planCode: document.getElementById('invitePlan').value,
+            organizationType: document.getElementById('inviteOrgType').value,
+            maxUses: document.getElementById('inviteMaxUses').value,
+            expiresAt: document.getElementById('inviteExpires').value,
+            note: document.getElementById('inviteNote').value
+        });
+        if (json.success) {
+            showNewCode(json.data.code);
+            showToast('Davet kodu üretildi', 'success');
+            document.getElementById('inviteNote').value = '';
+            loadInvites();
+        } else {
+            showToast(json.message || 'Kod üretilemedi', 'error');
+        }
+    } finally {
+        btn.disabled = false;
+    }
+});
+
+document.getElementById('inviteSearch').addEventListener('input', debounce(renderInvites, 200));
+document.getElementById('inviteStatusFilter').addEventListener('change', renderInvites);
+
+// ─── Tenantlar ───
 async function loadTenants() {
     const json = await api('GET', '/api/platform/tenants');
     const list = document.getElementById('tenantList');
-    if (!json.success) { list.textContent = json.message || 'Hata'; return; }
-    list.innerHTML = '<table class="data-table"><thead><tr><th>Slug</th><th>Salon</th><th>Org</th><th>Aktif</th><th>Tanıtım</th></tr></thead><tbody>'
-        + (json.data || []).map(t => `<tr><td>${t.slug}</td><td>${t.name}</td><td>${t.organizationName || t.organizationId}</td><td>${t.active}</td><td>${t.showcase ? 'evet' : 'hayır'}</td></tr>`).join('')
-        + '</tbody></table>';
-}
-async function loadInvites() {
-    const json = await api('GET', '/api/platform/invites');
-    const list = document.getElementById('inviteList');
-    if (!json.success) { list.textContent = json.message || 'Hata'; return; }
+    if (!json.success) {
+        list.innerHTML = `<p class="empty-state">${escapeHtml(json.message || 'Tenantlar yüklenemedi')}</p>`;
+        return;
+    }
     const rows = json.data || [];
-    if (!rows.length) { list.textContent = 'Henüz davet kodu yok'; return; }
-    list.innerHTML = '<table class="data-table"><thead><tr><th>Kod</th><th>Tür</th><th>Kullanım</th><th>Not</th><th></th></tr></thead><tbody>'
-        + rows.map(i => `<tr><td><code>${i.code}</code></td><td>${i.kind}</td><td>${i.usedCount}/${i.maxUses}</td><td>${i.note || ''}</td><td>${i.revokedAt ? 'iptal' : `<button class="btn btn-secondary btn-xs" onclick="revokeInvite(${i.id})">İptal</button>`}</td></tr>`).join('')
+    if (!rows.length) { list.innerHTML = '<p class="empty-state">Kayıtlı tenant yok.</p>'; return; }
+
+    list.innerHTML = '<table class="data-table"><thead><tr>'
+        + '<th>Slug</th><th>Salon</th><th>Organizasyon</th><th>Durum</th><th>Tür</th>'
+        + '</tr></thead><tbody>'
+        + rows.map(t => `<tr>
+            <td class="code-cell">${escapeHtml(t.slug)}</td>
+            <td>${escapeHtml(t.name)}</td>
+            <td>${escapeHtml(t.organizationName || ('#' + t.organizationId))}</td>
+            <td><span class="status-chip ${t.active ? 'status-ACTIVE' : 'status-REVOKED'}">${t.active ? 'Aktif' : 'Askıda'}</span></td>
+            <td>${t.showcase ? 'Tanıtım' : 'Tam salon'}</td>
+        </tr>`).join('')
         + '</tbody></table>';
 }
-async function revokeInvite(id) {
-    const json = await api('POST', `/api/platform/invites/${id}/revoke`, {});
-    showToast(json.message || 'İptal', json.success ? 'success' : 'error');
-    if (json.success) loadInvites();
-}
-document.getElementById('inviteForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const json = await api('POST', '/api/platform/invites', {
-        kind: document.getElementById('inviteKind').value,
-        note: document.getElementById('inviteNote').value
-    });
-    showToast(json.success ? ('Kod: ' + json.data.code) : (json.message || 'Hata'), json.success ? 'success' : 'error');
-    if (json.success) loadInvites();
-});
+
 document.getElementById('provisionForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const body = {
+    const json = await api('POST', '/api/platform/tenants', {
         organizationName: document.getElementById('orgName').value,
         salonName: document.getElementById('salonName').value,
-        salonSlug: document.getElementById('salonSlug').value,
+        salonSlug: document.getElementById('salonSlug').value.trim().toLowerCase(),
         adminUsername: document.getElementById('adminUser').value,
         adminPassword: document.getElementById('adminPass').value
-    };
-    const json = await api('POST', '/api/platform/tenants', body);
-    showToast(json.message || (json.success ? 'OK' : 'Hata'), json.success ? 'success' : 'error');
-    if (json.success) loadTenants();
+    });
+    showToast(json.message || (json.success ? 'Tenant oluşturuldu' : 'Hata'), json.success ? 'success' : 'error');
+    if (json.success) {
+        e.target.reset();
+        loadTenants();
+    }
 });
+
 loadTenants();
 loadInvites();
 </script>

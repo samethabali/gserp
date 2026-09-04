@@ -7,6 +7,7 @@ import com.gscrm.model.InviteCode;
 import com.gscrm.model.Organization;
 import com.gscrm.model.Salon;
 import com.gscrm.model.enums.InviteKind;
+import com.gscrm.model.enums.OrganizationType;
 import com.gscrm.repository.OrganizationRepository;
 import com.gscrm.repository.SalonRepository;
 import com.gscrm.security.AuthenticatedUser;
@@ -25,6 +26,9 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/platform")
@@ -89,9 +93,24 @@ public class PlatformAdminController {
 
     @GetMapping("/invites")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> listInvites() {
-        List<Map<String, Object>> rows = inviteCodeService.list().stream()
-                .map(inviteCodeService::toMap)
-                .toList();
+        List<InviteCode> invites = inviteCodeService.list();
+        Set<Long> redeemedOrgIds = invites.stream()
+                .map(InviteCode::getRedeemedOrganizationId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Long, String> orgNames = organizationRepository.findAllById(redeemedOrgIds).stream()
+                .collect(Collectors.toMap(Organization::getId, Organization::getName));
+
+        List<Map<String, Object>> rows = invites.stream().map(invite -> {
+            Map<String, Object> row = new HashMap<>(inviteCodeService.toMap(invite));
+            Long orgId = invite.getRedeemedOrganizationId();
+            if (orgId != null) {
+                row.put("redeemedOrganizationName", orgNames.get(orgId));
+                row.put("redeemedSalonSlugs", salonRepository.findByOrganizationIdAndActiveTrue(orgId)
+                        .stream().map(Salon::getSlug).toList());
+            }
+            return row;
+        }).toList();
         return ResponseEntity.ok(ApiResponse.ok(rows));
     }
 
@@ -110,13 +129,17 @@ public class PlatformAdminController {
         if (body.get("expiresAt") != null && !body.get("expiresAt").isBlank()) {
             expiresAt = LocalDateTime.parse(body.get("expiresAt"));
         }
+        OrganizationType organizationType = null;
+        if (body.get("organizationType") != null && !body.get("organizationType").isBlank()) {
+            organizationType = OrganizationType.valueOf(body.get("organizationType").trim().toUpperCase());
+        }
         InviteCode created = inviteCodeService.create(
                 kind,
                 maxUses,
                 expiresAt,
                 body.get("note"),
                 body.get("planCode"),
-                null,
+                organizationType,
                 admin.getId());
         return ResponseEntity.ok(ApiResponse.ok("Davet kodu oluşturuldu", inviteCodeService.toMap(created)));
     }

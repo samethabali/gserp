@@ -1,55 +1,279 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html xmlns:th="http://www.thymeleaf.org" lang="tr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GSCRM — Kayıt</title>
+    <title>GSCRM — Salon Kaydı</title>
     <link th:replace="~{fragments/assets :: styles}"/>
+    <style>
+        .onboard-wrap {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        .onboard-card { width: 100%; max-width: 520px; padding: 32px; }
+        .onboard-head { text-align: center; margin-bottom: 24px; }
+        .onboard-head h1 { margin: 8px 0 4px; }
+        .trial-pill {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 5px 12px;
+            border-radius: 999px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--color-success);
+            background: rgba(46, 204, 113, 0.12);
+            border: 1px solid rgba(46, 204, 113, 0.3);
+        }
+        .alert {
+            margin-bottom: 16px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        .alert-error { background: rgba(231, 76, 60, 0.1); border: 1px solid rgba(231, 76, 60, 0.3); color: #e74c3c; }
+        .alert-success { background: rgba(46, 204, 113, 0.1); border: 1px solid rgba(46, 204, 113, 0.3); color: #2ecc71; }
+        .field-hint { display: block; margin-top: 6px; font-size: 0.78rem; color: var(--text-muted); }
+        .form-section-title {
+            margin: 22px 0 12px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+        #inviteCode { text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
+        .pass-wrap { position: relative; }
+        .pass-wrap .form-input { padding-right: 76px; }
+        .pass-toggle {
+            position: absolute;
+            top: 50%;
+            right: 8px;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            padding: 4px 8px;
+        }
+        .pass-toggle:hover { color: var(--text-primary); }
+        .onboard-foot { margin-top: 18px; text-align: center; font-size: 0.9rem; }
+        @media (max-width: 560px) {
+            .onboard-card { padding: 24px 20px; }
+        }
+    </style>
 </head>
-<body style="display:flex;align-items:center;justify-content:center;min-height:100vh;">
-<div style="max-width:480px;width:100%;padding:24px;">
-    <h1>Salon Kaydı</h1>
-    <p style="color:var(--text-muted);">Davet kodunuz ile 14 günlük denemeye başlayın.</p>
-    <form id="registerForm" style="display:grid;gap:12px;margin-top:16px;">
-        <input type="text" id="inviteCode" placeholder="Davet kodu (GSCRM-XXXX-XXXX)" required autocomplete="off">
-        <input type="text" id="orgName" placeholder="Organizasyon / işletme adı" required>
-        <input type="text" id="salonName" placeholder="Salon adı" required>
-        <input type="text" id="salonSlug" placeholder="Subdomain slug" required>
-        <input type="email" id="contactEmail" placeholder="İletişim e-posta">
-        <input type="text" id="adminUser" placeholder="Yönetici kullanıcı adı" required>
-        <input type="password" id="adminPass" placeholder="Şifre (min 8)" required minlength="8">
-        <button type="submit" class="btn btn-primary">Kayıt Ol</button>
-    </form>
-    <p id="result" style="margin-top:16px;"></p>
-    <p style="margin-top:12px;"><a href="/login">Girişe dön</a></p>
+<body>
+<div class="onboard-wrap">
+    <div class="glass-card onboard-card">
+        <div class="onboard-head">
+            <div style="font-size:48px;">💅</div>
+            <h1>Salon Kaydı</h1>
+            <span style="color:var(--text-muted);font-size:0.9rem;">Davet kodunuzla hesabınızı oluşturun</span>
+            <div><span class="trial-pill">🎁 14 gün ücretsiz deneme</span></div>
+        </div>
+
+        <div id="formError" class="alert alert-error" style="display:none;"></div>
+
+        <form id="registerForm" novalidate>
+            <div class="form-section-title">Davet</div>
+            <div class="form-group">
+                <label class="form-label" for="inviteCode">Davet kodu</label>
+                <input type="text" class="form-input" id="inviteCode" name="inviteCode"
+                       placeholder="GSCRM-XXXX-XXXX" required autocomplete="off" maxlength="16" autofocus>
+                <span class="field-hint">Size iletilen kodu girin; biçim otomatik tamamlanır.</span>
+            </div>
+
+            <div class="form-section-title">İşletme bilgileri</div>
+            <div class="form-group">
+                <label class="form-label" for="orgName">Organizasyon / işletme adı</label>
+                <input type="text" class="form-input" id="orgName" placeholder="Örn. Aves Güzellik" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="salonName">Salon adı</label>
+                <input type="text" class="form-input" id="salonName" placeholder="Örn. Aves Kadıköy" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="salonSlug">Subdomain</label>
+                <input type="text" class="form-input" id="salonSlug" placeholder="aves-kadikoy" required
+                       autocomplete="off" pattern="[a-z0-9][a-z0-9-]{1,62}">
+                <span class="field-hint">Adresiniz: <strong id="slugPreview">salonunuz</strong></span>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="contactEmail">İletişim e-postası <span style="color:var(--text-muted);font-weight:400;">(opsiyonel)</span></label>
+                <input type="email" class="form-input" id="contactEmail" placeholder="iletisim@salonunuz.com" autocomplete="email">
+            </div>
+
+            <div class="form-section-title">Yönetici hesabı</div>
+            <div class="form-group">
+                <label class="form-label" for="adminUser">Kullanıcı adı</label>
+                <input type="text" class="form-input" id="adminUser" placeholder="yonetici" required
+                       autocomplete="username" minlength="3" maxlength="64">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="adminPass">Şifre</label>
+                <div class="pass-wrap">
+                    <input type="password" class="form-input" id="adminPass" placeholder="En az 8 karakter" required
+                           autocomplete="new-password" minlength="8">
+                    <button type="button" class="pass-toggle" id="passToggle" aria-label="Şifreyi göster">Göster</button>
+                </div>
+                <span class="field-hint">En az 8 karakter olmalı.</span>
+            </div>
+
+            <button type="submit" class="btn btn-primary" id="submitBtn" style="width:100%;margin-top:8px;">
+                Kayıt Ol
+            </button>
+        </form>
+
+        <div id="successBox" style="display:none;"></div>
+
+        <p class="onboard-foot"><a href="/login">← Girişe dön</a></p>
+    </div>
 </div>
-<script>
+
+<script th:inline="javascript">
+const BASE_DOMAIN = /*[[${@environment.getProperty('app.tenant.base-domain', '')}]]*/ '';
+
+const form = document.getElementById('registerForm');
+const errorBox = document.getElementById('formError');
+const successBox = document.getElementById('successBox');
+const submitBtn = document.getElementById('submitBtn');
+const inviteInput = document.getElementById('inviteCode');
+const salonNameInput = document.getElementById('salonName');
+const slugInput = document.getElementById('salonSlug');
+const slugPreview = document.getElementById('slugPreview');
+const passInput = document.getElementById('adminPass');
+
+let slugTouched = false;
+
+// ─── Slug türetme (Türkçe karakter destekli) ───
+const TR_MAP = { 'ç': 'c', 'ğ': 'g', 'ı': 'i', 'ö': 'o', 'ş': 's', 'ü': 'u', 'İ': 'i' };
+
+function slugify(value) {
+    return (value || '')
+        .replace(/[çğıöşüİ]/g, ch => TR_MAP[ch] || ch)
+        .toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+/, '')
+        .slice(0, 63);
+}
+
+function renderSlugPreview() {
+    const slug = slugInput.value.replace(/-+$/, '') || 'salonunuz';
+    slugPreview.textContent = BASE_DOMAIN ? slug + '.' + BASE_DOMAIN : slug;
+}
+
+salonNameInput.addEventListener('input', () => {
+    if (slugTouched) return;
+    slugInput.value = slugify(salonNameInput.value);
+    renderSlugPreview();
+});
+
+slugInput.addEventListener('input', () => {
+    slugTouched = slugInput.value.trim() !== '';
+    slugInput.value = slugify(slugInput.value);
+    renderSlugPreview();
+});
+
+// ─── Davet kodu maskesi: GSCRM-XXXX-XXXX ───
+inviteInput.addEventListener('input', () => {
+    const raw = inviteInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (!raw.length) { inviteInput.value = ''; return; }
+    const body = (raw.startsWith('GSCRM') ? raw.slice(5) : raw).slice(0, 8);
+    let out = 'GSCRM';
+    if (body.length) out += '-' + body.slice(0, 4);
+    if (body.length > 4) out += '-' + body.slice(4);
+    inviteInput.value = out;
+});
+
+// ─── Şifre göster/gizle ───
+document.getElementById('passToggle').addEventListener('click', (e) => {
+    const shown = passInput.type === 'text';
+    passInput.type = shown ? 'password' : 'text';
+    e.currentTarget.textContent = shown ? 'Göster' : 'Gizle';
+});
+
+// ─── Linkle gelen davet kodu ───
 const params = new URLSearchParams(window.location.search);
 if (params.get('code')) {
-    document.getElementById('inviteCode').value = params.get('code');
+    inviteInput.value = params.get('code').toUpperCase();
+    document.getElementById('orgName').focus();
 }
-document.getElementById('registerForm').addEventListener('submit', async (e) => {
+renderSlugPreview();
+
+// ─── Doğrulama ───
+function validate(body) {
+    if (!/^GSCRM-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(body.inviteCode)) {
+        return 'Davet kodu GSCRM-XXXX-XXXX biçiminde olmalı.';
+    }
+    if (!body.organizationName) return 'Organizasyon adı gerekli.';
+    if (!body.salonName) return 'Salon adı gerekli.';
+    if (!/^[a-z0-9][a-z0-9-]{1,62}$/.test(body.salonSlug)) {
+        return 'Subdomain en az 2 karakter olmalı; sadece küçük harf, rakam ve tire içerebilir.';
+    }
+    if (body.adminUsername.length < 3) return 'Kullanıcı adı en az 3 karakter olmalı.';
+    if (body.adminPassword.length < 8) return 'Şifre en az 8 karakter olmalı.';
+    return null;
+}
+
+function showError(message) {
+    errorBox.textContent = '⚠️ ' + message;
+    errorBox.style.display = 'block';
+    errorBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    errorBox.style.display = 'none';
+
     const body = {
-        inviteCode: document.getElementById('inviteCode').value.trim(),
-        organizationName: document.getElementById('orgName').value,
-        salonName: document.getElementById('salonName').value,
-        salonSlug: document.getElementById('salonSlug').value.trim().toLowerCase(),
-        contactEmail: document.getElementById('contactEmail').value,
-        adminUsername: document.getElementById('adminUser').value,
-        adminPassword: document.getElementById('adminPass').value
+        inviteCode: inviteInput.value.trim(),
+        organizationName: document.getElementById('orgName').value.trim(),
+        salonName: salonNameInput.value.trim(),
+        salonSlug: slugInput.value.trim().toLowerCase().replace(/-+$/, ''),
+        contactEmail: document.getElementById('contactEmail').value.trim(),
+        adminUsername: document.getElementById('adminUser').value.trim(),
+        adminPassword: passInput.value
     };
-    const res = await fetch('/api/onboarding/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-    });
-    const json = await res.json();
-    const el = document.getElementById('result');
-    if (json.success) {
-        el.innerHTML = `Kayıt tamam! Salon: <strong>${json.data.salonSlug}</strong>. <a href="/login">Giriş yap</a> ve ardından <a href="/onboarding/setup">kurulum sihirbazını</a> tamamlayın.`;
-    } else {
-        el.textContent = json.message || 'Kayıt başarısız';
+
+    const problem = validate(body);
+    if (problem) { showError(problem); return; }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Hesabınız oluşturuluyor…';
+    try {
+        const res = await fetch('/api/onboarding/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const json = await res.json().catch(() => ({ success: false, message: 'Sunucuya ulaşılamadı' }));
+
+        if (json.success) {
+            const slug = json.data.salonSlug;
+            const address = BASE_DOMAIN ? slug + '.' + BASE_DOMAIN : slug;
+            form.style.display = 'none';
+            successBox.className = 'alert alert-success';
+            successBox.style.display = 'block';
+            successBox.innerHTML =
+                '<strong>✅ Kaydınız tamamlandı.</strong><br>'
+                + 'Salon adresiniz: <strong id="successAddress"></strong><br><br>'
+                + '<a href="/login" class="btn btn-primary" style="width:100%;">Giriş yap ve kurulumu tamamla</a>';
+            document.getElementById('successAddress').textContent = address;
+            successBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        } else {
+            showError(json.message || 'Kayıt başarısız. Bilgilerinizi kontrol edin.');
+        }
+    } catch (err) {
+        showError('Bağlantı hatası. Lütfen tekrar deneyin.');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Kayıt Ol';
     }
 });
 </script>
