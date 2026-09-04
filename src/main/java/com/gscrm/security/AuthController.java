@@ -42,9 +42,12 @@ public class AuthController {
 
     public record LoginRequest(@NotBlank String username, @NotBlank String password) {}
     public record RefreshRequest(@NotBlank String refreshToken) {}
+    // Mesaj artık kullanıcıya gösteriliyor; varsayılan "size must be between 8 and
+    // 2147483647" metni ekranda okunacak bir şey değil.
     public record ChangePasswordRequest(
-            @NotBlank String currentPassword,
-            @NotBlank @Size(min = 8) String newPassword) {}
+            @NotBlank(message = "Mevcut parola gerekli") String currentPassword,
+            @NotBlank(message = "Yeni parola gerekli")
+            @Size(min = 8, message = "Yeni parola en az 8 karakter olmalı") String newPassword) {}
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<Map<String, String>>> login(@Valid @RequestBody LoginRequest req,
