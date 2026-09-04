@@ -102,7 +102,9 @@ class ChangePasswordIT {
         change(CURRENT_PASSWORD, NEW_PASSWORD)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.nextUrl").value("/"));
+                // Salonsuz platform yöneticisinin hedefi panel; "/" onu TenantFilter
+                // üzerinden /login'e geri atıyordu.
+                .andExpect(jsonPath("$.data.nextUrl").value("/platform/tenants"));
 
         User saved = userRepository.findById(user.getId()).orElseThrow();
         assertThat(passwordEncoder.matches(NEW_PASSWORD, saved.getPasswordHash())).isTrue();
