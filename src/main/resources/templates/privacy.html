@@ -29,7 +29,7 @@
         <span th:unless="${salonContactEmail}">salon yönetimi</span> ile iletişime geçebilirsiniz.
         Rıza metni sürümü: <span th:text="${consentVersion} ?: '1.0'">1.0</span>
     </p>
-    <p style="margin-top:24px;"><a href="/booking">← Booking sayfasına dön</a></p>
+    <p style="margin-top:24px;"><a th:href="${bookingPath}" href="/booking">← Booking sayfasına dön</a></p>
 </div>
 </body>
 </html>

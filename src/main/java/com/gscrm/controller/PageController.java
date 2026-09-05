@@ -92,15 +92,21 @@ public class PageController {
     }
 
     /**
-     * Randevu adresi. Kiracı oturumdan veya parametreden çözülebiliyorsa randevu sayfasını;
-     * işletme belirtilmemişse "işletme seçilmedi" bilgilendirme sayfasını döndürür.
+     * Eski randevu adresi — yalnızca kanonik adrese yönlendirir.
+     *
+     * <p>Burası randevu sayfasını kendisi çiziyordu ve adres çubuğunda {@code /booking}
+     * kalıyordu: KVKK metni veya müşteri girişi gibi bir ara sayfadan dönen ziyaretçi
+     * işletmesiz bir adrese düşüyor, o adresi paylaştığında ya da yeniden açtığında
+     * "işletme seçilmedi" görüyordu. Kiracı çözülebiliyorsa adres {@code /{slug}}
+     * olarak düzeltilir; çözülemiyorsa bilgilendirme sayfası kalır.
      */
     @GetMapping("/booking")
     public String booking() {
-        if (TenantContext.getSalonId() == null) {
+        String slug = TenantContext.getSlug();
+        if (slug == null || slug.isBlank()) {
             return "booking-no-salon";
         }
-        return "booking";
+        return "redirect:/" + slug;
     }
 
     @GetMapping("/customer/login")
