@@ -19,6 +19,25 @@
 
     <properties>
         <java.version>21</java.version>
+        <!--
+          Yuk testleri varsayilan kosuda dislanir. Paylasimli bir CI runner'inda
+          olculen gecikme makinenin o anki yukune baglidir; boyle bir olcumu
+          kirmizi/yesil kapisi yapmak, urun hatasi olmadigi halde duzenli kirilan
+          bir test demektir. Elle calistirmak icin:
+              mvn test -Dsurefire.excludedGroups= -Dtest=BookingLoadIT
+        -->
+        <surefire.excludedGroups>load</surefire.excludedGroups>
+
+        <!--
+          Statik dosya surumu her derlemede degisir; application.yml'e
+          @build.timestamp@ olarak suzuluyor. Elle guncellenen bir surum
+          numarasi, tarayici onbellegi acikken unutuldugunda kullanicilarda
+          eski JS birakir; buyuk hata siniflarindan biri de budur.
+          maven.build.timestamp dogrudan suzulemedigi icin araya bu ozellik
+          konuyor (bilinen Maven davranisi).
+        -->
+        <maven.build.timestamp.format>yyyyMMdd-HHmmss</maven.build.timestamp.format>
+        <build.timestamp>${maven.build.timestamp}</build.timestamp>
     </properties>
 
     <dependencies>
@@ -186,6 +205,7 @@
                         <include>**/*Test.java</include>
                         <include>**/*IT.java</include>
                     </includes>
+                    <excludedGroups>${surefire.excludedGroups}</excludedGroups>
                 </configuration>
             </plugin>
         </plugins>
