@@ -1,0 +1,18 @@
+# Kaynak: üretim sunucusu, /home/gserp/gserp/docker-compose.deploy-env.yml
+# Alınma tarihi: 2026-09-05 — REFERANS KOPYA, elle düzenlemeyin.
+#
+# Bu dosyayı her deploy'da .github/workflows/deploy.yml yeniden ÜRETİR
+# (bkz. deploy.yml, "EXTRA_ENV_FILE" bloğu). docker-compose.prod.yml ile
+# birlikte `-f prod.yml -f deploy-env.yml` şeklinde yüklenir.
+# Sunucudaki gerçek dosya bu kopyayla birebir aynıdır.
+#
+# --- dosyanın birebir içeriği ---
+# Deploy workflow tarafindan uretildi — elle duzenlemeyin.
+# docker-compose.prod.yml ile birlikte -f ile yuklenir.
+services:
+  app:
+    environment:
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY}
+      APP_PUBLIC_BASE_URL: ${APP_PUBLIC_BASE_URL}
+      GSCRM_PLATFORM_ADMIN_USERNAME: ${GSCRM_PLATFORM_ADMIN_USERNAME}
+      GSCRM_PLATFORM_ADMIN_PASSWORD: ${GSCRM_PLATFORM_ADMIN_PASSWORD}
