@@ -141,20 +141,102 @@ function initColorPicker(initial) {
     apply(normalizeHex(initial) || DEFAULT_PRIMARY_COLOR, true);
 }
 
+// Liste ve giriş bilgilerinde kullanıcı metni HTML'e gömülüyor.
+function esc(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+const SERVICE_CATEGORIES = [
+    { key: 'HAIR', label: '💇 Saç' },
+    { key: 'NAIL', label: '💅 Tırnak' },
+    { key: 'SKIN', label: '🧴 Cilt' },
+    { key: 'LASER', label: '⚡ Lazer' },
+    { key: 'OTHER', label: '📦 Diğer' }
+];
+
+const STAFF_ROLES = [
+    { key: 'SPECIALIST', label: 'Uzman' },
+    { key: 'RECEPTIONIST', label: 'Resepsiyonist' },
+    { key: 'ADMIN', label: 'Admin' }
+];
+
+function options(items, selected) {
+    return items.map(i =>
+        `<option value="${i.key}"${i.key === selected ? ' selected' : ''}>${i.label}</option>`
+    ).join('');
+}
+
+/**
+ * Hizmet adımı.
+ *
+ * <p>Adım eskiden yalnızca /services bağlantısı veriyordu: hizmet eklemek için
+ * sihirbazdan çıkmak gerekiyor, o sayfada sihirbaza dönecek hiçbir bağlantı
+ * bulunmadığı için kurulum yarıda kalıyordu. Ekleme formu bu yüzden adımın
+ * içinde.
+ */
 function panelServices() {
     return `
         <h2>İlk hizmetleriniz</h2>
         <p class="settings-desc">En az bir hizmet ekleyerek randevu almaya başlayın.</p>
-        <p id="serviceCount" class="settings-desc">Yükleniyor…</p>
-        <a href="/services" class="btn btn-secondary" target="_blank">Hizmetler sayfasını aç →</a>`;
+        <div id="serviceList" class="onboarding-list">Yükleniyor…</div>
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label" for="obSvcName">Hizmet adı</label>
+                <input type="text" class="form-input" id="obSvcName" placeholder="Saç kesimi">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="obSvcCategory">Kategori</label>
+                <select class="form-select" id="obSvcCategory">${options(SERVICE_CATEGORIES, 'HAIR')}</select>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label" for="obSvcDuration">Süre (dk)</label>
+                <input type="number" class="form-input" id="obSvcDuration" min="5" step="5" value="30">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="obSvcPrice">Fiyat (₺)</label>
+                <input type="number" class="form-input" id="obSvcPrice" min="0" step="0.01" placeholder="0">
+            </div>
+        </div>
+        <div class="onboarding-inline-actions">
+            <button type="button" class="btn btn-primary" id="obAddService">➕ Hizmeti ekle</button>
+            <a href="/services" class="btn btn-secondary" target="_blank" rel="noopener">Tüm hizmetler ↗</a>
+        </div>`;
 }
 
 function panelStaff() {
     return `
         <h2>Personel</h2>
-        <p class="settings-desc">Uzman ve resepsiyon ekibinizi tanımlayın.</p>
-        <p id="staffCount" class="settings-desc">Yükleniyor…</p>
-        <a href="/staff" class="btn btn-secondary" target="_blank">Personel sayfasını aç →</a>`;
+        <p class="settings-desc">Uzman ve resepsiyon ekibinizi tanımlayın. Eklenen personele giriş hesabı da açılır.</p>
+        <div id="staffList" class="onboarding-list">Yükleniyor…</div>
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label" for="obStfName">Ad soyad</label>
+                <input type="text" class="form-input" id="obStfName" placeholder="Ayşe Yılmaz">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="obStfRole">Görev</label>
+                <select class="form-select" id="obStfRole">${options(STAFF_ROLES, 'SPECIALIST')}</select>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label" for="obStfPhone">Telefon</label>
+                <input type="tel" class="form-input" id="obStfPhone" placeholder="0555 000 00 00">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="obStfEmail">E-posta</label>
+                <input type="email" class="form-input" id="obStfEmail" placeholder="opsiyonel">
+            </div>
+        </div>
+        <div class="onboarding-inline-actions">
+            <button type="button" class="btn btn-primary" id="obAddStaff">➕ Personeli ekle</button>
+            <a href="/staff" class="btn btn-secondary" target="_blank" rel="noopener">Tüm personel ↗</a>
+        </div>
+        <div id="obCredentials" class="onboarding-creds"></div>`;
 }
 
 // Kanonik adres /{slug}; "/booking" yalnızca oturumdaki kiracıyla çözülür ve
@@ -186,24 +268,133 @@ function showStep(index) {
         document.getElementById('obSalonName').value = salonSettings.name || '';
         initColorPicker(salonSettings.primaryColor);
     }
-    if (index === 1) loadServiceCount();
-    if (index === 2) loadStaffCount();
+    if (index === 1) {
+        document.getElementById('obAddService').addEventListener('click', e => addService(e.currentTarget));
+        loadServices();
+    }
+    if (index === 2) {
+        document.getElementById('obAddStaff').addEventListener('click', e => addStaff(e.currentTarget));
+        renderCredentials();
+        loadStaff();
+    }
 }
 
-async function loadServiceCount() {
+function renderList(el, rows, emptyText) {
+    if (!el) return;
+    el.innerHTML = rows.length
+        ? rows.map(r => `<div class="onboarding-list-row"><span>${esc(r.title)}</span><span class="onboarding-list-meta">${esc(r.meta)}</span></div>`).join('')
+        : `<p class="settings-desc onboarding-list-empty">${esc(emptyText)}</p>`;
+}
+
+const CATEGORY_LABELS = Object.fromEntries(SERVICE_CATEGORIES.map(c => [c.key, c.label]));
+const ROLE_LABELS = Object.fromEntries(STAFF_ROLES.map(r => [r.key, r.label]));
+
+async function loadServices() {
     const json = await api('GET', '/api/services');
-    const count = (json.data || []).length;
-    document.getElementById('serviceCount').textContent = count > 0
-        ? `✓ ${count} hizmet tanımlı.`
-        : 'Henüz hizmet yok — en az bir tane ekleyin.';
+    const rows = (json.data || []).map(s => ({
+        title: s.name,
+        meta: `${CATEGORY_LABELS[s.category] || s.category} · ${s.durationMinutes} dk · ${Number(s.basePrice).toLocaleString('tr-TR')} ₺`
+    }));
+    renderList(document.getElementById('serviceList'), rows, 'Henüz hizmet yok — aşağıdan en az bir tane ekleyin.');
 }
 
-async function loadStaffCount() {
+async function loadStaff() {
     const json = await api('GET', '/api/staff');
-    const count = (json.data || []).length;
-    document.getElementById('staffCount').textContent = count > 0
-        ? `✓ ${count} personel kayıtlı.`
-        : 'Henüz personel yok — en az bir uzman ekleyin.';
+    const rows = (json.data || []).map(s => ({
+        title: s.name,
+        meta: ROLE_LABELS[s.role] || s.role
+    }));
+    renderList(document.getElementById('staffList'), rows, 'Henüz personel yok — aşağıdan en az bir uzman ekleyin.');
+}
+
+function fieldValue(id) {
+    return (document.getElementById(id).value || '').trim();
+}
+
+// Butona iki kez basınca aynı kayıt iki kez oluşmasın.
+async function withBusy(button, label, fn) {
+    const original = button.textContent;
+    button.disabled = true;
+    button.textContent = label;
+    try {
+        await fn();
+    } finally {
+        button.disabled = false;
+        button.textContent = original;
+    }
+}
+
+async function addService(button) {
+    const name = fieldValue('obSvcName');
+    const duration = parseInt(document.getElementById('obSvcDuration').value, 10);
+    const price = parseFloat(document.getElementById('obSvcPrice').value);
+    if (!name) return showToast('Hizmet adı gerekli', 'error');
+    if (!Number.isFinite(duration) || duration <= 0) return showToast('Süreyi dakika olarak girin', 'error');
+    if (!Number.isFinite(price) || price < 0) return showToast('Fiyat girin', 'error');
+
+    await withBusy(button, 'Ekleniyor…', async () => {
+        const json = await api('POST', '/api/services', {
+            name,
+            category: document.getElementById('obSvcCategory').value,
+            durationMinutes: duration,
+            basePrice: price,
+            active: true
+        });
+        if (!json.success) {
+            showToast(json.message || 'Hizmet eklenemedi', 'error');
+            return;
+        }
+        showToast(json.message || 'Hizmet eklendi', 'success');
+        document.getElementById('obSvcName').value = '';
+        document.getElementById('obSvcPrice').value = '';
+        document.getElementById('obSvcName').focus();
+        await loadServices();
+    });
+}
+
+/**
+ * Eklenen personelin geçici parolası yalnızca oluşturma yanıtında döner; sayfa
+ * yenilenirse bir daha okunamaz. Bu yüzden sihirbaz açık kaldığı sürece panelde
+ * tutuluyor.
+ */
+const issuedAccounts = [];
+
+function renderCredentials() {
+    const el = document.getElementById('obCredentials');
+    if (!el) return;
+    el.innerHTML = issuedAccounts.length ? `
+        <p class="settings-desc"><strong>Giriş bilgileri</strong> — bu parolalar bir daha gösterilmez, personele iletin.</p>
+        ${issuedAccounts.map(a => `<div class="onboarding-list-row"><span>${esc(a.name)}</span><span class="onboarding-list-meta">${esc(a.username)} / ${esc(a.password)}</span></div>`).join('')}` : '';
+}
+
+async function addStaff(button) {
+    const name = fieldValue('obStfName');
+    if (!name) return showToast('Ad soyad gerekli', 'error');
+
+    await withBusy(button, 'Ekleniyor…', async () => {
+        const json = await api('POST', '/api/staff?createAccount=true', {
+            name,
+            role: document.getElementById('obStfRole').value,
+            phone: fieldValue('obStfPhone'),
+            email: fieldValue('obStfEmail'),
+            active: true
+        });
+        if (!json.success) {
+            showToast(json.message || 'Personel eklenemedi', 'error');
+            return;
+        }
+        showToast(json.message || 'Personel eklendi', 'success');
+        const account = json.data && json.data.account;
+        if (account) {
+            issuedAccounts.push({ name, username: account.username, password: account.temporaryPassword });
+        } else if (json.data && json.data.accountNote) {
+            showToast(json.data.accountNote, 'warning');
+        }
+        ['obStfName', 'obStfPhone', 'obStfEmail'].forEach(id => { document.getElementById(id).value = ''; });
+        document.getElementById('obStfName').focus();
+        renderCredentials();
+        await loadStaff();
+    });
 }
 
 async function saveCurrentStep() {

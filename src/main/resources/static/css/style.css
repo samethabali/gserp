@@ -1561,7 +1561,7 @@ select.form-select option {
 
 .onboarding-card {
     width: 100%;
-    max-width: 560px;
+    max-width: 620px;
     padding: 28px;
     background: var(--bg-secondary);
     border-color: var(--border-strong);
@@ -1620,6 +1620,74 @@ select.form-select option {
 .onboarding-panel {
     min-height: 200px;
     margin-bottom: 20px;
+}
+
+/* Kurulum bitmeden menüde duran hatırlatma bağlantısı */
+.nav-item-setup {
+    color: var(--text-primary);
+    background: rgba(46, 204, 113, 0.14);
+    border-left: 3px solid rgba(46, 204, 113, 0.75);
+    font-weight: 600;
+}
+
+/* Hizmet/personel adımlarının kart içi listesi ve ekleme formu */
+.onboarding-list {
+    margin-bottom: 16px;
+}
+
+.onboarding-list-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font-size: 0.86rem;
+}
+
+.onboarding-list-row + .onboarding-list-row {
+    margin-top: 6px;
+}
+
+.onboarding-list-meta {
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.onboarding-list-empty {
+    margin: 0;
+}
+
+.onboarding-inline-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.onboarding-creds {
+    margin-top: 16px;
+}
+
+@media (max-width: 520px) {
+    .onboarding-card .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .onboarding-list-row {
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .onboarding-list-meta {
+        text-align: left;
+        white-space: normal;
+    }
 }
 
 /* Ana renk seçimi: hazır palet + serbest renk */

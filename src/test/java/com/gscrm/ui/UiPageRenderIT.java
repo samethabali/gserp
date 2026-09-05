@@ -1,9 +1,11 @@
 package com.gscrm.ui;
 
+import com.gscrm.model.OnboardingState;
 import com.gscrm.model.Organization;
 import com.gscrm.model.Salon;
 import com.gscrm.model.enums.OrganizationType;
 import com.gscrm.model.enums.UserRole;
+import com.gscrm.repository.OnboardingStateRepository;
 import com.gscrm.repository.OrganizationRepository;
 import com.gscrm.repository.SalonRepository;
 import com.gscrm.security.AuthenticatedUser;
@@ -49,6 +51,7 @@ class UiPageRenderIT {
     @Autowired private TransactionTemplate txTemplate;
     @Autowired private OrganizationRepository organizationRepository;
     @Autowired private SalonRepository salonRepository;
+    @Autowired private OnboardingStateRepository onboardingStateRepository;
 
     private Long orgId;
     private Long salonId;
@@ -128,6 +131,51 @@ class UiPageRenderIT {
                 .as("menü kanonik randevu adresini göstermeli")
                 .contains("href=\"/" + slug + "\"")
                 .doesNotContain("href=\"/booking\"");
+    }
+
+    /**
+     * Kurulum yarıda kaldıysa menüde sihirbaza dönüş bağlantısı bulunmalı.
+     *
+     * <p>Sihirbaz yalnızca girişten sonra açılıyordu: hizmet eklemek için ondan
+     * ayrılan kullanıcı kuruluma bir daha ulaşamıyor, adımlar yarım kalıyordu.
+     */
+    @org.junit.jupiter.api.Test
+    @DisplayName("kurulum bitmemişken menüde sihirbaz bağlantısı görünür")
+    void sidebarLinksBackToSetupWhileOnboardingIncomplete() throws Exception {
+        saveOnboardingStep("SERVICES");
+
+        assertThat(dashboardHtml(UserRole.BRANCH_MANAGER))
+                .as("yarım kalan kurulum menüden sürdürülebilmeli")
+                .contains("href=\"/onboarding/setup\"");
+        // Sihirbaz yönetime kapalı rollere 403 döner; bağlantı da onlara gösterilmemeli.
+        assertThat(dashboardHtml(UserRole.SPECIALIST))
+                .as("uzmana açılamayacağı bir sayfanın bağlantısı gösterilmemeli")
+                .doesNotContain("href=\"/onboarding/setup\"");
+    }
+
+    @org.junit.jupiter.api.Test
+    @DisplayName("kurulum bitince menüdeki sihirbaz bağlantısı kaybolur")
+    void sidebarHidesSetupLinkAfterCompletion() throws Exception {
+        saveOnboardingStep("COMPLETED");
+
+        assertThat(dashboardHtml(UserRole.BRANCH_MANAGER))
+                .as("tamamlanmış kurulum menüyü kalabalıklaştırmamalı")
+                .doesNotContain("href=\"/onboarding/setup\"");
+    }
+
+    private void saveOnboardingStep(String step) {
+        txTemplate.executeWithoutResult(status -> onboardingStateRepository.save(OnboardingState.builder()
+                .salonId(salonId)
+                .currentStep(step)
+                .updatedAt(LocalDateTime.now())
+                .build()));
+    }
+
+    private String dashboardHtml(UserRole role) throws Exception {
+        return mockMvc.perform(get("/dashboard")
+                        .with(authentication(authFor(role)))
+                        .header("X-Salon-Slug", slug))
+                .andReturn().getResponse().getContentAsString();
     }
 
     @ParameterizedTest(name = "{0} herkese açık olarak render edilir")
