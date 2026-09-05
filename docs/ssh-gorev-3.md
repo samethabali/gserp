@@ -108,6 +108,29 @@ Bu adım `sudo` istiyor ve parola gerekiyor — erişemiyorsan atla ve raporla.
 
 ---
 
+## İş 4 — Bellek limitinin gerçekten uygulandığını doğrula
+
+2026-09-05 akşamı `mem_limit: 1g` + heap tavanı 512 MB canlıya alındı. Uygulama
+açıldı ve sağlıklı, **ama JVM'in limiti gördüğü ölçülmedi.** Fazla dar kalırsa
+`-XX:+ExitOnOutOfMemoryError` yüzünden konteyner yük altında ölür.
+
+Salt okuma, tek komut dizisi:
+
+```bash
+CID=$(docker ps -qf name=gserp-app)
+docker inspect --format='mem_limit={{.HostConfig.Memory}}' "$CID"
+docker stats --no-stream --format '{{.Name}} {{.MemUsage}} {{.MemPerc}}' "$CID"
+docker exec "$CID" sh -c 'java -XX:+PrintFlagsFinal -version 2>/dev/null | grep -E "MaxHeapSize|MaxRAM "'
+```
+
+**Beklenen:** `mem_limit=1073741824`, `MaxHeapSize` ~536 MB civarı, kullanım
+limitin belirgin altında.
+
+**Raporla:** üç çıktıyı da. Kullanım %85'in üstündeyse limit yükseltilmeli;
+%40'ın altındaysa daha da sıkılabilir.
+
+---
+
 ## Yapmayacakların
 
 - Deploy tetikleme

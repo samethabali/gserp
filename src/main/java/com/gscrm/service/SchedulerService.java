@@ -69,13 +69,36 @@ public class SchedulerService {
      * Excludes the given appointmentId (for move operations).
      */
     public boolean isStaffAvailable(Long staffId, LocalDateTime start, LocalDateTime end, Long excludeAppointmentId) {
-        List<Appointment> conflicts = appointmentRepository.findStaffOverlap(
-                TenantContext.requireSalonId(), staffId, start, end, AppointmentStatus.CANCELLED);
+        List<Appointment> conflicts = busyBlocks(staffId, start, end);
         if (excludeAppointmentId != null) {
             conflicts = conflicts.stream()
                     .filter(a -> !a.getId().equals(excludeAppointmentId))
                     .toList();
         }
         return conflicts.isEmpty();
+    }
+
+    /**
+     * Aralığa değen, iptal edilmemiş randevular — tek sorguda.
+     *
+     * <p>Bir günün tamamı için çağrılıp sonuç {@link #isFree} ile taranabilsin diye
+     * ayrıldı. {@code AvailabilityService} her slot için ayrı bir çakışma sorgusu
+     * atıyordu: 09:00-19:00 penceresi ve 15 dakikalık adımla bu, tek bir "müsait
+     * saatler" isteğinde 39 SQL demekti. Ölçüm bunu doğruladı — uç toplam 79 sorgu
+     * çıkarıyor ve on bağlantılık havuzu yirmi ziyaretçide doyuruyordu.
+     */
+    public List<Appointment> busyBlocks(Long staffId, LocalDateTime from, LocalDateTime to) {
+        return appointmentRepository.findStaffOverlap(
+                TenantContext.requireSalonId(), staffId, from, to, AppointmentStatus.CANCELLED);
+    }
+
+    /**
+     * {@link #isStaffAvailable} ile <b>aynı</b> çakışma kuralı, önden getirilmiş
+     * liste üzerinde. İki ayrı yerde iki ayrı kural yazılmasın diye tek satır:
+     * randevu aralığa değiyorsa slot doludur.
+     */
+    public static boolean isFree(List<Appointment> busy, LocalDateTime start, LocalDateTime end) {
+        return busy.stream().noneMatch(a ->
+                a.getStartTime().isBefore(end) && a.getEndTime().isAfter(start));
     }
 }

@@ -279,10 +279,10 @@ async function loadSessionProgress() {
             return `
             <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border-glass);">
                 <div style="flex:1;min-width:0;">
-                    <div style="font-weight:600;font-size:0.88rem;">${s.customerName}
+                    <div style="font-weight:600;font-size:0.88rem;">${escapeHtml(s.customerName)}
                         <span style="color:var(--text-muted);font-weight:400;font-size:0.78rem;margin-left:6px;">${time}</span>
                     </div>
-                    <div style="color:var(--text-secondary);font-size:0.78rem;">${s.serviceName}</div>
+                    <div style="color:var(--text-secondary);font-size:0.78rem;">${escapeHtml(s.serviceName)}</div>
                 </div>
                 <div style="text-align:right;flex-shrink:0;">
                     <div style="font-size:0.78rem;color:var(--color-primary-light);font-weight:600;margin-bottom:4px;">

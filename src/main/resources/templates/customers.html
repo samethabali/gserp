@@ -119,6 +119,6 @@
 <div class="toast-container" id="toastContainer"></div>
 <script th:replace="~{fragments/assets :: app-js}"></script>
 <script th:replace="~{fragments/assets :: custom-select-js}"></script>
-<script src="/js/customers.js"></script>
+<script th:src="@{/js/customers.js(v=${assetVersion})}"></script>
 </body>
 </html>

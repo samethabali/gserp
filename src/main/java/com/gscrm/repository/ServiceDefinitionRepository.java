@@ -12,5 +12,14 @@ public interface ServiceDefinitionRepository extends JpaRepository<ServiceDefini
 
     List<ServiceDefinition> findBySalonIdAndActiveTrue(Long salonId);
 
+    /**
+     * Salonun tüm hizmetleri — pasifler dahil.
+     *
+     * <p>Randevu listelerini toplu dönüştürürken gerekiyor: geçmiş bir randevu
+     * sonradan pasife alınmış bir hizmete işaret edebilir ve yalnızca aktifler
+     * yüklenirse o randevunun hizmet adı "?" görünür.
+     */
+    List<ServiceDefinition> findBySalonId(Long salonId);
+
     boolean existsBySalonId(Long salonId);
 }

@@ -176,6 +176,6 @@
 <script th:replace="~{fragments/assets :: app-js}"></script>
 <script th:replace="~{fragments/assets :: body-map-js}"></script>
 <script th:replace="~{fragments/assets :: custom-select-js}"></script>
-<script src="/js/booking.js"></script>
+<script th:src="@{/js/booking.js(v=${assetVersion})}"></script>
 </body>
 </html>

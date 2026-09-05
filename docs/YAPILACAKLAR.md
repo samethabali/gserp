@@ -44,7 +44,10 @@ olduğu ölçüldü.
 | B | `docker builder prune -f` (~3.9 GB geri) | Hayır | ⬜ |
 | C | `mem_limit` + JVM bellek ayarı | Evet, kısa | ⬜ |
 | D | Log rotasyonu (`max-size`/`max-file`) | Evet, kısa | ✅ `8b3f375` |
-| **E** | **Geri alma yolu** — başarısız deploy artık kesinti bırakmıyor | Hayır | ✅ hazır |
+| **E** | **Geri alma yolu** — başarısız deploy artık kesinti bırakmıyor | Hayır | ✅ **canlıda** |
+| A | Veritabanı yedeklemesi | Hayır | ✅ kuruldu, doğrulandı |
+| B | `docker builder prune` (4.6 → 8.2 GB boş) | Hayır | ✅ |
+| F | KVKK sayfası kiracısız açılmıyordu | Evet, kısa | ✅ **canlıda** |
 | 1 | İmaj build'ini VPS'ten CI'a (GHCR) taşı | Hayır | ⬜ |
 | 3 | 2 konteyner + nginx upstream + sıralı deploy | Evet, kısa | ⬜ |
 

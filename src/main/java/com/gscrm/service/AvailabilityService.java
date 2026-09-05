@@ -1,6 +1,7 @@
 package com.gscrm.service;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.gscrm.model.Appointment;
 import com.gscrm.model.Staff;
 import com.gscrm.model.WorkingHours;
 import com.gscrm.repository.StaffRepository;
@@ -89,6 +90,14 @@ public class AvailabilityService {
         LocalDateTime earliest = LocalDateTime.now()
                 .plusMinutes(intSetting("booking.min_lead_minutes", DEFAULT_MIN_LEAD_MINUTES, 0, 20160));
 
+        // Günün dolu blokları tek sorguda alınır. Eskiden her slot için ayrı bir
+        // çakışma sorgusu atılıyordu; ölçümde bu tek ucun 79 SQL'e mal olduğu ve
+        // yirmi eşzamanlı ziyaretçide on bağlantılık havuzu doyurduğu görüldü.
+        // Sorgu bir aralık taraması olduğu için önceki günden sarkan randevular da
+        // kapsanır; slotlar mesai penceresini aşamadığı için gün sınırı yeterli.
+        List<Appointment> busy = schedulerService.busyBlocks(
+                staffId, date.atStartOfDay(), date.plusDays(1).atStartOfDay());
+
         // Pencereler çakışabilir; aynı saat iki kez üretilmesin diye saate göre topla.
         Map<LocalTime, Boolean> byTime = new LinkedHashMap<>();
 
@@ -98,8 +107,8 @@ public class AvailabilityService {
             while (!cursor.plusMinutes(duration).isAfter(window.end())) {
                 LocalDateTime start = date.atTime(cursor);
                 if (!start.isBefore(earliest)) {
-                    boolean available = schedulerService.isStaffAvailable(
-                            staffId, start, start.plusMinutes(duration), null);
+                    boolean available = SchedulerService.isFree(
+                            busy, start, start.plusMinutes(duration));
                     byTime.merge(cursor, available, (a, b) -> a || b);
                 }
                 LocalTime next = cursor.plusMinutes(step);
