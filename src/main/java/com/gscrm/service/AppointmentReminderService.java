@@ -73,8 +73,13 @@ public class AppointmentReminderService {
         }
     }
 
+    /**
+     * Aktif seans randevuları; {@code staffFilter} doluysa yalnızca o personelinkiler.
+     *
+     * <p>Uzman rolüne başka personelin müşteri adları gösterilmemeli.
+     */
     @Transactional(readOnly = true)
-    public List<Map<String, Object>> getActiveSessionProgress(LocalDate date) {
+    public List<Map<String, Object>> getActiveSessionProgress(LocalDate date, Long staffFilter) {
         Long salonId = TenantContext.requireSalonId();
         LocalDateTime start = date.atStartOfDay();
         LocalDateTime end = start.plusDays(1);
@@ -83,6 +88,7 @@ public class AppointmentReminderService {
                 .findUpcomingSessionAppointments(salonId, start, end);
 
         return todaysSessionAppts.stream()
+                .filter(a -> staffFilter == null || staffFilter.equals(a.getStaffId()))
                 .filter(a -> a.getSessionNumber() != null && a.getTotalSessions() != null)
                 .map(a -> {
                     String serviceName = serviceRepository.findByIdAndSalonId(a.getServiceId(), salonId)

@@ -41,10 +41,18 @@ public class DashboardService {
     private final PaymentRepository paymentRepository;
     private final TenantFilterSupport tenantFilterSupport;
 
-    public DashboardResponse getDailySummary(LocalDate date) {
+    /**
+     * Günlük özet. {@code staffFilter} doluysa rapor yalnızca o personelin
+     * randevularından hesaplanır.
+     *
+     * <p>Uzman (SPECIALIST) rolü salonun tüm cirosunu ve bütün personelin
+     * performansını görüyordu; oysa randevu listesi de durum değişikliği de
+     * kendi randevularıyla sınırlı. Filtre {@link com.gscrm.security.StaffScopeService}
+     * tarafından çözülür, kullanıcıdan gelmez.
+     */
+    public DashboardResponse getDailySummary(LocalDate date, Long staffFilter) {
         Long salonId = TenantContext.requireSalonId();
-        List<Appointment> appointments = appointmentRepository.findBySalonIdAndStartTimeBetween(
-                salonId, date.atStartOfDay(), date.plusDays(1).atStartOfDay());
+        List<Appointment> appointments = findAppointments(salonId, date, staffFilter);
 
         int total = appointments.size();
         int completed = (int) appointments.stream().filter(a -> a.getStatus() == AppointmentStatus.COMPLETED).count();
@@ -68,8 +76,11 @@ public class DashboardService {
         // Tahakkuk (tamamlanan randevu tutarı) ile tahsilatı ayrı raporla: randevuyu
         // "tamamlandı" işaretlemek parayı kasaya sokmuyor, ödeme kaydı gerekiyor.
         // İkisi tek rakama karışınca tahsil edilmemiş tutar görünmez oluyordu.
-        BigDecimal collectedRevenue = paymentRepository.sumCollectedInRange(
-                date.atStartOfDay(), date.plusDays(1).atStartOfDay());
+        BigDecimal collectedRevenue = staffFilter != null
+                ? paymentRepository.sumCollectedInRangeForStaff(
+                        date.atStartOfDay(), date.plusDays(1).atStartOfDay(), staffFilter)
+                : paymentRepository.sumCollectedInRange(
+                        date.atStartOfDay(), date.plusDays(1).atStartOfDay());
         BigDecimal uncollectedRevenue = totalRevenue.subtract(collectedRevenue).max(BigDecimal.ZERO);
 
         // Hizmet adlarını tek seferde yükle (N+1 önlemi)
@@ -136,15 +147,15 @@ public class DashboardService {
                 .build();
     }
 
-    public List<DailyTrendDto> getTrend(int days) {
+    /** Günlük trend; {@code staffFilter} doluysa yalnızca o personelin randevuları sayılır. */
+    public List<DailyTrendDto> getTrend(int days, Long staffFilter) {
         Long salonId = TenantContext.requireSalonId();
         LocalDate today = LocalDate.now();
         List<DailyTrendDto> result = new ArrayList<>();
 
         for (int i = days - 1; i >= 0; i--) {
             LocalDate day = today.minusDays(i);
-            List<Appointment> appts = appointmentRepository.findBySalonIdAndStartTimeBetween(
-                    salonId, day.atStartOfDay(), day.plusDays(1).atStartOfDay());
+            List<Appointment> appts = findAppointments(salonId, day, staffFilter);
 
             int tot = appts.size();
             int comp = (int) appts.stream().filter(a -> a.getStatus() == AppointmentStatus.COMPLETED).count();
@@ -162,6 +173,14 @@ public class DashboardService {
                     .build());
         }
         return result;
+    }
+
+    private List<Appointment> findAppointments(Long salonId, LocalDate day, Long staffFilter) {
+        return staffFilter != null
+                ? appointmentRepository.findBySalonIdAndStaffIdAndStartTimeBetween(
+                        salonId, staffFilter, day.atStartOfDay(), day.plusDays(1).atStartOfDay())
+                : appointmentRepository.findBySalonIdAndStartTimeBetween(
+                        salonId, day.atStartOfDay(), day.plusDays(1).atStartOfDay());
     }
 
     /**

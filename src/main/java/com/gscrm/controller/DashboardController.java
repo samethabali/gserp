@@ -3,6 +3,7 @@ package com.gscrm.controller;
 import com.gscrm.dto.response.ApiResponse;
 import com.gscrm.dto.response.DailyTrendDto;
 import com.gscrm.dto.response.DashboardResponse;
+import com.gscrm.security.StaffScopeService;
 import com.gscrm.service.DashboardService;
 import com.gscrm.service.AppointmentReminderService;
 import lombok.RequiredArgsConstructor;
@@ -23,28 +24,37 @@ public class DashboardController {
 
     private final DashboardService dashboardService;
     private final AppointmentReminderService appointmentReminderService;
+    /**
+     * Uzman (SPECIALIST) hesabı yalnızca kendi randevularını görür; filtre oturumdaki
+     * kimlikten çözülür, istemciden parametre olarak alınmaz.
+     */
+    private final StaffScopeService staffScopeService;
 
     @GetMapping("/today")
     public ResponseEntity<ApiResponse<DashboardResponse>> getToday() {
-        return ResponseEntity.ok(ApiResponse.ok(dashboardService.getDailySummary(LocalDate.now())));
+        return ResponseEntity.ok(ApiResponse.ok(
+                dashboardService.getDailySummary(LocalDate.now(), staffScopeService.specialistStaffId())));
     }
 
     @GetMapping
     public ResponseEntity<ApiResponse<DashboardResponse>> getByDate(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return ResponseEntity.ok(ApiResponse.ok(dashboardService.getDailySummary(date)));
+        return ResponseEntity.ok(ApiResponse.ok(
+                dashboardService.getDailySummary(date, staffScopeService.specialistStaffId())));
     }
 
     @GetMapping("/sessions")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getSessionProgress(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         return ResponseEntity.ok(ApiResponse.ok(
-                appointmentReminderService.getActiveSessionProgress(date != null ? date : LocalDate.now())));
+                appointmentReminderService.getActiveSessionProgress(
+                        date != null ? date : LocalDate.now(), staffScopeService.specialistStaffId())));
     }
 
     @GetMapping("/trend")
     public ResponseEntity<ApiResponse<List<DailyTrendDto>>> getTrend(
             @RequestParam(defaultValue = "7") int days) {
-        return ResponseEntity.ok(ApiResponse.ok(dashboardService.getTrend(Math.min(days, 30))));
+        return ResponseEntity.ok(ApiResponse.ok(
+                dashboardService.getTrend(Math.min(days, 30), staffScopeService.specialistStaffId())));
     }
 }
