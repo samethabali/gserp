@@ -33,7 +33,9 @@ function showToast(message, type = 'info') {
     const icons = { success: '✅', error: '❌', info: 'ℹ️', warning: '⚠️' };
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    toast.innerHTML = `<span>${icons[type] || 'ℹ️'}</span><span>${message}</span>`;
+    // Sunucu hata mesajlari kullanici girdisini yankilayabiliyor
+    // ("Bu kullanici adi zaten kullaniliyor: <girdi>" gibi).
+    toast.innerHTML = `<span>${icons[type] || 'ℹ️'}</span><span>${escapeHtml(message)}</span>`;
     container.appendChild(toast);
 
     setTimeout(() => toast.remove(), 4000);
@@ -183,7 +185,7 @@ async function initSalonSwitcher() {
     wrap.style.display = 'block';
     const currentSlug = document.querySelector('meta[name="current-salon-slug"]')?.content || '';
     select.innerHTML = json.data.map(s =>
-        `<option value="${s.slug}"${s.slug === currentSlug ? ' selected' : ''}>${s.name}</option>`
+        `<option value="${s.slug}"${s.slug === currentSlug ? ' selected' : ''}>${escapeHtml(s.name)}</option>`
     ).join('');
     select.addEventListener('change', async () => {
         const slug = select.value;

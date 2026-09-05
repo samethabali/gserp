@@ -39,7 +39,7 @@ async function loadStaffData() {
     const sel = document.getElementById('staffSelect');
     sel.innerHTML = '<option value="">Uzman seçin...</option>';
     staffData.forEach(s => {
-        sel.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+        sel.innerHTML += `<option value="${s.id}">${escapeHtml(s.name)}</option>`;
     });
     if (typeof refreshCustomSelect === 'function') refreshCustomSelect(sel);
     staffData.forEach(s => activeStaffFilters.add(s.id));
@@ -52,7 +52,7 @@ async function loadServiceData() {
     const sel = document.getElementById('serviceSelect');
     sel.innerHTML = '<option value="">Hizmet seçin...</option>';
     serviceData.forEach(s => {
-        sel.innerHTML += `<option value="${s.id}">${s.name} (${s.durationMinutes} dk — ${Number(s.basePrice).toLocaleString('tr-TR')} ₺)</option>`;
+        sel.innerHTML += `<option value="${s.id}">${escapeHtml(s.name)} (${s.durationMinutes} dk — ${Number(s.basePrice).toLocaleString('tr-TR')} ₺)</option>`;
     });
     if (typeof refreshCustomSelect === 'function') refreshCustomSelect(sel);
 }
@@ -63,8 +63,8 @@ function renderStaffLegend() {
     legend.innerHTML = staffData.map(s => `
         <div class="staff-chip ${activeStaffFilters.has(s.id) ? 'active' : ''}"
              onclick="toggleStaffFilter(${s.id})" data-staff-id="${s.id}">
-            <span class="chip-dot" style="background:${s.colorHex}"></span>
-            ${s.name}
+            <span class="chip-dot" style="background:${escapeHtml(s.colorHex)}"></span>
+            ${escapeHtml(s.name)}
         </div>
     `).join('');
 }
@@ -166,7 +166,7 @@ function initCalendar() {
                 return {
                     html: `<div class="event-month">
                         <span class="event-month-time">${formatTime(a.startTime)}</span>
-                        <span>${a.customerName || '?'}</span>
+                        <span>${escapeHtml(a.customerName || '?')}</span>
                         ${sessionBadge}
                     </div>`
                 };
@@ -175,8 +175,8 @@ function initCalendar() {
             return {
                 html: `
                     <div class="event-content">
-                        <div class="event-customer">${a.customerName || '?'} ${sessionBadge}</div>
-                        <div class="event-service">${a.serviceName || '?'} • ${formatTime(a.startTime)}-${formatTime(a.endTime)}</div>
+                        <div class="event-customer">${escapeHtml(a.customerName || '?')} ${sessionBadge}</div>
+                        <div class="event-service">${escapeHtml(a.serviceName || '?')} • ${formatTime(a.startTime)}-${formatTime(a.endTime)}</div>
                         ${flags ? `<div class="event-flags">${flags}</div>` : ''}
                     </div>
                 `
@@ -747,7 +747,7 @@ function showAppointmentDetail(a) {
     if (a.adjustment && parseFloat(a.adjustment) !== 0) {
         const sign = parseFloat(a.adjustment) > 0 ? '+' : '';
         priceHtml = `${formatCurrency(a.basePrice)} ${sign}${formatCurrency(a.adjustment)}<br><strong>${formatCurrency(a.finalPrice)}</strong>`;
-        if (a.adjustmentNote) priceHtml += `<br><small style="color:var(--text-muted)">${a.adjustmentNote}</small>`;
+        if (a.adjustmentNote) priceHtml += `<br><small style="color:var(--text-muted)">${escapeHtml(a.adjustmentNote)}</small>`;
     }
 
     // Cancellation reason
@@ -764,7 +764,7 @@ function showAppointmentDetail(a) {
             <div style="display:flex;align-items:center;gap:12px;">
                 <span class="staff-dot" style="background:${a.staffColor};width:14px;height:14px;"></span>
                 <div>
-                    <div style="font-weight:700;font-size:1.1rem;">${a.customerName}</div>
+                    <div style="font-weight:700;font-size:1.1rem;">${escapeHtml(a.customerName)}</div>
                     <div style="color:var(--text-secondary);font-size:0.85rem;">
                         📞 ${a.customerPhone || '-'}
                         ${a.customerPhone ? `<a href="/customers?phone=${encodeURIComponent(a.customerPhone)}" target="_blank" style="margin-left:8px;font-size:0.75rem;color:var(--color-primary-light);text-decoration:none;">👤 Profil</a>` : ''}
@@ -772,8 +772,8 @@ function showAppointmentDetail(a) {
                 </div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-                <div><span class="detail-label">UZMAN</span><br><strong>${a.staffName}</strong></div>
-                <div><span class="detail-label">HİZMET</span><br><strong>${a.serviceName}</strong></div>
+                <div><span class="detail-label">UZMAN</span><br><strong>${escapeHtml(a.staffName)}</strong></div>
+                <div><span class="detail-label">HİZMET</span><br><strong>${escapeHtml(a.serviceName)}</strong></div>
                 <div><span class="detail-label">SAAT</span><br><strong>${formatTime(a.startTime)} - ${formatTime(a.endTime)}</strong></div>
                 <div><span class="detail-label">FİYAT</span><br>${priceHtml}</div>
             </div>
@@ -781,7 +781,7 @@ function showAppointmentDetail(a) {
             <div><span class="detail-label">DURUM</span><br>${statusBadge(a.status)}</div>
             ${reasonHtml}
             ${regionHtml}
-            ${a.internalNote ? `<div><span class="detail-label">NOT</span><br>${a.internalNote}</div>` : ''}
+            ${a.internalNote ? `<div><span class="detail-label">NOT</span><br>${escapeHtml(a.internalNote)}</div>` : ''}
             ${flags ? `<div><span class="detail-label">NOTLAR</span><br><div class="flag-badges">${flags}</div></div>` : ''}
             <div id="customerHistorySection"></div>
         </div>
@@ -856,7 +856,7 @@ async function loadCustomerHistory(phone, currentId) {
                 <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
                     <div>
                         <span style="font-size:0.75rem;color:var(--text-muted);">${formatDate(h.startTime)}</span>
-                        <span style="margin-left:8px;">${h.serviceName}</span>
+                        <span style="margin-left:8px;">${escapeHtml(h.serviceName)}</span>
                     </div>
                     <div>${statusBadge(h.status)}</div>
                 </div>
