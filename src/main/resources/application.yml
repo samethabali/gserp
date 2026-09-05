@@ -22,7 +22,7 @@ spring:
     locations: classpath:db/migration
 
 app:
-  asset-version: "20260817-1"
+  asset-version: "20260905-1"
   # Boş bırakılırsa adres isteğin kendisinden türetilir (forward-headers-strategy
   # açık olduğu için vekil arkasında da doğru). Varsayılan "http://localhost:8989"
   # idi ve env geçilmediğinde salon sahibine randevu linki olarak localhost

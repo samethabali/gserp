@@ -8,7 +8,7 @@
     <title>GSCRM — Kurulum Sihirbazı</title>
     <link th:replace="~{fragments/assets :: styles}"/>
 </head>
-<body style="min-height:100vh;background:var(--color-bg);">
+<body style="min-height:100vh;background:var(--bg-primary);">
 <div id="toastContainer" class="toast-container"></div>
 <div class="onboarding-shell">
     <div class="glass-card onboarding-card">
@@ -45,7 +45,7 @@ function stepIndex(key) {
 function renderIndicators() {
     const el = document.getElementById('stepIndicators');
     el.innerHTML = STEPS.map((s, i) =>
-        `<div class="onboarding-step-dot${i === currentIndex ? ' active' : ''}${i < currentIndex ? ' done' : ''}" title="${s.title}">${s.icon}</div>`
+        `<div class="onboarding-step-dot${i === currentIndex ? ' active' : ''}${i < currentIndex ? ' done' : ''}" title="${s.title}" aria-current="${i === currentIndex ? 'step' : 'false'}">${s.icon}<span class="step-label">${s.title}</span></div>`
     ).join('');
 }
 
