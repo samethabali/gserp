@@ -212,8 +212,13 @@ class PilotOnboardingFlowIT {
                         .with(csrf())
                         .header("X-Salon-Slug", slug)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Ayşe Yılmaz\",\"phone\":\"0532 100 0001\","
-                                + "\"email\":\"ayse-" + suffix + "@example.test\","
+                        // Ad benzersiz olmalı: personel adından üretilen giriş
+                        // kullanıcı adı ("ayse.yilmaz" gibi) global bir havuzdan
+                        // geliyor ve sabit bir ad, o adı bekleyen başka testleri
+                        // sırayla bozuyor.
+                        .content("{\"name\":\"Pilot Uzman " + suffix + "\","
+                                + "\"phone\":\"0532 100 0001\","
+                                + "\"email\":\"uzman-" + suffix + "@example.test\","
                                 + "\"role\":\"SPECIALIST\",\"active\":true}"))
                 .andExpect(status().isOk())
                 .andReturn();
