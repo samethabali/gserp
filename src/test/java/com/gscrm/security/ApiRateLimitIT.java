@@ -6,6 +6,7 @@ import com.gscrm.model.enums.OrganizationType;
 import com.gscrm.model.enums.UserRole;
 import com.gscrm.repository.OrganizationRepository;
 import com.gscrm.repository.SalonRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -51,6 +52,20 @@ class ApiRateLimitIT {
     private final String slug = "rate-" + java.util.UUID.randomUUID().toString().substring(0, 8);
     private Long orgId;
     private Long salonId;
+
+    /**
+     * Sayaçları testten <b>sonra</b> da temizle.
+     *
+     * <p>Buradaki testler bilerek bir bütçeyi tüketiyor. Sayaç haritası
+     * uygulama bağlamıyla birlikte diğer test sınıflarına da taşındığı ve
+     * hepsi aynı istemci IP'sinden geldiği için, temizlenmeyen bir kova
+     * sonraki sınıfın ilk isteğine 429 döndürüyordu — ürün hatası olmadığı
+     * hâlde kırılan iki test.
+     */
+    @AfterEach
+    void clearCounters() {
+        rateLimitFilter.reset();
+    }
 
     @BeforeEach
     void seedAndReset() {
@@ -134,6 +149,81 @@ class ApiRateLimitIT {
         assertThat(status)
                 .as("meslektaşının yoğunluğu bu kullanıcıyı engellememeli")
                 .isNotEqualTo(429);
+    }
+
+    // ─────────────────── randevu sayfasının okuma uçları ───────────────────
+
+    /**
+     * Randevu sayfasında gezinmek sınıra takılmamalı.
+     *
+     * <p>Bu uçlar müşterinin gördüğü tek yüzey; burada bir 429 doğrudan kaybedilmiş
+     * randevu demek.
+     */
+    @Test
+    @DisplayName("randevu sayfasında normal gezinme sınıra takılmaz")
+    void bookingBrowsingIsNotThrottled() throws Exception {
+        MockHttpSession visitor = new MockHttpSession();
+
+        // Sayfa açılışı + on beş farklı gün denemesi: gerçekçi bir üst sınır.
+        for (int i = 0; i < 60; i++) {
+            int status = mockMvc.perform(get("/api/booking/services")
+                            .session(visitor)
+                            .header("X-Salon-Slug", slug))
+                    .andReturn().getResponse().getStatus();
+
+            assertThat(status)
+                    .as("%d. istekte sınıra takıldı — randevu sayfası akıcı olmalı", i + 1)
+                    .isNotEqualTo(429);
+        }
+    }
+
+    /**
+     * Aynı IP'den gelen iki müşteri birbirini kilitlememeli.
+     *
+     * <p>Kova IP'ye bağlıydı. Türkiye'de mobil operatörler CGNAT kullanıyor: aynı
+     * operatörden gelen onlarca müşteri sunucuya <b>tek bir IP</b> olarak görünür.
+     * Salonun bağlantısı Instagram'da paylaşıldığında bu müşteriler tek bütçeyi
+     * paylaşır ve bir kısmı "çok fazla deneme" duvarına çarpardı.
+     */
+    @Test
+    @DisplayName("aynı IP'deki ikinci müşteri ayrı bütçeye sahip")
+    void bookingReadsAreScopedToVisitorNotIp() throws Exception {
+        MockHttpSession busy = new MockHttpSession();
+        for (int i = 0; i < 200; i++) {
+            mockMvc.perform(get("/api/booking/services")
+                    .session(busy)
+                    .header("X-Salon-Slug", slug));
+        }
+
+        MockHttpSession arriving = new MockHttpSession();
+        int status = mockMvc.perform(get("/api/booking/services")
+                        .session(arriving)
+                        .header("X-Salon-Slug", slug))
+                .andReturn().getResponse().getStatus();
+
+        assertThat(status)
+                .as("komşusunun yoğunluğu yeni gelen müşteriyi engellememeli")
+                .isNotEqualTo(429);
+    }
+
+    /**
+     * Oturum tutmayan istemci korumasız kalmamalı.
+     *
+     * <p>Ziyaretçi bazlı sayaç, çerez tutmayan bir betiğe sınırsız erişim vermek
+     * anlamına gelseydi koruma tamamen kalkardı. Oturumu olmayan istek IP kovasına
+     * düşer.
+     */
+    @Test
+    @DisplayName("çerez tutmayan istemci IP kovasına düşer")
+    void bookingReadsWithoutSessionFallBackToIp() throws Exception {
+        boolean throttled = false;
+        for (int i = 0; i < 300 && !throttled; i++) {
+            throttled = mockMvc.perform(get("/api/booking/services")
+                            .header("X-Salon-Slug", slug))
+                    .andReturn().getResponse().getStatus() == 429;
+        }
+
+        assertThat(throttled).as("oturumsuz kaçak istemci durdurulmalı").isTrue();
     }
 
     private UsernamePasswordAuthenticationToken authFor(UserRole role) {
