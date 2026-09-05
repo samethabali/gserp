@@ -7,6 +7,66 @@
 
 ---
 
+## Ortam stratejisi — verilen kararlar (2026-09-05)
+
+**Staging ortamı şimdilik kurulmayacak.** Kapı bekçisi yerel dev + CI (245 test /
+63 sn) + P0-2'deki uçtan uca test olacak. Gerekçe: tek pilot müşteride staging'in
+getirisi testin getirisinden düşük — aşağıdaki 6 hatanın 5'ini test yakalardı,
+staging yakalamazdı (kimse o yollara tıklamayacaktı). Ayrıca aynı VPS'te
+%84 dolu diskte ikinci yığın prod'u riske atardı. İkinci müşteride tekrar
+değerlendirilecek; tercih edilen yol ayrı küçük VPS.
+
+**Prod'a müdahale (2 konteyner + nginx upstream) müşteriye gönderdikten sonra
+yapılacak.** Bunun bilinen bedeli: o tarihe kadar **her deploy pilot müşteri için
+~90 sn kesinti** demek.
+
+Bu kararın sonuçları:
+
+- Deploy'lar biriktirilip **gece / salonun kapalı olduğu saatte** yapılmalı;
+  gün içinde acil olmayan deploy yok.
+- Prod'u durdurmadan yapılabilen hazırlık adımları (Aşama 0 ve 1) **önce**
+  bitirilmeli; 2 konteyner işinin risk yüzeyini bunlar küçültüyor.
+- Müşteriye davet kodu gönderilmeden önce P0-2 (uçtan uca test) bitmeli —
+  staging olmadığı için tek gerçek kapı bekçisi o.
+
+### Aşama sırası
+
+| # | Adım | Prod'u durdurur mu | Durum |
+|---|------|--------------------|-------|
+| 0 | `docker-compose.prod.yml`'i repoya al | Hayır | ⬜ |
+| 1 | İmaj build'ini VPS'ten CI'a (GHCR) taşı | Hayır | ⬜ |
+| 2 | Uçtan uca pilot akış testi (P0-2) | Hayır | ⬜ |
+| 3 | 2 konteyner + nginx upstream + sıralı deploy (P0-1) | Evet, kısa | ⬜ |
+
+---
+
+## Aşama 0 — `docker-compose.prod.yml` repoda değil
+
+Üretimi tanımlayan compose dosyası yalnızca VPS'te (`/home/gserp/gserp/`), elle
+bakılıyor. Gözden geçirilemiyor, geri alınamıyor ve 2 konteyner değişikliği
+zorunlu olarak bu dosyaya dokunuyor.
+
+**Yapılacak:** Dosyayı repoya al, deploy script'i repodakini kullansın.
+
+```bash
+ssh gserp@<vds-host> 'cat /home/gserp/gserp/docker-compose.prod.yml'
+```
+
+---
+
+## Aşama 1 — İmaj build'i VPS'te yapılıyor
+
+`docker compose build app` müşteriye hizmet veren kutuda çalışıyor: %84 dolu
+diskte (4.7G boş) CPU ve disk sıçraması demek. Build sırasında prod yavaşlar,
+disk dolarsa deploy yarıda kalır.
+
+**Yapılacak:** İmajı CI'da build edip GHCR'a bas; VPS yalnızca `pull` + `up` yapsın.
+
+Kazanç: VPS rahatlar, deploy kısalır, **geri alma tek satıra iner** (önceki tag'e
+dön) ve blue/green çok kolaylaşır.
+
+---
+
 ## P0 — Müşteriye göndermeden önce
 
 ### 1. Deploy sırasında site 502 veriyor → en az 2 konteynerli koşum
