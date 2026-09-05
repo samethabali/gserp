@@ -28,6 +28,9 @@ public interface StaffRepository extends JpaRepository<Staff, Long> {
     @Query("SELECT s FROM Staff s WHERE s.id = :id AND s.salonId = :salonId")
     Optional<Staff> lockByIdAndSalonId(@Param("id") Long id, @Param("salonId") Long salonId);
 
+    /** Pasif personel de dahil — kullanıcı listesinde hesabın hangi kayda bağlı olduğu görünsün diye. */
+    List<Staff> findBySalonId(Long salonId);
+
     List<Staff> findBySalonIdAndActiveTrue(Long salonId);
 
     List<Staff> findBySalonIdAndActiveTrueAndRole(Long salonId, StaffRole role);

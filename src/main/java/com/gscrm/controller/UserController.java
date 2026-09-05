@@ -2,7 +2,7 @@ package com.gscrm.controller;
 
 import com.gscrm.dto.request.UserCreateRequest;
 import com.gscrm.dto.response.ApiResponse;
-import com.gscrm.model.User;
+import com.gscrm.dto.response.UserAccountResponse;
 import com.gscrm.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -22,28 +22,34 @@ public class UserController {
     private final UserService userService;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> list() {
+    public ResponseEntity<ApiResponse<List<UserAccountResponse>>> list() {
         return ResponseEntity.ok(ApiResponse.ok(userService.listStaffUsers()));
     }
 
+    /** Formun rol listesi; sunucudaki atama kuralıyla aynı kaynaktan gelir. */
+    @GetMapping("/assignable-roles")
+    public ResponseEntity<ApiResponse<List<String>>> assignableRoles() {
+        return ResponseEntity.ok(ApiResponse.ok(userService.assignableRoles()));
+    }
+
+    /**
+     * Parola alanı boş bırakılabilir; o durumda sunucu geçici parola üretir ve
+     * yanıtta bir kez döner ({@code temporaryPassword}).
+     */
     @PostMapping
-    public ResponseEntity<ApiResponse<User>> create(@Valid @RequestBody UserCreateRequest request) {
+    public ResponseEntity<ApiResponse<UserAccountResponse>> create(@Valid @RequestBody UserCreateRequest request) {
         return ResponseEntity.ok(ApiResponse.ok("Kullanıcı oluşturuldu", userService.create(request)));
     }
 
     @PostMapping("/{id}/reset-password")
-    public ResponseEntity<ApiResponse<Void>> resetPassword(
-            @PathVariable Long id, @RequestBody Map<String, String> body) {
-        String password = body.get("password");
-        if (password == null || password.length() < 8 || password.length() > 72) {
-            return ResponseEntity.badRequest().body(ApiResponse.error("Parola 8-72 karakter arasında olmalı"));
-        }
-        userService.resetPassword(id, password);
-        return ResponseEntity.ok(ApiResponse.ok("Parola sıfırlandı", null));
+    public ResponseEntity<ApiResponse<UserAccountResponse>> resetPassword(
+            @PathVariable Long id, @RequestBody(required = false) Map<String, String> body) {
+        String password = body != null ? body.get("password") : null;
+        return ResponseEntity.ok(ApiResponse.ok("Parola sıfırlandı", userService.resetPassword(id, password)));
     }
 
     @PatchMapping("/{id}/enabled")
-    public ResponseEntity<ApiResponse<User>> setEnabled(
+    public ResponseEntity<ApiResponse<UserAccountResponse>> setEnabled(
             @PathVariable Long id, @RequestBody Map<String, Boolean> body) {
         boolean enabled = Boolean.TRUE.equals(body.get("enabled"));
         return ResponseEntity.ok(ApiResponse.ok("Durum güncellendi", userService.setEnabled(id, enabled)));
