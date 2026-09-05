@@ -169,13 +169,41 @@ class ApiAuthorizationMatrixIT {
         }
     }
 
+    /**
+     * Personel kaydına bağlanmamış uzman hesabı reddedilmeli.
+     *
+     * <p>Uzman yalnızca kendi randevularını görebiliyor; bu kapsamlama
+     * {@code staffId} üzerinden yapılıyor. Bağ yoksa "kendi randevusu" tanımsız
+     * kalır ve uç sessizce herkesin verisini döndürmek yerine erişimi kesiyor.
+     * Matris testi uzmanı bağlı kabul ettiği için bu kenar durum ayrıca sabitleniyor.
+     */
+    @org.junit.jupiter.api.Test
+    @DisplayName("personel kaydına bağlı olmayan uzman randevuları göremez")
+    void specialistWithoutStaffRecordIsDenied() throws Exception {
+        AuthenticatedUser unlinked = new AuthenticatedUser(
+                9002L, "authz-unlinked", "", true, UserRole.SPECIALIST,
+                null, null, salonId, orgId, false, 0,
+                List.of(new SimpleGrantedAuthority("ROLE_SPECIALIST")));
+
+        mockMvc.perform(get("/api/appointments")
+                        .with(authentication(UsernamePasswordAuthenticationToken.authenticated(
+                                unlinked, null, unlinked.getAuthorities())))
+                        .header("X-Salon-Slug", slug))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .status().isForbidden());
+    }
+
     private UsernamePasswordAuthenticationToken authFor(UserRole role) {
         // Platform yöneticisi salonsuz olabiliyor; diğer roller kiracıya bağlı.
         Long userSalonId = role == UserRole.PLATFORM_ADMIN ? null : salonId;
         Long userOrgId = role == UserRole.PLATFORM_ADMIN ? null : orgId;
+        // Uzman kendi randevularına staffId üzerinden kapsamlanıyor; bağ yoksa uç
+        // erişimi kesiyor. Matris rol kurallarını ölçtüğü için uzman bağlı kabul
+        // edilir; bağsız hâl specialistWithoutStaffRecordIsDenied ile ayrıca test edilir.
+        Long staffId = role == UserRole.SPECIALIST ? 9101L : null;
         AuthenticatedUser user = new AuthenticatedUser(
                 9001L, "authz-" + role.name().toLowerCase(), "", true, role,
-                null, null, userSalonId, userOrgId, false, 0,
+                staffId, null, userSalonId, userOrgId, false, 0,
                 List.of(new SimpleGrantedAuthority("ROLE_" + role.name())));
         return UsernamePasswordAuthenticationToken.authenticated(user, null, user.getAuthorities());
     }
