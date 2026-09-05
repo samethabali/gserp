@@ -9,7 +9,37 @@ services:
     image: gserp:latest
     container_name: gserp-app
     restart: unless-stopped
+
+    # Bellek limiti YOKTU. Limitsiz konteynerde JVM host'un RAM'ini görüyor ve
+    # Dockerfile'daki MaxRAMPercentage=75 ile heap tavanını 2.18 GB sanıyordu
+    # (host 2.9 GB). Ölçülen kullanım ~1 GB RSS'ti ve bunun 710 MB'ı yükten değil,
+    # büyüyüp geri verilmeyen heap'ti. İkinci bir örnek açıldığında iki JVM de aynı
+    # tavanı varsayacağı için OOM kaçınılmazdı; ExitOnOutOfMemoryError yüzünden de
+    # toparlanma olmazdı. Sıfır kesintili deploy'un ön koşulu bu limittir.
+    #
+    # Değerler bilerek ihtiyatlı: ölçüm 384 MB heap'in yeteceğini ima ediyor ama
+    # düşük tahminin bedeli konteynerin ölmesi. Önce buradan gözlenip sıkılacak.
+    mem_limit: 1g
+    memswap_limit: 1g          # swap'e taşmasın; makinede zaten 1.1 GB swap kullanımda
+
+    # Docker json-file sürücüsü rotasyonsuz çalışıyordu: %84 dolu diskte sessizce
+    # büyüyen bir risk.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
     environment:
+      # Konteyner limiti görüldüğü için yüzde artık 1 GB üzerinden: heap tavanı 512 MB.
+      # GC bu adımda DEĞİŞTİRİLMİYOR — limit ve GC aynı anda değişirse bir sorun
+      # çıktığında hangisinden geldiği ayırt edilemez. G1PeriodicGCInterval boştaki
+      # heap'i işletim sistemine iade eder (şu an 0 = kapalı).
+      JAVA_OPTS: >-
+        -XX:MaxRAMPercentage=50.0
+        -XX:MaxMetaspaceSize=192m
+        -XX:G1PeriodicGCInterval=300000
+        -XX:+ExitOnOutOfMemoryError
       SPRING_PROFILES_ACTIVE: prod
       SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST:-postgres}:5432/${DB_NAME:-gserp_db}
       SPRING_DATASOURCE_USERNAME: ${DB_USER:-gserp_user}
