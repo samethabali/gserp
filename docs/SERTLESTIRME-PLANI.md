@@ -15,6 +15,7 @@ yer madde içinde yazıyor.
 | A2 | Yetki matrisi testi | ✅ Bitti — 121 test, canlıda |
 | A3 | Hız sınırı kapsamı | ✅ Bitti + ziyaretçi bazlı kova düzeltmesi |
 | A4 | Dependabot / CodeQL | ✅ Kullanıcı açtı |
+| A5 | Origin'i Cloudflare'e kapatma | ⏳ Sunucu tarafı — aşağıda |
 | B1 | Yük testi | ✅ Bitti — [yuk-testi-sonuclari.md](yuk-testi-sonuclari.md) |
 | B2 | Bellek limiti doğrulaması | ⏳ SSH görevi #3, İş 4 |
 | B3 | İndeks ve sorgu kontrolü | ✅ Bitti — B1 kapsamında |
@@ -111,6 +112,39 @@ bunu öğrenmenin bir yolu yok.
 
 **Yapılacak:** GitHub'ın **Dependabot** ve **CodeQL** özelliklerini aç (ücretsiz,
 public repo). Ek olarak imaj taraması için Trivy adımı — build zaten CI'a taşınacak.
+
+---
+
+### A5. Origin sunucu Cloudflare'siz de erişilebilir
+
+**Bulgu:** Zincir `istemci → Cloudflare → nginx → uygulama`. nginx hangi
+adresten bağlanıldığına bakmadan çalışıyor; yani sunucunun gerçek IP'sini bilen
+biri Cloudflare'i atlayıp doğrudan nginx'e bağlanabilir.
+
+**Neden önemli:** Uygulama, loopback'ten gelen isteklerde `CF-Connecting-IP` ve
+`X-Forwarded-For` başlıklarına itibar ediyor — etmek zorunda, çünkü gerçek
+istemci adresini başka türlü öğrenemez. Cloudflare üzerinden gelen istekte bu
+başlıkları Cloudflare yazar ve istemcininkini ezer, yani sahtelenemez. Ama
+doğrudan nginx'e bağlanan biri başlığı kendisi uydurur ve her istekte farklı bir
+adres göndererek **giriş, kayıt, OTP, randevu yazma ve günlük randevu
+sayaçlarının hepsini** atlar.
+
+Uygulama tarafında yapılabilecek her şey yapıldı (bkz. `ClientIpResolver`);
+kalan kısım yalnızca sunucuda çözülebilir.
+
+**Yapılacak (SSH):** nginx yalnızca Cloudflare adres bloklarından bağlantı
+kabul etsin. İki yol var, ikisi de sunucuda:
+
+1. `ngx_http_realip_module` + Cloudflare IP listesi — hem `$remote_addr` gerçek
+   istemci olur hem de listede olmayan kaynak reddedilebilir.
+2. Ya da güvenlik duvarında (ufw) 443'ü yalnızca Cloudflare bloklarına açmak.
+
+Cloudflare listesi: `https://www.cloudflare.com/ips-v4` ve `.../ips-v6`.
+Liste değiştiğinde güncellenmesi gerekir; bu yüzden düzenli bir işe bağlanmalı.
+
+**Aciliyet:** Orta. İstismarı için önce origin IP'sinin bulunması gerekiyor.
+Ama bulunması zor değil (eski DNS kayıtları, sertifika şeffaflık günlükleri) ve
+bulunduğunda hız sınırlarının tamamı devre dışı kalıyor.
 
 ---
 
