@@ -185,6 +185,54 @@ class UiPageRenderIT {
                 .contains("id=\"stockAlertBadge\"");
     }
 
+    /**
+     * Her CSS/JS adresi sürüm damgası taşımalı.
+     *
+     * <p>Statik dosyalar artık tarayıcıda yedi gün duruyor ({@code WebConfig}).
+     * Bu ancak adres sürüm taşıyorsa güvenli: sürümsüz bırakılan bir dosya, deploy
+     * sonrası kullanıcıda <b>bir hafta boyunca eski hâliyle</b> kalır ve hatası
+     * düzeltilemez. Sayfaların çoğunda damga zaten yoktu — düz {@code src="/js/x.js"}
+     * yazılıydı; yani önbelleği açmak bu testi de gerektiriyordu.
+     */
+    @ParameterizedTest(name = "{0} sayfasındaki statik adresler sürümlü")
+    @CsvSource({
+            "/,          BRANCH_MANAGER",
+            "/dashboard, BRANCH_MANAGER",
+            "/customers, BRANCH_MANAGER",
+            "/products,  BRANCH_MANAGER",
+            "/expenses,  BRANCH_MANAGER"
+    })
+    void staticAssetsCarryVersionStamp(String path, String role) throws Exception {
+        assertAssetsVersioned(path.trim(), mockMvc.perform(get(path.trim())
+                        .with(authentication(authFor(UserRole.valueOf(role.trim()))))
+                        .header("X-Salon-Slug", slug))
+                .andReturn().getResponse().getContentAsString());
+    }
+
+    /** Müşterinin gördüğü tek sayfa; en çok burada önemli. */
+    @org.junit.jupiter.api.Test
+    @DisplayName("randevu sayfasındaki statik adresler sürümlü")
+    void publicBookingPageAssetsCarryVersionStamp() throws Exception {
+        assertAssetsVersioned("/" + slug, mockMvc.perform(get("/" + slug))
+                .andReturn().getResponse().getContentAsString());
+    }
+
+    private void assertAssetsVersioned(String path, String html) {
+        // Soru işareti içermeyen /js/ veya /css/ adresi = sürümsüz.
+        java.util.regex.Matcher matcher = java.util.regex.Pattern
+                .compile("(?:src|href)=\"(/(?:js|css)/[^\"?]*)\"")
+                .matcher(html);
+        java.util.List<String> unversioned = new java.util.ArrayList<>();
+        while (matcher.find()) {
+            unversioned.add(matcher.group(1));
+        }
+
+        assertThat(unversioned)
+                .as("%s sayfasında sürümsüz statik dosya var; önbellek açıkken "
+                        + "güncellenemez kalır", path)
+                .isEmpty();
+    }
+
     private void saveOnboardingStep(String step) {
         txTemplate.executeWithoutResult(status -> onboardingStateRepository.save(OnboardingState.builder()
                 .salonId(salonId)

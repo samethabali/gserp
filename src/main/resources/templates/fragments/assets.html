@@ -1,24 +1,25 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <body>
-<!-- GSCRM ortak statik asset'ler — cache bust için app.asset-version kullanılır -->
+<!-- GSCRM ortak statik asset'ler. Sürüm damgası AssetVersionAdvice'tan gelir;
+     her derlemede değiştiği için deploy sonrası tarayıcı önbelleği tazelenir. -->
 <th:block th:fragment="styles">
     <meta name="robots" content="noindex, nofollow" th:if="${showcase}">
     <meta name="current-salon-slug" th:content="${T(com.gscrm.tenant.TenantContext).getSlug()}">
     <link rel="stylesheet"
-          th:href="@{/css/style.css(v=${@environment.getProperty('app.asset-version', '1')})}">
+          th:href="@{/css/style.css(v=${assetVersion})}">
     <style>
         select.custom-select-native { display: none !important; }
     </style>
 </th:block>
 
 <script th:fragment="app-js"
-        th:src="@{/js/app.js(v=${@environment.getProperty('app.asset-version', '1')})}"></script>
+        th:src="@{/js/app.js(v=${assetVersion})}"></script>
 
 <script th:fragment="body-map-js"
-        th:src="@{/js/body-map.js(v=${@environment.getProperty('app.asset-version', '1')})}"></script>
+        th:src="@{/js/body-map.js(v=${assetVersion})}"></script>
 
 <script th:fragment="custom-select-js"
-        th:src="@{/js/custom-select.js(v=${@environment.getProperty('app.asset-version', '1')})}"></script>
+        th:src="@{/js/custom-select.js(v=${assetVersion})}"></script>
 </body>
 </html>
