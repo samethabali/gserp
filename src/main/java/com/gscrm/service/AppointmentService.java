@@ -12,6 +12,7 @@ import com.gscrm.repository.ServiceDefinitionRepository;
 import com.gscrm.repository.StaffRepository;
 import com.gscrm.util.PhoneNormalizer;
 import com.gscrm.tenant.TenantContext;
+import com.gscrm.util.FieldDiff;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -428,7 +429,8 @@ public class AppointmentService {
 
         auditService.log(AuditAction.UPDATE, "APPOINTMENT", saved.getId(), oldState, newState);
         activityEventService.recordForCustomerPhone("UPDATE", "APPOINTMENT", saved.getId(),
-                saved.getCustomerPhone(), "Randevu taşındı");
+                saved.getCustomerPhone(), "Randevu taşındı",
+                FieldDiff.create().compare("randevu", oldState, newState).toJson());
 
         AppointmentResponse response = toResponse(saved);
         notificationService.broadcastAppointmentChange("MOVE", response);
@@ -457,7 +459,11 @@ public class AppointmentService {
         auditService.log(AuditAction.STATUS_CHANGE, "APPOINTMENT", id, oldStatus,
                 newStatus.name() + (reason != null ? " — " + reason : ""));
         activityEventService.recordForCustomerPhone("STATUS_CHANGE", "APPOINTMENT", id,
-                saved.getCustomerPhone(), "Randevu durumu: " + oldStatus + " → " + newStatus.name());
+                saved.getCustomerPhone(), "Randevu durumu: " + oldStatus + " → " + newStatus.name(),
+                FieldDiff.create()
+                        .compare("durum", oldStatus, newStatus.name())
+                        .compare("iptalGerekcesi", null, reason)
+                        .toJson());
 
         AppointmentResponse response = toResponse(saved);
         notificationService.broadcastAppointmentChange("STATUS_CHANGE", response);
@@ -474,6 +480,14 @@ public class AppointmentService {
         Long salonId = TenantContext.requireSalonId();
         Appointment appointment = appointmentRepository.findByIdAndSalonId(id, salonId)
                 .orElseThrow(() -> new IllegalArgumentException("Randevu bulunamadı: " + id));
+
+        // Kütükte "randevu güncellendi" tek başına işe yaramıyordu; hangi alanın
+        // değiştiği görülebilsin diye değişim öncesi değerler burada tutuluyor.
+        String prevCustomerName = appointment.getCustomerName();
+        Long prevStaffId = appointment.getStaffId();
+        Long prevServiceId = appointment.getServiceId();
+        LocalDateTime prevStartTime = appointment.getStartTime();
+        BigDecimal prevFinalPrice = appointment.getFinalPrice();
 
         if (req.getCustomerName() != null) appointment.setCustomerName(req.getCustomerName());
         if (req.getCustomerPhone() != null) appointment.setCustomerPhone(req.getCustomerPhone());
@@ -532,7 +546,14 @@ public class AppointmentService {
 
         auditService.log(AuditAction.UPDATE, "APPOINTMENT", id, null, "Randevu güncellendi");
         activityEventService.recordForCustomerPhone("UPDATE", "APPOINTMENT", id,
-                saved.getCustomerPhone(), "Randevu güncellendi");
+                saved.getCustomerPhone(), "Randevu güncellendi",
+                FieldDiff.create()
+                        .compare("musteriAdi", prevCustomerName, saved.getCustomerName())
+                        .compare("uzmanId", prevStaffId, saved.getStaffId())
+                        .compare("hizmetId", prevServiceId, saved.getServiceId())
+                        .compare("baslangic", prevStartTime, saved.getStartTime())
+                        .compare("tutar", prevFinalPrice, saved.getFinalPrice())
+                        .toJson());
 
         AppointmentResponse response = toResponse(saved);
         notificationService.broadcastAppointmentChange("UPDATE", response);

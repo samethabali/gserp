@@ -11,6 +11,7 @@ import com.gscrm.repository.AppointmentRepository;
 import com.gscrm.repository.CustomerRepository;
 import com.gscrm.repository.PaymentRepository;
 import com.gscrm.tenant.TenantContext;
+import com.gscrm.util.FieldDiff;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -174,6 +175,14 @@ public class CustomerService {
         Long salonId = TenantContext.requireSalonId();
         Customer existing = customerRepository.findByIdAndSalonId(id, salonId)
                 .orElseThrow(() -> new IllegalArgumentException("Müşteri bulunamadı: " + id));
+
+        // Değişim öncesi değerler; telefon ve e-posta kütüğe maskeli yazılır.
+        String prevFirstName = existing.getFirstName();
+        String prevLastName = existing.getLastName();
+        String prevPhone = existing.getPhone();
+        String prevEmail = existing.getEmail();
+        String prevNotes = existing.getNotes();
+
         existing.setFirstName(updated.getFirstName());
         existing.setLastName(updated.getLastName());
         existing.setPhone(updated.getPhone());
@@ -181,8 +190,15 @@ public class CustomerService {
         existing.setNotes(updated.getNotes());
         existing.setUpdatedAt(LocalDateTime.now());
         Customer saved = customerRepository.save(existing);
-        activityEventService.record("UPDATE", "CUSTOMER", saved.getId(), saved.getId(),
-                "Müşteri güncellendi: " + saved.getFirstName());
+        activityEventService.recordChange("UPDATE", "CUSTOMER", saved.getId(), saved.getId(),
+                "Müşteri güncellendi: " + saved.getFirstName(),
+                FieldDiff.create()
+                        .compare("ad", prevFirstName, saved.getFirstName())
+                        .compare("soyad", prevLastName, saved.getLastName())
+                        .compareMasked("telefon", prevPhone, saved.getPhone())
+                        .compareMasked("eposta", prevEmail, saved.getEmail())
+                        .compare("not", prevNotes, saved.getNotes())
+                        .toJson());
         return saved;
     }
 

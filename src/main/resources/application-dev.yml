@@ -23,4 +23,4 @@ spring:
 # Dev kolaylığı için ilk admin (InitialAdminSeeder DB boşsa yaratır).
 # Prod'da BU DEĞERLER KULLANILMAZ — orada .env üzerinden geçer.
 GSCRM_INITIAL_ADMIN_USERNAME: admin
-GSCRM_INITIAL_ADMIN_PASSWORD: admin
+GSCRM_INITIAL_ADMIN_PASSWORD: admin123

@@ -8,7 +8,7 @@
     <title>GSCRM — Kurulum Sihirbazı</title>
     <link th:replace="~{fragments/assets :: styles}"/>
 </head>
-<body style="min-height:100vh;background:var(--color-bg);">
+<body style="min-height:100vh;background:var(--bg-primary);">
 <div id="toastContainer" class="toast-container"></div>
 <div class="onboarding-shell">
     <div class="glass-card onboarding-card">
@@ -45,11 +45,47 @@ function stepIndex(key) {
 function renderIndicators() {
     const el = document.getElementById('stepIndicators');
     el.innerHTML = STEPS.map((s, i) =>
-        `<div class="onboarding-step-dot${i === currentIndex ? ' active' : ''}${i < currentIndex ? ' done' : ''}" title="${s.title}">${s.icon}</div>`
+        `<div class="onboarding-step-dot${i === currentIndex ? ' active' : ''}${i < currentIndex ? ' done' : ''}" title="${s.title}" aria-current="${i === currentIndex ? 'step' : 'false'}">${s.icon}<span class="step-label">${s.title}</span></div>`
     ).join('');
 }
 
+const DEFAULT_PRIMARY_COLOR = '#e91e8c';
+
+const COLOR_PALETTE = [
+    { hex: '#e91e8c', name: 'Fuşya' },
+    { hex: '#d81b60', name: 'Gül' },
+    { hex: '#e74c3c', name: 'Kırmızı' },
+    { hex: '#e67e22', name: 'Turuncu' },
+    { hex: '#f39c12', name: 'Amber' },
+    { hex: '#2ecc71', name: 'Yeşil' },
+    { hex: '#16a085', name: 'Zümrüt' },
+    { hex: '#00b8d4', name: 'Turkuaz' },
+    { hex: '#3498db', name: 'Mavi' },
+    { hex: '#6c5ce7', name: 'Lavanta' },
+    { hex: '#9b59b6', name: 'Mor' },
+    { hex: '#607d8b', name: 'Antrasit' }
+];
+
+// "#abc" / "abcdef" gibi girdileri "#aabbcc" biçimine çevirir; geçersizse null.
+function normalizeHex(value) {
+    const raw = (value || '').trim().replace(/^#/, '');
+    if (/^[0-9a-fA-F]{3}$/.test(raw)) {
+        return '#' + raw.split('').map(c => c + c).join('').toLowerCase();
+    }
+    if (/^[0-9a-fA-F]{6}$/.test(raw)) {
+        return '#' + raw.toLowerCase();
+    }
+    return null;
+}
+
 function panelSalonInfo() {
+    const swatches = COLOR_PALETTE.map(c =>
+        `<button type="button" class="color-swatch" data-color="${c.hex}" style="color:${c.hex};" title="${c.name} (${c.hex})" aria-label="${c.name}" aria-pressed="false">
+            <span class="color-swatch-dot" style="background:${c.hex};"></span>
+            <span>${c.name}</span>
+        </button>`
+    ).join('');
+
     return `
         <h2>Salon görünümü</h2>
         <p class="settings-desc">Booking sayfasında görünecek ad ve renk.</p>
@@ -58,25 +94,156 @@ function panelSalonInfo() {
             <input type="text" class="form-input" id="obSalonName">
         </div>
         <div class="form-group">
-            <label class="form-label">Ana renk (hex)</label>
-            <input type="text" class="form-input" id="obPrimaryColor" placeholder="#e91e8c">
+            <label class="form-label">Ana renk</label>
+            <div class="color-palette" id="obColorPalette" role="group" aria-label="Hazır renk paleti">${swatches}</div>
+            <div class="color-custom-row">
+                <input type="color" id="obColorWheel" aria-label="Özel renk seç">
+                <input type="text" class="form-input" id="obPrimaryColor" placeholder="${DEFAULT_PRIMARY_COLOR}" maxlength="7" spellcheck="false" aria-label="Renk kodu (hex)">
+                <span class="color-preview-chip" id="obColorPreview">Önizleme</span>
+            </div>
         </div>`;
 }
 
+// Palet, renk tekeri ve hex kutusunu tek seçili değer üzerinden senkron tutar.
+function initColorPicker(initial) {
+    const palette = document.getElementById('obColorPalette');
+    const wheel = document.getElementById('obColorWheel');
+    const hexInput = document.getElementById('obPrimaryColor');
+    const preview = document.getElementById('obColorPreview');
+
+    function apply(hex, syncHexInput) {
+        wheel.value = hex;
+        preview.style.background = hex;
+        if (syncHexInput) hexInput.value = hex;
+        palette.querySelectorAll('.color-swatch').forEach(btn => {
+            const on = btn.dataset.color === hex;
+            btn.classList.toggle('selected', on);
+            btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+    }
+
+    palette.addEventListener('click', e => {
+        const btn = e.target.closest('.color-swatch');
+        if (btn) apply(btn.dataset.color, true);
+    });
+
+    wheel.addEventListener('input', () => apply(wheel.value.toLowerCase(), true));
+
+    hexInput.addEventListener('input', () => {
+        const hex = normalizeHex(hexInput.value);
+        if (hex) apply(hex, false);
+    });
+
+    hexInput.addEventListener('blur', () => {
+        apply(normalizeHex(hexInput.value) || DEFAULT_PRIMARY_COLOR, true);
+    });
+
+    apply(normalizeHex(initial) || DEFAULT_PRIMARY_COLOR, true);
+}
+
+// Liste ve giriş bilgilerinde kullanıcı metni HTML'e gömülüyor.
+function esc(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+const SERVICE_CATEGORIES = [
+    { key: 'HAIR', label: '💇 Saç' },
+    { key: 'NAIL', label: '💅 Tırnak' },
+    { key: 'SKIN', label: '🧴 Cilt' },
+    { key: 'LASER', label: '⚡ Lazer' },
+    { key: 'OTHER', label: '📦 Diğer' }
+];
+
+const STAFF_ROLES = [
+    { key: 'SPECIALIST', label: 'Uzman' },
+    { key: 'RECEPTIONIST', label: 'Resepsiyonist' },
+    { key: 'ADMIN', label: 'Admin' }
+];
+
+function options(items, selected) {
+    return items.map(i =>
+        `<option value="${i.key}"${i.key === selected ? ' selected' : ''}>${i.label}</option>`
+    ).join('');
+}
+
+/**
+ * Hizmet adımı.
+ *
+ * <p>Adım eskiden yalnızca /services bağlantısı veriyordu: hizmet eklemek için
+ * sihirbazdan çıkmak gerekiyor, o sayfada sihirbaza dönecek hiçbir bağlantı
+ * bulunmadığı için kurulum yarıda kalıyordu. Ekleme formu bu yüzden adımın
+ * içinde.
+ */
 function panelServices() {
     return `
         <h2>İlk hizmetleriniz</h2>
         <p class="settings-desc">En az bir hizmet ekleyerek randevu almaya başlayın.</p>
-        <p id="serviceCount" class="settings-desc">Yükleniyor…</p>
-        <a href="/services" class="btn btn-secondary" target="_blank">Hizmetler sayfasını aç →</a>`;
+        <div id="serviceList" class="onboarding-list">Yükleniyor…</div>
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label" for="obSvcName">Hizmet adı</label>
+                <input type="text" class="form-input" id="obSvcName" placeholder="Saç kesimi">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="obSvcCategory">Kategori</label>
+                <select class="form-select" id="obSvcCategory">${options(SERVICE_CATEGORIES, 'HAIR')}</select>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label" for="obSvcDuration">Süre (dk)</label>
+                <input type="number" class="form-input" id="obSvcDuration" min="5" step="5" value="30">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="obSvcPrice">Fiyat (₺)</label>
+                <input type="number" class="form-input" id="obSvcPrice" min="0" step="0.01" placeholder="0">
+            </div>
+        </div>
+        <div class="onboarding-inline-actions">
+            <button type="button" class="btn btn-primary" id="obAddService">➕ Hizmeti ekle</button>
+            <a href="/services" class="btn btn-secondary" target="_blank" rel="noopener">Tüm hizmetler ↗</a>
+        </div>`;
 }
 
 function panelStaff() {
     return `
         <h2>Personel</h2>
-        <p class="settings-desc">Uzman ve resepsiyon ekibinizi tanımlayın.</p>
-        <p id="staffCount" class="settings-desc">Yükleniyor…</p>
-        <a href="/staff" class="btn btn-secondary" target="_blank">Personel sayfasını aç →</a>`;
+        <p class="settings-desc">Uzman ve resepsiyon ekibinizi tanımlayın. Eklenen personele giriş hesabı da açılır.</p>
+        <div id="staffList" class="onboarding-list">Yükleniyor…</div>
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label" for="obStfName">Ad soyad</label>
+                <input type="text" class="form-input" id="obStfName" placeholder="Ayşe Yılmaz">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="obStfRole">Görev</label>
+                <select class="form-select" id="obStfRole">${options(STAFF_ROLES, 'SPECIALIST')}</select>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label" for="obStfPhone">Telefon</label>
+                <input type="tel" class="form-input" id="obStfPhone" placeholder="0555 000 00 00">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="obStfEmail">E-posta</label>
+                <input type="email" class="form-input" id="obStfEmail" placeholder="opsiyonel">
+            </div>
+        </div>
+        <div class="onboarding-inline-actions">
+            <button type="button" class="btn btn-primary" id="obAddStaff">➕ Personeli ekle</button>
+            <a href="/staff" class="btn btn-secondary" target="_blank" rel="noopener">Tüm personel ↗</a>
+        </div>
+        <div id="obCredentials" class="onboarding-creds"></div>`;
+}
+
+// Kanonik adres /{slug}; "/booking" yalnızca oturumdaki kiracıyla çözülür ve
+// paylaşıldığında "işletme seçilmedi" hatası verir.
+function bookingPath() {
+    const slug = document.querySelector('meta[name="current-salon-slug"]')?.content?.trim();
+    return slug ? '/' + slug : '/booking';
 }
 
 function panelCompleted() {
@@ -84,7 +251,7 @@ function panelCompleted() {
         <h2>Kurulum tamamlandı 🎉</h2>
         <p class="settings-desc">Takvimden randevu oluşturabilir veya booking sayfanızı paylaşabilirsiniz.</p>
         <a href="/" class="btn btn-primary">Takvime git</a>
-        <a href="/booking" class="btn btn-secondary" target="_blank" style="margin-left:8px;">Booking sayfası</a>`;
+        <a href="${bookingPath()}" class="btn btn-secondary" target="_blank" style="margin-left:8px;">Booking sayfası</a>`;
 }
 
 const PANELS = [panelSalonInfo, panelServices, panelStaff, panelCompleted];
@@ -97,28 +264,137 @@ function showStep(index) {
     document.getElementById('btnNext').textContent = index === STEPS.length - 1 ? 'Bitti' : (index === STEPS.length - 2 ? 'Tamamla' : 'İleri →');
     document.getElementById('btnNext').style.display = index === STEPS.length - 1 ? 'none' : 'inline-flex';
 
-    if (index === 0 && salonSettings.name) {
+    if (index === 0) {
         document.getElementById('obSalonName').value = salonSettings.name || '';
-        document.getElementById('obPrimaryColor').value = salonSettings.primaryColor || '#e91e8c';
+        initColorPicker(salonSettings.primaryColor);
     }
-    if (index === 1) loadServiceCount();
-    if (index === 2) loadStaffCount();
+    if (index === 1) {
+        document.getElementById('obAddService').addEventListener('click', e => addService(e.currentTarget));
+        loadServices();
+    }
+    if (index === 2) {
+        document.getElementById('obAddStaff').addEventListener('click', e => addStaff(e.currentTarget));
+        renderCredentials();
+        loadStaff();
+    }
 }
 
-async function loadServiceCount() {
+function renderList(el, rows, emptyText) {
+    if (!el) return;
+    el.innerHTML = rows.length
+        ? rows.map(r => `<div class="onboarding-list-row"><span>${esc(r.title)}</span><span class="onboarding-list-meta">${esc(r.meta)}</span></div>`).join('')
+        : `<p class="settings-desc onboarding-list-empty">${esc(emptyText)}</p>`;
+}
+
+const CATEGORY_LABELS = Object.fromEntries(SERVICE_CATEGORIES.map(c => [c.key, c.label]));
+const ROLE_LABELS = Object.fromEntries(STAFF_ROLES.map(r => [r.key, r.label]));
+
+async function loadServices() {
     const json = await api('GET', '/api/services');
-    const count = (json.data || []).length;
-    document.getElementById('serviceCount').textContent = count > 0
-        ? `✓ ${count} hizmet tanımlı.`
-        : 'Henüz hizmet yok — en az bir tane ekleyin.';
+    const rows = (json.data || []).map(s => ({
+        title: s.name,
+        meta: `${CATEGORY_LABELS[s.category] || s.category} · ${s.durationMinutes} dk · ${Number(s.basePrice).toLocaleString('tr-TR')} ₺`
+    }));
+    renderList(document.getElementById('serviceList'), rows, 'Henüz hizmet yok — aşağıdan en az bir tane ekleyin.');
 }
 
-async function loadStaffCount() {
+async function loadStaff() {
     const json = await api('GET', '/api/staff');
-    const count = (json.data || []).length;
-    document.getElementById('staffCount').textContent = count > 0
-        ? `✓ ${count} personel kayıtlı.`
-        : 'Henüz personel yok — en az bir uzman ekleyin.';
+    const rows = (json.data || []).map(s => ({
+        title: s.name,
+        meta: ROLE_LABELS[s.role] || s.role
+    }));
+    renderList(document.getElementById('staffList'), rows, 'Henüz personel yok — aşağıdan en az bir uzman ekleyin.');
+}
+
+function fieldValue(id) {
+    return (document.getElementById(id).value || '').trim();
+}
+
+// Butona iki kez basınca aynı kayıt iki kez oluşmasın.
+async function withBusy(button, label, fn) {
+    const original = button.textContent;
+    button.disabled = true;
+    button.textContent = label;
+    try {
+        await fn();
+    } finally {
+        button.disabled = false;
+        button.textContent = original;
+    }
+}
+
+async function addService(button) {
+    const name = fieldValue('obSvcName');
+    const duration = parseInt(document.getElementById('obSvcDuration').value, 10);
+    const price = parseFloat(document.getElementById('obSvcPrice').value);
+    if (!name) return showToast('Hizmet adı gerekli', 'error');
+    if (!Number.isFinite(duration) || duration <= 0) return showToast('Süreyi dakika olarak girin', 'error');
+    if (!Number.isFinite(price) || price < 0) return showToast('Fiyat girin', 'error');
+
+    await withBusy(button, 'Ekleniyor…', async () => {
+        const json = await api('POST', '/api/services', {
+            name,
+            category: document.getElementById('obSvcCategory').value,
+            durationMinutes: duration,
+            basePrice: price,
+            active: true
+        });
+        if (!json.success) {
+            showToast(json.message || 'Hizmet eklenemedi', 'error');
+            return;
+        }
+        showToast(json.message || 'Hizmet eklendi', 'success');
+        document.getElementById('obSvcName').value = '';
+        document.getElementById('obSvcPrice').value = '';
+        document.getElementById('obSvcName').focus();
+        await loadServices();
+    });
+}
+
+/**
+ * Eklenen personelin geçici parolası yalnızca oluşturma yanıtında döner; sayfa
+ * yenilenirse bir daha okunamaz. Bu yüzden sihirbaz açık kaldığı sürece panelde
+ * tutuluyor.
+ */
+const issuedAccounts = [];
+
+function renderCredentials() {
+    const el = document.getElementById('obCredentials');
+    if (!el) return;
+    el.innerHTML = issuedAccounts.length ? `
+        <p class="settings-desc"><strong>Giriş bilgileri</strong> — bu parolalar bir daha gösterilmez, personele iletin.</p>
+        ${issuedAccounts.map(a => `<div class="onboarding-list-row"><span>${esc(a.name)}</span><span class="onboarding-list-meta">${esc(a.username)} / ${esc(a.password)}</span></div>`).join('')}` : '';
+}
+
+async function addStaff(button) {
+    const name = fieldValue('obStfName');
+    if (!name) return showToast('Ad soyad gerekli', 'error');
+
+    await withBusy(button, 'Ekleniyor…', async () => {
+        const json = await api('POST', '/api/staff?createAccount=true', {
+            name,
+            role: document.getElementById('obStfRole').value,
+            phone: fieldValue('obStfPhone'),
+            email: fieldValue('obStfEmail'),
+            active: true
+        });
+        if (!json.success) {
+            showToast(json.message || 'Personel eklenemedi', 'error');
+            return;
+        }
+        showToast(json.message || 'Personel eklendi', 'success');
+        const account = json.data && json.data.account;
+        if (account) {
+            issuedAccounts.push({ name, username: account.username, password: account.temporaryPassword });
+        } else if (json.data && json.data.accountNote) {
+            showToast(json.data.accountNote, 'warning');
+        }
+        ['obStfName', 'obStfPhone', 'obStfEmail'].forEach(id => { document.getElementById(id).value = ''; });
+        document.getElementById('obStfName').focus();
+        renderCredentials();
+        await loadStaff();
+    });
 }
 
 async function saveCurrentStep() {
@@ -126,7 +402,7 @@ async function saveCurrentStep() {
     if (stepKey === 'SALON_INFO') {
         const body = {
             name: document.getElementById('obSalonName').value.trim(),
-            primaryColor: document.getElementById('obPrimaryColor').value.trim() || '#e91e8c',
+            primaryColor: normalizeHex(document.getElementById('obPrimaryColor').value) || DEFAULT_PRIMARY_COLOR,
             logoUrl: salonSettings.logoUrl || ''
         };
         const json = await api('PUT', '/api/settings', body);
@@ -134,6 +410,8 @@ async function saveCurrentStep() {
             showToast(json.message || 'Kaydedilemedi', 'error');
             return false;
         }
+        // Adıma geri dönüldüğünde seçilen renk korunsun.
+        salonSettings = Object.assign({}, salonSettings, body);
     }
 
     const nextKey = currentIndex < STEPS.length - 1 ? STEPS[currentIndex + 1].key : 'COMPLETED';

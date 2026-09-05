@@ -35,3 +35,20 @@
 
 - SaaS aboneliği süresince geçerli
 - Fesih sonrası veri: 30 gün export penceresi, sonra silme
+
+## Saklama Süreleri
+
+Süreler `RetentionJob` tarafından her gece 03:30'da uygulanır.
+
+| Veri | Süre | Uygulayan |
+|------|------|-----------|
+| İşlem kütüğü (`activity_event`) | 24 ay | `RetentionJob.purgeOldLogs()` |
+| Eski denetim kaydı (`audit_log_entry`) | 90 gün | `RetentionJob.purgeOldLogs()` |
+| Fesih sonrası müşteri verisi | 30 gün export penceresi, sonra silme | Manuel |
+
+İşlem kütüğü giriş/çıkış, başarısız giriş denemeleri, reddedilen istekler,
+kişisel veri görüntüleme (`VIEW` / `EXPORT`) ve değişikliklerin eski/yeni
+değerlerini taşır. Kişisel veriler kütüğe maskeli yazılır (telefon ve e-posta
+son 4 hane); parola hiçbir koşulda yazılmaz.
+
+Tablo daha önce temizliğe hiç dahil değildi ve sınırsız büyüyordu.

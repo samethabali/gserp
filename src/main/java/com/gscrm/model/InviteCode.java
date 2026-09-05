@@ -58,6 +58,8 @@ public class InviteCode {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "redeemed_organization_id")
-    private Long redeemedOrganizationId;
+    /** Bu kodla kayıt olan işletmenin ücretsiz kullanım süresi (gün). */
+    @Column(name = "trial_days", nullable = false)
+    @Builder.Default
+    private int trialDays = 90;
 }

@@ -118,12 +118,18 @@ async function api(method, url, body) {
     if (body) opts.body = JSON.stringify(body);
     const res = await fetch(url, opts);
 
-    // 401/403/302 (form-login chain'inden redirect) -> oturum yok demek
-    if (res.status === 401 || res.status === 403 || res.type === 'opaqueredirect') {
+    // 401/302 (form-login chain'inden redirect) -> oturum gerçekten yok
+    if (res.status === 401 || res.type === 'opaqueredirect') {
         if (!window.location.pathname.startsWith('/login')) {
             window.location.href = '/login';
         }
         return { success: false, message: 'Oturum sona erdi' };
+    }
+    // 403 oturumun bittiği değil, bu rolün o uca yetkisi olmadığı anlamına gelir.
+    // Eskiden burada da /login'e atılıyordu; uzman (SPECIALIST) hesabı dashboard'da
+    // yetkisi olmayan tek bir ucu çağırdığında sayfadan atılıyordu.
+    if (res.status === 403) {
+        return { success: false, forbidden: true, message: 'Bu işlem için yetkiniz yok' };
     }
     // Boş 204 cevapları
     if (res.status === 204) return { success: true };
@@ -175,9 +181,7 @@ async function initSalonSwitcher() {
     const json = await api('GET', '/api/org/salons');
     if (!json.success || !json.data || json.data.length < 2) return;
     wrap.style.display = 'block';
-    const current = document.cookie.split(';').map(c => c.trim())
-        .find(c => c.startsWith('gscrm-salon-slug='));
-    const currentSlug = current ? decodeURIComponent(current.split('=')[1]) : '';
+    const currentSlug = document.querySelector('meta[name="current-salon-slug"]')?.content || '';
     select.innerHTML = json.data.map(s =>
         `<option value="${s.slug}"${s.slug === currentSlug ? ' selected' : ''}>${s.name}</option>`
     ).join('');
@@ -185,6 +189,9 @@ async function initSalonSwitcher() {
         const slug = select.value;
         const res = await api('POST', '/api/org/switch-salon', { slug });
         if (res.success) {
+            if (res.data && res.data.token) {
+                try { localStorage.setItem('accessToken', res.data.token); } catch (_) {}
+            }
             window.location.href = res.data.redirectUrl || '/';
         } else {
             showToast(res.message || 'Şube değiştirilemedi', 'error');
@@ -210,6 +217,33 @@ async function initShowcaseAndBilling() {
         return;
     }
     await initSubscriptionBanner();
+    await initBookingReadinessHint();
+}
+
+/**
+ * "Randevu sayfan bos" uyarisi.
+ *
+ * Provisioning hizmet menusunu ekiyor ama personel eklemiyor; uzman yokken
+ * /api/booking/staff bos donuyor ve isletmenin randevu linki ziyaretciye bos
+ * gorunuyor. Uyari bilerek yalnizca panelde: ziyaretciye gosterilen mesaj notr
+ * kalmali, eylem cagrisi isletme sahibine ait. Kontrol booking sayfasinin
+ * kullandigi ucun aynisiyla yapiliyor ki iki taraf ayni gercegi gorsun.
+ */
+async function initBookingReadinessHint() {
+    if (window.location.pathname !== '/dashboard') return;
+    const main = document.querySelector('.main-content');
+    if (!main || document.getElementById('bookingReadinessBanner')) return;
+
+    const json = await api('GET', '/api/booking/staff');
+    if (!json.success || !Array.isArray(json.data) || json.data.length) return;
+
+    const banner = document.createElement('div');
+    banner.id = 'bookingReadinessBanner';
+    banner.className = 'subscription-banner subscription-banner--warn';
+    banner.innerHTML = 'Randevu sayfanız henüz boş görünüyor: online randevu '
+        + 'alabilmek için en az bir uzman eklemelisiniz. '
+        + '<a href="/staff">Personel ekle</a>';
+    main.insertBefore(banner, main.firstChild);
 }
 
 async function initSubscriptionBanner() {

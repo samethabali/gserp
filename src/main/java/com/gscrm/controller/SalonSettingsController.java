@@ -24,14 +24,14 @@ public class SalonSettingsController {
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN')")
     public ResponseEntity<ApiResponse<Map<String, String>>> getAll() {
-        return ResponseEntity.ok(ApiResponse.ok(salonSettingsService.getPublicSettings()));
+        return ResponseEntity.ok(ApiResponse.ok(salonSettingsService.getManagementSettings()));
     }
 
     @PutMapping
     @PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN')")
     public ResponseEntity<ApiResponse<Void>> update(@RequestBody Map<String, String> body) {
-        if (body.containsKey("name")) salonSettingsService.set("salon.name", body.get("name"));
-        if (body.containsKey("logoUrl")) salonSettingsService.set("salon.logo_url", body.get("logoUrl"));
+        if (body.containsKey("name")) salonSettingsService.updateSalonName(body.get("name"));
+        if (body.containsKey("logoUrl")) salonSettingsService.updateLogo(body.get("logoUrl"));
         if (body.containsKey("primaryColor")) salonSettingsService.set("salon.primary_color", body.get("primaryColor"));
         if (body.containsKey("smsVerificationEnabled")) {
             // Değeri normalize et: ayar okuyan taraf Boolean.parseBoolean kullanıyor,

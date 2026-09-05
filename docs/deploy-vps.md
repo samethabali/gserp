@@ -459,11 +459,11 @@ docker compose logs --tail 200 app
 
 ---
 
-## 13. Multi-Tenant SaaS (wildcard subdomain)
+## 13. Multi-Tenant SaaS (tek domain, yol tabanlı kiracı)
 
 Tek `gscrm-app` instance, shared PostgreSQL. Tenant `{slug}.gscrm.avesitesi.xyz` ile çözülür.
 
-Detaylı nginx config: [`docs/saas/nginx-wildcard.md`](saas/nginx-wildcard.md)
+Detaylı nginx config: [`docs/saas/nginx-single-domain.md`](saas/nginx-single-domain.md)
 
 ```bash
 # DNS

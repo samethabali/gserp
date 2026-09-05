@@ -40,6 +40,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET .env'de tanımlı olmalı}
       # At-rest sır şifreleme anahtarı — JWT secret'tan bağımsız olmalı.
       APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:?APP_ENCRYPTION_KEY .env'de tanımlı olmalı}
+      APP_PUBLIC_BASE_URL: ${APP_PUBLIC_BASE_URL:?APP_PUBLIC_BASE_URL .env'de tanımlı olmalı}
       APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS}
       # İlk açılışta users tablosu boşsa bu admin'i yaratır. Sonraki run'larda no-op.
       # Boş bırakırsan admin'i SQL ile elle yaratman gerekir.

@@ -1,19 +1,20 @@
 package com.gscrm.controller;
 
+import com.gscrm.dto.request.InviteCreateRequest;
 import com.gscrm.dto.request.TenantProvisionRequest;
 import com.gscrm.dto.response.ApiResponse;
 import com.gscrm.dto.response.TenantProvisionResponse;
+import com.gscrm.model.ActivityEvent;
 import com.gscrm.model.InviteCode;
-import com.gscrm.model.Organization;
 import com.gscrm.model.Salon;
-import com.gscrm.model.enums.InviteKind;
-import com.gscrm.model.enums.OrganizationType;
-import com.gscrm.repository.OrganizationRepository;
 import com.gscrm.repository.SalonRepository;
 import com.gscrm.security.AuthenticatedUser;
+import com.gscrm.security.ClientIpResolver;
 import com.gscrm.security.ImpersonationService;
 import com.gscrm.security.StaffScopeService;
+import com.gscrm.service.ActivityEventService;
 import com.gscrm.service.InviteCodeService;
+import com.gscrm.service.PlatformOverviewService;
 import com.gscrm.service.SalonProvisioningService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -22,13 +23,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/platform")
@@ -37,20 +34,46 @@ import java.util.stream.Collectors;
 public class PlatformAdminController {
 
     private final SalonRepository salonRepository;
-    private final OrganizationRepository organizationRepository;
     private final SalonProvisioningService provisioningService;
     private final ImpersonationService impersonationService;
     private final StaffScopeService staffScopeService;
     private final InviteCodeService inviteCodeService;
+    private final PlatformOverviewService platformOverviewService;
+    private final ActivityEventService activityEventService;
+    private final ClientIpResolver clientIpResolver;
+
+    @GetMapping("/tenants")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> listTenants() {
+        return ResponseEntity.ok(ApiResponse.ok(platformOverviewService.listTenants()));
+    }
+
+    @GetMapping("/tenants/{salonId}")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> tenantDetail(@PathVariable Long salonId) {
+        return ResponseEntity.ok(ApiResponse.ok(platformOverviewService.tenantDetail(salonId)));
+    }
+
+    @PostMapping("/tenants")
+    public ResponseEntity<ApiResponse<TenantProvisionResponse>> provision(
+            @Valid @RequestBody TenantProvisionRequest request,
+            HttpServletRequest httpRequest) {
+        TenantProvisionResponse result = provisioningService.provision(request);
+        activityEventService.recordPlatform("CREATE", "TENANT", result.getSalonId(),
+                "Kiracı açıldı: " + result.getSalonSlug(), null, clientIpResolver.resolve(httpRequest));
+        return ResponseEntity.ok(ApiResponse.ok("Tenant oluşturuldu", result));
+    }
 
     @PatchMapping("/tenants/{salonId}/suspend")
     public ResponseEntity<ApiResponse<Map<String, Object>>> suspend(@PathVariable Long salonId,
-                                                                   @RequestBody Map<String, Boolean> body) {
+                                                                   @RequestBody Map<String, Boolean> body,
+                                                                   HttpServletRequest httpRequest) {
         Salon salon = salonRepository.findById(salonId)
                 .orElseThrow(() -> new IllegalArgumentException("Salon bulunamadı"));
         boolean active = body.getOrDefault("active", false);
         salon.setActive(active);
         salonRepository.save(salon);
+        activityEventService.recordPlatform(active ? "ACTIVATE" : "SUSPEND", "TENANT", salon.getId(),
+                (active ? "Kiracı açıldı: " : "Kiracı askıya alındı: ") + salon.getSlug(),
+                null, clientIpResolver.resolve(httpRequest));
         return ResponseEntity.ok(ApiResponse.ok(Map.of(
                 "salonId", salon.getId(),
                 "slug", salon.getSlug(),
@@ -63,90 +86,50 @@ public class PlatformAdminController {
             HttpServletRequest request) {
         AuthenticatedUser admin = staffScopeService.requireAuthenticatedUser();
         String redirect = impersonationService.startImpersonation(admin, userId, request);
+        activityEventService.recordPlatform("IMPERSONATE_START", "USER", userId,
+                "Hesabına girildi: kullanıcı #" + userId, null, clientIpResolver.resolve(request));
         return ResponseEntity.ok(ApiResponse.ok(Map.of("redirectUrl", redirect)));
     }
 
-    @GetMapping("/tenants")
-    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> listTenants() {
-        List<Map<String, Object>> tenants = salonRepository.findAll().stream().map(salon -> {
-            Map<String, Object> row = new HashMap<>();
-            row.put("salonId", salon.getId());
-            row.put("slug", salon.getSlug());
-            row.put("name", salon.getName());
-            row.put("organizationId", salon.getOrganizationId());
-            row.put("active", salon.isActive());
-            row.put("showcase", salon.isShowcase());
-            organizationRepository.findById(salon.getOrganizationId())
-                    .map(Organization::getName)
-                    .ifPresent(n -> row.put("organizationName", n));
-            return row;
-        }).toList();
-        return ResponseEntity.ok(ApiResponse.ok(tenants));
-    }
-
-    @PostMapping("/tenants")
-    public ResponseEntity<ApiResponse<TenantProvisionResponse>> provision(
-            @Valid @RequestBody TenantProvisionRequest request) {
-        TenantProvisionResponse result = provisioningService.provision(request);
-        return ResponseEntity.ok(ApiResponse.ok("Tenant oluşturuldu", result));
+    @GetMapping("/activity")
+    public ResponseEntity<ApiResponse<List<ActivityEvent>>> activity(
+            @RequestParam(required = false) Long salonId,
+            @RequestParam(defaultValue = "100") int limit) {
+        return ResponseEntity.ok(ApiResponse.ok(platformOverviewService.activityFeed(salonId, limit)));
     }
 
     @GetMapping("/invites")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> listInvites() {
         List<InviteCode> invites = inviteCodeService.list();
-        Set<Long> redeemedOrgIds = invites.stream()
-                .map(InviteCode::getRedeemedOrganizationId)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-        Map<Long, String> orgNames = organizationRepository.findAllById(redeemedOrgIds).stream()
-                .collect(Collectors.toMap(Organization::getId, Organization::getName));
+        Map<Long, List<Map<String, Object>>> redemptions = platformOverviewService.redemptionsByInvite(
+                invites.stream().map(InviteCode::getId).toList());
 
         List<Map<String, Object>> rows = invites.stream().map(invite -> {
             Map<String, Object> row = new HashMap<>(inviteCodeService.toMap(invite));
-            Long orgId = invite.getRedeemedOrganizationId();
-            if (orgId != null) {
-                row.put("redeemedOrganizationName", orgNames.get(orgId));
-                row.put("redeemedSalonSlugs", salonRepository.findByOrganizationIdAndActiveTrue(orgId)
-                        .stream().map(Salon::getSlug).toList());
-            }
+            row.put("redemptions", redemptions.getOrDefault(invite.getId(), List.of()));
             return row;
         }).toList();
         return ResponseEntity.ok(ApiResponse.ok(rows));
     }
 
     @PostMapping("/invites")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> createInvite(@RequestBody Map<String, String> body) {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> createInvite(
+            @Valid @RequestBody InviteCreateRequest request,
+            HttpServletRequest httpRequest) {
         AuthenticatedUser admin = staffScopeService.requireAuthenticatedUser();
-        InviteKind kind = InviteKind.PILOT;
-        if (body.get("kind") != null && !body.get("kind").isBlank()) {
-            kind = InviteKind.valueOf(body.get("kind").trim().toUpperCase());
-        }
-        Integer maxUses = null;
-        if (body.get("maxUses") != null && !body.get("maxUses").isBlank()) {
-            maxUses = Integer.parseInt(body.get("maxUses"));
-        }
-        LocalDateTime expiresAt = null;
-        if (body.get("expiresAt") != null && !body.get("expiresAt").isBlank()) {
-            expiresAt = LocalDateTime.parse(body.get("expiresAt"));
-        }
-        OrganizationType organizationType = null;
-        if (body.get("organizationType") != null && !body.get("organizationType").isBlank()) {
-            organizationType = OrganizationType.valueOf(body.get("organizationType").trim().toUpperCase());
-        }
-        InviteCode created = inviteCodeService.create(
-                kind,
-                maxUses,
-                expiresAt,
-                body.get("note"),
-                body.get("planCode"),
-                organizationType,
-                admin.getId());
+        InviteCode created = inviteCodeService.create(request, admin.getId());
+        activityEventService.recordPlatform("CREATE", "INVITE_CODE", created.getId(),
+                "Davet kodu oluşturuldu: " + created.getCode() + " (" + created.getTrialDays() + " gün)",
+                null, clientIpResolver.resolve(httpRequest));
         return ResponseEntity.ok(ApiResponse.ok("Davet kodu oluşturuldu", inviteCodeService.toMap(created)));
     }
 
     @PostMapping("/invites/{id}/revoke")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> revokeInvite(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> revokeInvite(@PathVariable Long id,
+                                                                        HttpServletRequest httpRequest) {
         InviteCode revoked = inviteCodeService.revoke(id);
+        activityEventService.recordPlatform("REVOKE", "INVITE_CODE", revoked.getId(),
+                "Davet kodu iptal edildi: " + revoked.getCode(), null, clientIpResolver.resolve(httpRequest));
         return ResponseEntity.ok(ApiResponse.ok("Davet kodu iptal edildi", inviteCodeService.toMap(revoked)));
     }
 }

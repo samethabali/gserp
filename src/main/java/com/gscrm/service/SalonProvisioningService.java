@@ -1,11 +1,13 @@
 package com.gscrm.service;
 
+import com.gscrm.config.AppProperties;
 import com.gscrm.dto.request.TenantProvisionRequest;
 import com.gscrm.dto.response.TenantProvisionResponse;
 import com.gscrm.model.*;
 import com.gscrm.model.enums.OrganizationType;
 import com.gscrm.model.enums.UserRole;
 import com.gscrm.repository.*;
+import com.gscrm.tenant.PublicBookingPath;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -26,6 +28,11 @@ public class SalonProvisioningService {
     private final SubscriptionPlanRepository subscriptionPlanRepository;
     private final OrganizationSubscriptionRepository organizationSubscriptionRepository;
 
+    /**
+     * Ürünün kendi yolları. Bir işletme bunlardan birini slug olarak alırsa
+     * {@code /b/{slug}} altında kendi sayfasını gölgeler; kontrol daha önce hiç yoktu.
+     */
+    private final AppProperties appProperties;
     private final PasswordEncoder passwordEncoder;
     private final ServiceTemplateService serviceTemplateService;
     private final StaffRepository staffRepository;
@@ -34,8 +41,12 @@ public class SalonProvisioningService {
     @Transactional
     public TenantProvisionResponse provision(TenantProvisionRequest request) {
         String slug = request.getSalonSlug().trim().toLowerCase();
-        if (salonRepository.findBySlugAndActiveTrue(slug).isPresent()) {
-            throw new IllegalArgumentException("Bu slug zaten kullanılıyor: " + slug);
+        if (PublicBookingPath.isReserved(slug)) {
+            throw new IllegalArgumentException("Bu adres sistem tarafından ayrılmış, başka bir adres seçin: " + slug);
+        }
+        // Aktiflikten bağımsız kontrol: askıya alınmış bir salonun slug'ı da doludur.
+        if (salonRepository.existsBySlug(slug)) {
+            throw new IllegalArgumentException("Bu adres zaten kullanılıyor: " + slug);
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -88,7 +99,10 @@ public class SalonProvisioningService {
                         request.getPlanCode() != null ? request.getPlanCode() : "SOLO")
                 .orElseThrow(() -> new IllegalArgumentException("Plan bulunamadı"));
 
-        LocalDateTime trialEnd = now.plusDays(14);
+        int trialDays = request.getTrialDays() != null && request.getTrialDays() > 0
+                ? request.getTrialDays()
+                : appProperties.getDefaultTrialDays();
+        LocalDateTime trialEnd = now.plusDays(trialDays);
         organizationSubscriptionRepository.save(OrganizationSubscription.builder()
                 .organizationId(org.getId())
                 .planId(plan.getId())

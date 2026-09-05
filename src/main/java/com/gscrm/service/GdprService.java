@@ -23,6 +23,7 @@ public class GdprService {
     private final ConsentRecordRepository consentRecordRepository;
     private final AppointmentRepository appointmentRepository;
     private final PaymentRepository paymentRepository;
+    private final ActivityEventService activityEventService;
 
     @Transactional(readOnly = true)
     public Map<String, Object> exportCustomer(Long customerId) {
@@ -64,5 +65,13 @@ public class GdprService {
                 consentRecordRepository.save(c);
             }
         });
+
+        activityEventService.record(
+                "GDPR_ANONYMIZE",
+                "CUSTOMER",
+                customerId,
+                customerId,
+                "Müşteri kalıcı olarak anonimleştirildi (KVKK/GDPR)"
+        );
     }
 }

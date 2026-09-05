@@ -145,16 +145,34 @@ jobs:
                 echo "[+] $key .env'e eklendi: $value"
               fi
             }
+            # Public değerler kaynak kodundaki kanonik ayarla aynı tutulur.
+            set_public_env() {
+              key="$1"; value="$2"
+              if grep -qxF "$key=$value" "$ENV_FILE"; then
+                echo "[i] $key zaten güncel."
+                return
+              fi
+              backup_env_once
+              grep -v "^$key=" "$ENV_FILE" > "$ENV_FILE.tmp"
+              printf '%s=%s\n' "$key" "$value" >> "$ENV_FILE.tmp"
+              mv "$ENV_FILE.tmp" "$ENV_FILE"
+              chmod 600 "$ENV_FILE"
+              echo "[+] $key güncellendi: $value"
+            }
 
             # Prod guard bu anahtari zorunlu kilar; yoksa app acilista dusuyor.
             # Anahtari sunucuda uretiyoruz: GitHub'a hic girmiyor.
             ensure_env APP_ENCRYPTION_KEY "$(openssl rand -base64 48 | tr -d '\n')" 1
 
-            # Tanimsiz kaldiginda app'in varsayilani gscrm.avesitesi.xyz'ye dusuyor;
-            # canli domain ise gserp.avesitesi.xyz. TenantFilter host'u base ile
-            # eslestiremeyip ilk etiketi ("gserp") salon slug'i saniyor ve her istek
-            # 404 donuyordu.
-            ensure_env APP_TENANT_BASE_DOMAIN "gserp.avesitesi.xyz" 0
+            # Tek domain, yol tabanli kiraci: alt alan adi cozumlemesi kaldirildi.
+            # Bu deger artik kiraci cozmez, yalnizca paylasilabilir link uretir
+            # (davet linki, isletmenin randevu linki).
+            set_public_env APP_PUBLIC_BASE_URL "https://gscrm.avesitesi.xyz"
+
+            # Platform admin hic seed edilmiyordu; davet kodu paneline girilemiyordu.
+            # Parola sunucuda uretilir, ilk giriste degistirilmesi zorunlu.
+            ensure_env GSCRM_PLATFORM_ADMIN_USERNAME "platform" 0
+            ensure_env GSCRM_PLATFORM_ADMIN_PASSWORD "$(openssl rand -base64 24 | tr -d '\n')" 1
 
             # docker-compose.prod.yml elle bakiliyor ve env'i secili bir liste ile
             # gecirtiyor; ona dokunmamak icin ek env gecisleri ayri bir compose
@@ -168,7 +186,9 @@ jobs:
               printf '%s\n' "  app:"
               printf '%s\n' "    environment:"
               printf '%s\n' '      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY}'
-              printf '%s\n' '      APP_TENANT_BASE_DOMAIN: ${APP_TENANT_BASE_DOMAIN}'
+              printf '%s\n' '      APP_PUBLIC_BASE_URL: ${APP_PUBLIC_BASE_URL}'
+              printf '%s\n' '      GSCRM_PLATFORM_ADMIN_USERNAME: ${GSCRM_PLATFORM_ADMIN_USERNAME}'
+              printf '%s\n' '      GSCRM_PLATFORM_ADMIN_PASSWORD: ${GSCRM_PLATFORM_ADMIN_PASSWORD}'
             } > "$EXTRA_ENV_FILE"
             COMPOSE="-f $COMPOSE_FILE -f $EXTRA_ENV_FILE"
 

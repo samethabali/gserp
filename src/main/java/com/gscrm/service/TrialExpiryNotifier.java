@@ -13,12 +13,21 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class TrialExpiryNotifier {
+
+    /**
+     * Hatırlatma eşikleri (kalan gün).
+     *
+     * <p>Deneme süresi 90 güne çıktı; yalnızca D-3/D-1/D-0 uyarmak, kullanıcıya
+     * karar vermek için üç gün bırakıyordu. D-30 ilk uyarı, D-1 son uyarıdır.
+     */
+    private static final Set<Long> REMINDER_DAYS = Set.of(30L, 7L, 3L, 1L);
 
     private final OrganizationSubscriptionRepository subscriptionRepository;
     private final OrganizationRepository organizationRepository;
@@ -28,14 +37,14 @@ public class TrialExpiryNotifier {
     @Transactional
     public void notifyExpiringTrials() {
         LocalDateTime now = LocalDateTime.now();
-        List<OrganizationSubscription> trials = subscriptionRepository.findAll().stream()
-                .filter(s -> "TRIAL".equals(s.getStatus()))
-                .filter(s -> s.getTrialEnd() != null)
-                .toList();
+        // Yalnızca en uzak eşiğe kadar olan pencere okunur; iş eskiden bütün
+        // abonelikleri belleğe çekip orada eliyordu.
+        List<OrganizationSubscription> trials = subscriptionRepository.findByStatusAndTrialEndBetween(
+                "TRIAL", now, now.plusDays(31));
 
         for (OrganizationSubscription sub : trials) {
             long daysLeft = ChronoUnit.DAYS.between(now, sub.getTrialEnd());
-            if (daysLeft != 3 && daysLeft != 1 && daysLeft != 0) {
+            if (!REMINDER_DAYS.contains(daysLeft)) {
                 continue;
             }
             String eventType = "TRIAL_REMINDER_D" + daysLeft;

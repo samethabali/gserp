@@ -69,7 +69,7 @@ async function loadKPIs() {
                         <strong>${formatCurrency(s.revenue)}</strong>
                     </div>
                     <div style="display:flex;justify-content:space-between;font-size:0.85rem;">
-                        <span style="color:var(--text-secondary);">No-Show:</span>
+                        <span style="color:var(--text-secondary);">Gelmeyen:</span>
                         <strong style="color:var(--color-danger)">${s.noShows}</strong>
                     </div>
                     <div style="margin-top:10px;height:5px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;">
@@ -221,6 +221,8 @@ async function submitPayment() {
 
 // ─── Günlük Tahsilat Özeti ───
 async function loadPaymentSummary() {
+    // Kart yalnızca tahsilat yetkisi olan rollere basılıyor; yoksa ucu hiç çağırma.
+    if (!document.getElementById('paymentSummaryCard')) return;
     try {
         const res = await api('GET', `/api/payments/summary?date=${dashboardDate}`);
         if (!res.data) return;
@@ -410,10 +412,12 @@ function renderStaffChart(staffPerf) {
 
 // ─── Düşük Stok Uyarısı ───
 async function checkLowStock() {
+    const badge = document.getElementById('stockAlertBadge');
+    // Rozet stok yetkisi olmayan rollerde hiç basılmıyor; ucu da çağırmayalım.
+    if (!badge) return;
     try {
         const res = await api('GET', '/api/products/low-stock');
         const items = res.data || [];
-        const badge = document.getElementById('stockAlertBadge');
         const count = document.getElementById('stockAlertCount');
         if (badge && items.length > 0) {
             count.textContent = items.length;

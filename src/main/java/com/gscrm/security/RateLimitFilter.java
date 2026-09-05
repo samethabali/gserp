@@ -100,11 +100,16 @@ public class RateLimitFilter extends OncePerRequestFilter {
         String uri = request.getRequestURI();
         boolean isPost = "POST".equalsIgnoreCase(request.getMethod());
 
+        // Müşteri portalı formları sayfa yoluna değil /api/auth/customer/* ucuna POST
+        // ediyor; sınır yalnızca sayfa yollarında tanımlıyken bu iki uç tamamen
+        // sınırsızdı, yani müşteri parolası serbestçe denenebiliyordu.
         if (isPost && (uri.equals("/login") || uri.equals("/api/auth/login")
-                || uri.equals("/api/auth/refresh") || uri.equals("/customer/login"))) {
+                || uri.equals("/api/auth/refresh")
+                || uri.equals("/customer/login") || uri.equals("/api/auth/customer/login"))) {
             return LOGIN_LIMIT_PER_MINUTE;
         }
-        if (isPost && (uri.equals("/api/onboarding/register") || uri.equals("/customer/register"))) {
+        if (isPost && (uri.equals("/api/onboarding/register")
+                || uri.equals("/customer/register") || uri.equals("/api/auth/customer/register"))) {
             return REGISTER_LIMIT_PER_MINUTE;
         }
         // Genel /api/booking dalından önce: aksi hâlde OTP uçları 10/dk'yı miras alırdı.
@@ -128,11 +133,19 @@ public class RateLimitFilter extends OncePerRequestFilter {
      */
     private String bucketKey(HttpServletRequest request) {
         String salon = com.gscrm.tenant.TenantContext.getSlug();
-        return (salon != null ? salon : "-") + '|' + request.getRequestURI() + '|'
+        if (salon == null || salon.isBlank()) {
+            salon = request.getHeader("X-Salon-Slug");
+        }
+        if (salon == null || salon.isBlank()) {
+            salon = request.getParameter("salonSlug");
+        }
+        return (salon != null && !salon.isBlank() ? salon.trim().toLowerCase() : "-") + '|' + request.getRequestURI() + '|'
                 + clientIpResolver.resolve(request);
     }
 
-
+    public void reset() {
+        windows.clear();
+    }
 
     private void evictExpired(long now) {
         windows.entrySet().removeIf(e -> now - e.getValue().startedAt() > WINDOW_MILLIS);

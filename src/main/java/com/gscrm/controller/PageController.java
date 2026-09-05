@@ -1,5 +1,7 @@
 package com.gscrm.controller;
 
+import com.gscrm.tenant.TenantContext;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 
@@ -66,8 +68,38 @@ public class PageController {
         return "products";
     }
 
+    /**
+     * İşletmenin herkese açık randevu sayfası.
+     *
+     * <p>İşletme adresten belirlenir. Daha önce bu bilgi alt alan adından geliyordu;
+     * üretimde wildcard DNS ve sertifika olmadığı için o adresler hiç açılmıyor,
+     * kayıt olan işletmeye verilen adres de çalışmıyordu.
+     *
+     * <p>Seçim oturuma yazılır ki müşteri portalı giriş/kayıt sayfaları gibi
+     * devamındaki adımlar da aynı işletmede kalsın.
+     */
+    @GetMapping("/b/{slug}")
+    public String legacyPublicBooking(HttpServletRequest request) {
+        request.getSession(true).setAttribute(TenantContext.SESSION_PUBLIC_SALON_ID, TenantContext.getSalonId());
+        return "redirect:/" + TenantContext.getSlug();
+    }
+
+    /** Yeni kanonik randevu adresi: https://gserp.avesitesi.xyz/{isletme-adi}. */
+    @GetMapping("/{slug:[a-z0-9][a-z0-9-]*}")
+    public String publicBooking(HttpServletRequest request) {
+        request.getSession(true).setAttribute(TenantContext.SESSION_PUBLIC_SALON_ID, TenantContext.getSalonId());
+        return "booking";
+    }
+
+    /**
+     * Randevu adresi. Kiracı oturumdan veya parametreden çözülebiliyorsa randevu sayfasını;
+     * işletme belirtilmemişse "işletme seçilmedi" bilgilendirme sayfasını döndürür.
+     */
     @GetMapping("/booking")
     public String booking() {
+        if (TenantContext.getSalonId() == null) {
+            return "booking-no-salon";
+        }
         return "booking";
     }
 

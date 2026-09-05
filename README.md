@@ -25,7 +25,7 @@ docker compose -f docker-compose.dev.yml up -d db
 mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
-Tarayıcı: <http://localhost:8989> · varsayılan dev kullanıcısı: `admin / admin`.
+Tarayıcı: <http://localhost:8989> · varsayılan dev kullanıcısı: `admin / admin123`.
 
 **Tam dokümantasyon:** [docs/PROJECT_REFERENCE.md](docs/PROJECT_REFERENCE.md)
 

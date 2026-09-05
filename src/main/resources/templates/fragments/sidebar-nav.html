@@ -2,6 +2,12 @@
 <html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <body>
 <nav th:fragment="nav(active)" class="sidebar-nav">
+    <!-- Kurulum bitene kadar sihirbaza dönüş yolu. Sihirbaz yalnızca girişten
+         sonra açılıyordu; oradan ayrılan kullanıcı kuruluma bir daha ulaşamıyordu. -->
+    <a href="/onboarding/setup" class="nav-item nav-item-setup"
+       th:if="${onboardingIncomplete != null and onboardingIncomplete and !showcase}"
+       sec:authorize="hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN')"
+       th:classappend="${active == 'onboarding'} ? ' active' : ''"><span class="nav-icon">🚀</span> Kurulumu Tamamla</a>
     <span class="nav-section-title">Ana Menü</span>
     <a href="/" class="nav-item" th:classappend="${active == 'calendar'} ? ' active' : ''"><span class="nav-icon">📅</span> Takvim</a>
     <a href="/dashboard" class="nav-item" th:classappend="${active == 'dashboard'} ? ' active' : ''"><span class="nav-icon">📊</span> Dashboard</a>
@@ -21,7 +27,10 @@
     <a href="/settings" class="nav-item" sec:authorize="hasAnyRole('ADMIN','BRANCH_MANAGER')" th:unless="${showcase}" th:classappend="${active == 'settings'} ? ' active' : ''"><span class="nav-icon">⚙️</span> Salon Ayarları</a>
     <a href="/settings/billing" class="nav-item" sec:authorize="hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER')" th:unless="${showcase}" th:classappend="${active == 'billing'} ? ' active' : ''"><span class="nav-icon">💳</span> Abonelik</a>
     <span class="nav-section-title" sec:authorize="hasAnyRole('ADMIN','BRANCH_MANAGER','RECEPTIONIST')">Sistem</span>
-    <a href="/booking" class="nav-item" target="_blank" sec:authorize="hasAnyRole('ADMIN','BRANCH_MANAGER','RECEPTIONIST')"><span class="nav-icon">🔗</span> Booking Sayfası</a>
+    <!-- Kanonik adres /{slug}. Sabit "/booking" yalnızca oturumdaki kiracıyla
+         çözülüyor: yeni sekmede açılan adres paylaşılamaz ve oturumsuz açıldığında
+         "işletme seçilmedi" hatası veriyordu. -->
+    <a th:href="${bookingPath}" href="/booking" class="nav-item" target="_blank" sec:authorize="hasAnyRole('ADMIN','BRANCH_MANAGER','RECEPTIONIST')"><span class="nav-icon">🔗</span> Booking Sayfası</a>
     <a href="/audit" class="nav-item" sec:authorize="hasAnyRole('ADMIN','BRANCH_MANAGER')" th:unless="${showcase}" th:classappend="${active == 'audit'} ? ' active' : ''"><span class="nav-icon">📋</span> İşlem Kütüğü</a>
     <a href="/users" class="nav-item" sec:authorize="hasAnyRole('ADMIN','BRANCH_MANAGER')" th:unless="${showcase}" th:classappend="${active == 'users'} ? ' active' : ''"><span class="nav-icon">🔐</span> Kullanıcılar</a>
     <div id="salonSwitcherWrap" class="salon-switcher-wrap" sec:authorize="hasAnyRole('ORG_OWNER','PLATFORM_ADMIN')" style="display:none;">

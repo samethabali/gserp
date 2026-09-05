@@ -24,10 +24,10 @@ Manuel başlatma: [DEVELOPMENT.md](../DEVELOPMENT.md)
 |------|--------|
 | URL | http://localhost:8989/login |
 | Kullanıcı | `admin` |
-| Parola | `admin` |
+| Parola | `admin123` |
 | Salon (tenant) | `default` (lokal dev otomatik) |
 
-Diğer demo kullanıcıları (aynı parola `admin`):
+Diğer demo kullanıcılarının parolası `admin`:
 
 | Kullanıcı | Rol | Tenant slug |
 |-----------|-----|-------------|
@@ -39,7 +39,7 @@ Diğer demo kullanıcıları (aynı parola `admin`):
 | `mgr-kadikoy` | Şube yöneticisi | `belleza-kadikoy` |
 | `mgr-besiktas` | Şube yöneticisi | `belleza-besiktas` |
 
-> Pilot senaryolar dev profilinde `PilotScenarioSeeder` ile yüklenir. Lokalde tenant header: `X-Salon-Slug: <slug>` veya subdomain.
+> Pilot senaryolar dev profilinde `PilotScenarioSeeder` ile yüklenir. Lokalde tenant: giriş sonrası oturum, public randevu için `/b/<slug>` ya da `X-Salon-Slug: <slug>` başlığı.
 
 ## URL’ler
 
@@ -98,7 +98,7 @@ Diğer demo kullanıcıları (aynı parola `admin`):
 
 1. Bilgisayarında uygulama çalışırken Windows Güvenlik Duvarı’nda **8989** TCP girişine izin ver.
 2. IP adresini öğren: `ipconfig` → IPv4 (ör. `192.168.1.42`).
-3. Arkadaşlar tarayıcıda: `http://192.168.1.42:8989` — giriş `admin` / `admin`.
+3. Arkadaşlar tarayıcıda: `http://192.168.1.42:8989` — giriş `admin` / `admin123`.
 
 ### İnternet üzerinden (VDS)
 
@@ -107,7 +107,7 @@ Canlı ortam:
 | Sayfa | URL |
 |-------|-----|
 | Giriş | https://gscrm.avesitesi.xyz/login |
-| Demo salon (subdomain) | https://default.gscrm.avesitesi.xyz/login |
+| Demo salon (randevu sayfası) | https://gscrm.avesitesi.xyz/b/default |
 | Public booking | https://default.gscrm.avesitesi.xyz/booking |
 
 Deploy: `production-ready` push sonrası GitHub Actions **Deploy to VPS** veya [deploy-vps.md](deploy-vps.md).
@@ -120,7 +120,7 @@ Deploy: `production-ready` push sonrası GitHub Actions **Deploy to VPS** veya [
 
 | Sorun | Çözüm |
 |-------|--------|
-| `admin` / `admin` çalışmıyor | DB’yi sıfırla (aşağı) veya parola eski `admin123` ise yeni kurulum yap |
+| `admin` / `admin123` çalışmıyor | Uygulamayı yeniden başlatıp V36 migration'ının uygulandığını kontrol et |
 | Sayfa login’e atıyor | Çıkış yap, tekrar giriş; API 403 ise tarayıcı önbelleğini temizle |
 | Port 8989 dolu | `netstat -ano \| findstr :8989` → PID ile `taskkill /F /PID <pid>` |
 | Eski CSS/JS | **Ctrl+Shift+R** (hard refresh) |

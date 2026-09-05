@@ -7,7 +7,7 @@
 | Org adı | Güzellik Atölyesi |
 | Org tipi | STANDALONE |
 | Salon slug | `guzellik-atolyesi` |
-| Subdomain | `guzellik-atolyesi.gscrm.avesitesi.xyz` |
+| Randevu sayfası | `gscrm.avesitesi.xyz/b/guzellik-atolyesi` |
 | Plan | SOLO (trial 14 gün) |
 | İlk admin | `admin@guzellik-atolyesi` / geçici parola |
 

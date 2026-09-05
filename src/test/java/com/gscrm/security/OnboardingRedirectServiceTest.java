@@ -49,6 +49,70 @@ class OnboardingRedirectServiceTest {
         assertThat(onboardingRedirectService.determinePostLoginUrl(user)).isEqualTo("/");
     }
 
+    /**
+     * Parola değişimi sonrası hedef. {@code determinePostLoginUrl}
+     * {@code mustChangePassword} dalında kısa devre yaptığı için yeni kiracı
+     * sihirbazı ilk oturumda hiç görmüyordu; parola değişince kontrol burada yapılır.
+     */
+    @Test
+    void afterPasswordChangeGoesToSetupWhenOnboardingIncomplete() {
+        when(onboardingStateRepository.findBySalonId(1L)).thenReturn(Optional.of(
+                OnboardingState.builder().salonId(1L).currentStep("SALON_INFO").build()));
+
+        // Kullanıcı hâlâ mustChangePassword=true taşıyor: prensipal parola
+        // değişiminden önceki hâliyle geliyor, yine de sihirbaza gitmeli.
+        assertThat(onboardingRedirectService.determineSetupUrl(user(1L, true)))
+                .isEqualTo("/onboarding/setup");
+    }
+
+    @Test
+    void afterPasswordChangeGoesToCalendarWhenOnboardingCompleted() {
+        when(onboardingStateRepository.findBySalonId(1L)).thenReturn(Optional.of(
+                OnboardingState.builder().salonId(1L).currentStep("COMPLETED").build()));
+
+        assertThat(onboardingRedirectService.determineSetupUrl(user(1L, true))).isEqualTo("/");
+    }
+
+    /**
+     * Salonsuz platform yöneticisi.
+     *
+     * <p>Hedef "/" iken giriş sonuçsuz kalıyordu: TenantFilter salonsuz kullanıcı için
+     * kiracıyı çözemeyip {@code /login}'e geri atıyor, kullanıcı hiçbir hata görmeden
+     * giriş ekranına dönüyordu. Oturum aslında açılmıştı — yalnızca hedef yanlıştı.
+     */
+    @Test
+    void platformAdminGoesToPlatformPanelInsteadOfCalendar() {
+        assertThat(onboardingRedirectService.determinePostLoginUrl(platformAdmin(null)))
+                .isEqualTo("/platform/tenants");
+    }
+
+    /** Salonu olsa bile platform yöneticisinin yeri kiracı takvimi değil, panel. */
+    @Test
+    void platformAdminWithSalonStillGoesToPlatformPanel() {
+        assertThat(onboardingRedirectService.determinePostLoginUrl(platformAdmin(1L)))
+                .isEqualTo("/platform/tenants");
+    }
+
+    /** Parola değişimi zorunluluğu panele yönlendirmeden önce gelir. */
+    @Test
+    void platformAdminMustChangePasswordFirst() {
+        AuthenticatedUser user = new AuthenticatedUser(
+                1L, "platform_admin", "hash", true, UserRole.PLATFORM_ADMIN,
+                null, null, null, null, true, 0,
+                List.of(new SimpleGrantedAuthority("ROLE_PLATFORM_ADMIN")));
+
+        assertThat(onboardingRedirectService.determinePostLoginUrl(user)).isEqualTo("/change-password");
+        // Parola değişince panele düşmeli.
+        assertThat(onboardingRedirectService.determineSetupUrl(user)).isEqualTo("/platform/tenants");
+    }
+
+    private AuthenticatedUser platformAdmin(Long salonId) {
+        return new AuthenticatedUser(
+                1L, "platform_admin", "hash", true, UserRole.PLATFORM_ADMIN,
+                null, null, salonId, null, false, 0,
+                List.of(new SimpleGrantedAuthority("ROLE_PLATFORM_ADMIN")));
+    }
+
     private AuthenticatedUser user(Long salonId, boolean mustChangePassword) {
         return new AuthenticatedUser(
                 1L, "demo", "hash", true, UserRole.BRANCH_MANAGER,

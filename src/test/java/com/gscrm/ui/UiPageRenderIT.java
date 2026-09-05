@@ -1,9 +1,11 @@
 package com.gscrm.ui;
 
+import com.gscrm.model.OnboardingState;
 import com.gscrm.model.Organization;
 import com.gscrm.model.Salon;
 import com.gscrm.model.enums.OrganizationType;
 import com.gscrm.model.enums.UserRole;
+import com.gscrm.repository.OnboardingStateRepository;
 import com.gscrm.repository.OrganizationRepository;
 import com.gscrm.repository.SalonRepository;
 import com.gscrm.security.AuthenticatedUser;
@@ -49,6 +51,7 @@ class UiPageRenderIT {
     @Autowired private TransactionTemplate txTemplate;
     @Autowired private OrganizationRepository organizationRepository;
     @Autowired private SalonRepository salonRepository;
+    @Autowired private OnboardingStateRepository onboardingStateRepository;
 
     private Long orgId;
     private Long salonId;
@@ -107,6 +110,94 @@ class UiPageRenderIT {
         assertThat(result.getResolvedException())
                 .as("%s sayfası şablon hatası vermemeli", path)
                 .isNull();
+    }
+
+    /**
+     * Menüdeki "Booking Sayfası" bağlantısı kanonik adrese gitmeli.
+     *
+     * <p>Sabit {@code /booking} yalnızca oturumdaki kiracıyla çözülüyordu: yeni
+     * sekmede açılan adres paylaşılamıyor, oturumsuz açıldığında "işletme
+     * belirtilmedi" hatası veriyordu.
+     */
+    @org.junit.jupiter.api.Test
+    @DisplayName("menüdeki booking bağlantısı /{slug} adresine gider")
+    void sidebarBookingLinkUsesCanonicalSlug() throws Exception {
+        String body = mockMvc.perform(get("/dashboard")
+                        .with(authentication(authFor(UserRole.BRANCH_MANAGER)))
+                        .header("X-Salon-Slug", slug))
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(body)
+                .as("menü kanonik randevu adresini göstermeli")
+                .contains("href=\"/" + slug + "\"")
+                .doesNotContain("href=\"/booking\"");
+    }
+
+    /**
+     * Kurulum yarıda kaldıysa menüde sihirbaza dönüş bağlantısı bulunmalı.
+     *
+     * <p>Sihirbaz yalnızca girişten sonra açılıyordu: hizmet eklemek için ondan
+     * ayrılan kullanıcı kuruluma bir daha ulaşamıyor, adımlar yarım kalıyordu.
+     */
+    @org.junit.jupiter.api.Test
+    @DisplayName("kurulum bitmemişken menüde sihirbaz bağlantısı görünür")
+    void sidebarLinksBackToSetupWhileOnboardingIncomplete() throws Exception {
+        saveOnboardingStep("SERVICES");
+
+        assertThat(dashboardHtml(UserRole.BRANCH_MANAGER))
+                .as("yarım kalan kurulum menüden sürdürülebilmeli")
+                .contains("href=\"/onboarding/setup\"");
+        // Sihirbaz yönetime kapalı rollere 403 döner; bağlantı da onlara gösterilmemeli.
+        assertThat(dashboardHtml(UserRole.SPECIALIST))
+                .as("uzmana açılamayacağı bir sayfanın bağlantısı gösterilmemeli")
+                .doesNotContain("href=\"/onboarding/setup\"");
+    }
+
+    @org.junit.jupiter.api.Test
+    @DisplayName("kurulum bitince menüdeki sihirbaz bağlantısı kaybolur")
+    void sidebarHidesSetupLinkAfterCompletion() throws Exception {
+        saveOnboardingStep("COMPLETED");
+
+        assertThat(dashboardHtml(UserRole.BRANCH_MANAGER))
+                .as("tamamlanmış kurulum menüyü kalabalıklaştırmamalı")
+                .doesNotContain("href=\"/onboarding/setup\"");
+    }
+
+    /**
+     * Uzman rolüne yetkisi olmayan uçları çağıran kartlar basılmamalı.
+     *
+     * <p>Dashboard'daki tahsilat kartı ve kritik stok rozeti yüklenirken
+     * {@code /api/payments/**} ile {@code /api/products/**} çağırıyordu; bu uçlar
+     * uzmana 403 dönüyor, istemci de 403'ü oturum bitti sayıp kullanıcıyı
+     * {@code /login}'e atıyordu. Kartlar rol bazlı gizlenince istek hiç gitmez.
+     */
+    @org.junit.jupiter.api.Test
+    @DisplayName("uzmanın dashboard'unda yetkisiz uçları çağıran kartlar yok")
+    void dashboardHidesCardsSpecialistCannotLoad() throws Exception {
+        assertThat(dashboardHtml(UserRole.SPECIALIST))
+                .as("uzmana tahsilat ve stok kartları gösterilmemeli")
+                .doesNotContain("id=\"paymentSummaryCard\"")
+                .doesNotContain("id=\"stockAlertBadge\"");
+
+        assertThat(dashboardHtml(UserRole.RECEPTIONIST))
+                .as("resepsiyonist bu kartları görmeye devam etmeli")
+                .contains("id=\"paymentSummaryCard\"")
+                .contains("id=\"stockAlertBadge\"");
+    }
+
+    private void saveOnboardingStep(String step) {
+        txTemplate.executeWithoutResult(status -> onboardingStateRepository.save(OnboardingState.builder()
+                .salonId(salonId)
+                .currentStep(step)
+                .updatedAt(LocalDateTime.now())
+                .build()));
+    }
+
+    private String dashboardHtml(UserRole role) throws Exception {
+        return mockMvc.perform(get("/dashboard")
+                        .with(authentication(authFor(role)))
+                        .header("X-Salon-Slug", slug))
+                .andReturn().getResponse().getContentAsString();
     }
 
     @ParameterizedTest(name = "{0} herkese açık olarak render edilir")

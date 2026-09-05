@@ -18,15 +18,24 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     private final UserRepository userRepository;
 
+    /**
+     * Kullanıcıyı adıyla bulur.
+     *
+     * <p>Personel kullanıcı adları V33'ten beri sistem genelinde tekil; giriş bu yüzden
+     * kiracı bilmeden çözülebiliyor ve giriş sayfası artık hangi işletmeye ait olduğunu
+     * adresten öğrenmek zorunda değil. Müşteri portalı kullanıcıları e-posta ile kayıt
+     * olduğu ve aynı e-posta iki farklı işletmede bulunabileceği için salon bazlı kalır:
+     * kiracı bağlamı varsa önce o salonda aranır.
+     */
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        User user;
         Long salonId = TenantContext.getSalonId();
+        User user = null;
         if (salonId != null) {
-            user = userRepository.findBySalonIdAndUsername(salonId, username)
-                    .orElseThrow(() -> new UsernameNotFoundException("Kullanıcı bulunamadı: " + username));
-        } else {
-            user = userRepository.findByUsername(username)
+            user = userRepository.findBySalonIdAndUsername(salonId, username).orElse(null);
+        }
+        if (user == null) {
+            user = userRepository.findStaffByUsername(username)
                     .orElseThrow(() -> new UsernameNotFoundException("Kullanıcı bulunamadı: " + username));
         }
         return new AuthenticatedUser(

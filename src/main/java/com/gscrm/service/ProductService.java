@@ -8,6 +8,7 @@ import com.gscrm.model.Customer;
 import com.gscrm.repository.CustomerRepository;
 import com.gscrm.dto.response.ProductSaleStatsResponse;
 import com.gscrm.tenant.TenantContext;
+import com.gscrm.util.FieldDiff;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,20 +44,41 @@ public class ProductService {
         // Uçlar ham entity kabul ettiği için istemci gövdeye salonId koyabilir;
         // tenant sunucu tarafında zorlanır (mass assignment koruması).
         product.setSalonId(TenantContext.requireSalonId());
-        return productRepository.save(product);
+        Product saved = productRepository.save(product);
+        activityEventService.record("CREATE", "PRODUCT", saved.getId(), null,
+                "Ürün eklendi: " + saved.getName());
+        return saved;
     }
 
     @Transactional
     public Product update(Long id, Product updated) {
         Product p = productRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Ürün bulunamadı: " + id));
+
+        // Setter'lardan önce okunmalı: sonrasında eski değer artık okunamaz.
+        String prevName = p.getName();
+        var prevPrice = p.getPrice();
+        var prevCost = p.getCostPrice();
+        Integer prevThreshold = p.getLowStockThreshold();
+        boolean prevActive = p.isActive();
+
         p.setName(updated.getName());
         p.setCategory(updated.getCategory());
         p.setPrice(updated.getPrice());
         p.setCostPrice(updated.getCostPrice());
         p.setLowStockThreshold(updated.getLowStockThreshold());
         p.setActive(updated.isActive());
-        return productRepository.save(p);
+        Product saved = productRepository.save(p);
+        activityEventService.recordChange("UPDATE", "PRODUCT", saved.getId(), null,
+                "Ürün güncellendi: " + saved.getName(),
+                FieldDiff.create()
+                        .compare("ad", prevName, saved.getName())
+                        .compare("fiyat", prevPrice, saved.getPrice())
+                        .compare("maliyet", prevCost, saved.getCostPrice())
+                        .compare("kritikStok", prevThreshold, saved.getLowStockThreshold())
+                        .compare("aktif", prevActive, saved.isActive())
+                        .toJson());
+        return saved;
     }
 
     @Transactional

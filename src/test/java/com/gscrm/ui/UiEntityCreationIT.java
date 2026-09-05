@@ -30,6 +30,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import com.gscrm.repository.OrganizationSubscriptionRepository;
+import com.gscrm.repository.SubscriptionPlanRepository;
+import com.gscrm.support.SubscriptionFixtures;
 
 /**
  * Arayüzden oluşturulabilen her kayıt türünün gerçekten oluşturulabildiğini sınar.
@@ -61,6 +64,11 @@ class UiEntityCreationIT {
     @Autowired private ExpenseRepository expenseRepository;
     @Autowired private CouponRepository couponRepository;
 
+    @Autowired private OrganizationSubscriptionRepository subscriptionRepository;
+
+    @Autowired private SubscriptionPlanRepository subscriptionPlanRepository;
+
+
     private Long orgId;
     private Long salonId;
     private UsernamePasswordAuthenticationToken manager;
@@ -77,6 +85,7 @@ class UiEntityCreationIT {
             salonId = salonRepository.save(Salon.builder()
                     .organizationId(orgId).slug(slug).name("Olusturma Salonu")
                     .timezone("Europe/Istanbul").active(true).createdAt(now).build()).getId();
+            SubscriptionFixtures.seedTrial(subscriptionRepository, subscriptionPlanRepository, orgId);
         });
 
         AuthenticatedUser user = new AuthenticatedUser(

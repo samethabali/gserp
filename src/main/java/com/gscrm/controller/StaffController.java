@@ -1,9 +1,12 @@
 package com.gscrm.controller;
 
 import com.gscrm.dto.response.ApiResponse;
+import com.gscrm.dto.response.StaffAccountResponse;
+import com.gscrm.dto.response.StaffCreateResponse;
 import com.gscrm.model.Staff;
 import com.gscrm.model.WorkingHours;
 import com.gscrm.model.enums.ServiceCategory;
+import com.gscrm.service.StaffAccountService;
 import com.gscrm.service.StaffService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -18,7 +21,10 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class StaffController {
 
+    private static final String MGMT = "hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN')";
+
     private final StaffService staffService;
+    private final StaffAccountService staffAccountService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<Staff>>> getAll() {
@@ -37,20 +43,57 @@ public class StaffController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    /**
+     * Personeli ekler; {@code createAccount=false} verilmedikçe giriş hesabını da açar.
+     *
+     * <p>Geçici parola yalnızca bu yanıtta döner — hash'lenerek saklandığı için
+     * sonradan hiçbir uçtan okunamaz.
+     */
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN')")
-    public ResponseEntity<ApiResponse<Staff>> create(@RequestBody Staff staff) {
-        return ResponseEntity.ok(ApiResponse.ok("Personel eklendi", staffService.create(staff)));
+    @PreAuthorize(MGMT)
+    public ResponseEntity<ApiResponse<StaffCreateResponse>> create(
+            @RequestBody Staff staff,
+            @RequestParam(name = "createAccount", defaultValue = "true") boolean createAccount) {
+        return ResponseEntity.ok(ApiResponse.ok("Personel eklendi",
+                staffService.createWithAccount(staff, createAccount)));
+    }
+
+    /**
+     * Personel kartlarında hesap durumunu göstermek için.
+     *
+     * <p>Yol düzeyinde {@code GET /api/staff/**} tüm personele açık; kullanıcı adı
+     * listesi yönetime kalmalı, bu yüzden metot ayrıca kısıtlanır.
+     */
+    @GetMapping("/accounts")
+    @PreAuthorize(MGMT)
+    public ResponseEntity<ApiResponse<List<StaffAccountResponse>>> accounts() {
+        return ResponseEntity.ok(ApiResponse.ok(staffAccountService.listAccounts()));
+    }
+
+    /** Hesabı olmayan (bu özellikten önce eklenmiş) personele sonradan hesap açar. */
+    @PostMapping("/{id}/account")
+    @PreAuthorize(MGMT)
+    public ResponseEntity<ApiResponse<StaffAccountResponse>> createAccount(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok("Giriş hesabı oluşturuldu",
+                staffAccountService.provision(id)));
+    }
+
+    /** Yeni geçici parola üretir; personel ilk girişte tekrar değiştirmek zorunda kalır. */
+    @PostMapping("/{id}/account/reset-password")
+    @PreAuthorize(MGMT)
+    public ResponseEntity<ApiResponse<StaffAccountResponse>> resetAccountPassword(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok("Geçici parola oluşturuldu",
+                staffAccountService.resetPassword(id)));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN')")
+    @PreAuthorize(MGMT)
     public ResponseEntity<ApiResponse<Staff>> update(@PathVariable Long id, @RequestBody Staff staff) {
         return ResponseEntity.ok(ApiResponse.ok("Personel güncellendi", staffService.update(id, staff)));
     }
 
     @PutMapping("/{id}/specializations")
-    @PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN')")
+    @PreAuthorize(MGMT)
     public ResponseEntity<ApiResponse<Staff>> updateSpecializations(
             @PathVariable Long id,
             @RequestBody Set<ServiceCategory> categories) {
@@ -70,7 +113,7 @@ public class StaffController {
     }
 
     @PutMapping("/{id}/working-hours")
-    @PreAuthorize("hasAnyRole('ADMIN','BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN')")
+    @PreAuthorize(MGMT)
     public ResponseEntity<ApiResponse<List<WorkingHours>>> saveWorkingHours(
             @PathVariable Long id,
             @RequestBody List<WorkingHours> hours) {

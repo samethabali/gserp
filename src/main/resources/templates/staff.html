@@ -34,6 +34,13 @@
             </div>
         </header>
         <div class="page-content">
+            <!--
+              Hesap uçları yalnızca yönetime açık. İşaret olmadan resepsiyonist de
+              /api/staff/accounts'a istek atar, 403 alır ve ortak api() yardımcısı
+              onu giriş sayfasına atardı.
+            -->
+            <span id="canManageAccounts" hidden
+                  sec:authorize="hasAnyRole('BRANCH_MANAGER','ORG_OWNER','PLATFORM_ADMIN','ADMIN')"></span>
             <div class="crud-header">
                 <h2>Personel Listesi</h2>
                 <button class="btn btn-primary" onclick="openStaffModal()">➕ Yeni Personel</button>
@@ -99,10 +106,50 @@
                     </label>
                 </div>
             </div>
+            <div class="form-group" id="accountOptionGroup">
+                <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;">
+                    <input type="checkbox" id="stfCreateAccount" checked style="margin-top:3px;">
+                    <span>
+                        <strong>Sisteme giriş hesabı oluştur</strong><br>
+                        <span style="font-size:0.8rem;color:var(--text-muted);">
+                            Kullanıcı adı ve geçici parola üretilir; personel ilk girişte kendi parolasını belirler.
+                        </span>
+                    </span>
+                </label>
+            </div>
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="closeModal('staffModal')">İptal</button>
             <button class="btn btn-primary" onclick="saveStaff()">💾 Kaydet</button>
+        </div>
+    </div>
+</div>
+
+<!-- Geçici Giriş Bilgileri -->
+<div class="modal-overlay" id="credentialsModal">
+    <div class="modal" style="max-width:440px;">
+        <div class="modal-header">
+            <h3>🔑 Giriş Bilgileri — <span id="credStaffName"></span></h3>
+            <button class="modal-close" onclick="closeModal('credentialsModal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:16px;">
+                Bu parola yalnızca şimdi görüntülenir, daha sonra tekrar gösterilemez.
+                Personele iletin; ilk girişinde kendi parolasını belirlemesi istenecek.
+            </p>
+            <div class="form-group">
+                <label class="form-label">Kullanıcı Adı</label>
+                <input type="text" class="form-input" id="credUsername" readonly onclick="this.select()">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Geçici Parola</label>
+                <input type="text" class="form-input" id="credPassword" readonly
+                       onclick="this.select()" style="font-family:monospace;letter-spacing:1px;">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="copyCredentials()">📋 Kopyala</button>
+            <button class="btn btn-primary" onclick="closeModal('credentialsModal')">Anladım</button>
         </div>
     </div>
 </div>
@@ -140,13 +187,20 @@
 <script th:replace="~{fragments/assets :: custom-select-js}"></script>
 <script>
     let staffList = [];
+    let accountsByStaffId = {};
+    const CAN_MANAGE_ACCOUNTS = !!document.getElementById('canManageAccounts');
     const roleLabels = { SPECIALIST: 'Uzman', RECEPTIONIST: 'Resepsiyonist', ADMIN: 'Admin' };
     const specLabels = { HAIR: 'Saç', NAIL: 'Tırnak', SKIN: 'Cilt', LASER: 'Lazer', OTHER: 'Diğer' };
     function specLabel(c) { return specLabels[c] || c; }
 
     async function loadStaff() {
-        const json = await api('GET', '/api/staff');
-        staffList = json.data || [];
+        const [staffRes, accountRes] = await Promise.all([
+            api('GET', '/api/staff'),
+            CAN_MANAGE_ACCOUNTS ? api('GET', '/api/staff/accounts') : Promise.resolve({ data: [] })
+        ]);
+        staffList = staffRes.data || [];
+        accountsByStaffId = {};
+        (accountRes.data || []).forEach(a => { accountsByStaffId[a.staffId] = a; });
         renderStaff();
     }
 
@@ -170,12 +224,83 @@
                     <span class="badge ${s.active ? 'badge-completed' : 'badge-cancelled'}">${s.active ? 'Aktif' : 'Pasif'}</span>
                     ${(s.specializations || []).map(c => `<span class="badge badge-scheduled">${specLabel(c)}</span>`).join('')}
                 </div>
+                ${accountRow(s)}
                 <div style="display:flex;gap:8px;margin-top:12px;">
                     <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="editStaff(${s.id})">✏️ Düzenle</button>
                     <button class="btn btn-secondary btn-sm" style="flex:1;" onclick="openWorkingHoursModal(${s.id},'${s.name}')">⏰ Saatler</button>
                 </div>
             </div>
         `).join('');
+    }
+
+    // ─── Giriş Hesabı ───
+
+    function accountRow(s) {
+        if (!CAN_MANAGE_ACCOUNTS) return '';
+        const acc = accountsByStaffId[s.id];
+        if (!acc) {
+            return `
+                <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border-glass);
+                            display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                    <span style="font-size:0.8rem;color:var(--text-muted);flex:1;">🔒 Giriş hesabı yok</span>
+                    <button class="btn btn-secondary btn-xs" onclick="createAccount(${s.id})">Hesap oluştur</button>
+                </div>`;
+        }
+        const pending = acc.mustChangePassword
+            ? ' <span class="badge badge-scheduled" title="Personel ilk girişinde parolasını değiştirecek">parola bekliyor</span>'
+            : '';
+        return `
+            <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border-glass);
+                        display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <span style="font-size:0.8rem;color:var(--text-secondary);flex:1;">
+                    🔑 <code>${acc.username}</code>${acc.enabled ? '' : ' <span class="badge badge-cancelled">kapalı</span>'}${pending}
+                </span>
+                <button class="btn btn-secondary btn-xs" onclick="resetAccountPassword(${s.id})">Parola sıfırla</button>
+            </div>`;
+    }
+
+    function showCredentials(staffName, account) {
+        document.getElementById('credStaffName').textContent = staffName;
+        document.getElementById('credUsername').value = account.username;
+        document.getElementById('credPassword').value = account.temporaryPassword;
+        openModal('credentialsModal');
+    }
+
+    async function copyCredentials() {
+        const text = 'Kullanıcı adı: ' + document.getElementById('credUsername').value
+            + '\n' + 'Geçici parola: ' + document.getElementById('credPassword').value;
+        try {
+            await navigator.clipboard.writeText(text);
+            showToast('Giriş bilgileri kopyalandı', 'success');
+        } catch (e) {
+            // Panoya erişim yoksa (güvensiz bağlam / izin reddi) kullanıcı elle seçebilsin.
+            document.getElementById('credPassword').select();
+            showToast('Kopyalanamadı, metni seçip kopyalayın', 'warning');
+        }
+    }
+
+    async function createAccount(staffId) {
+        const staff = staffList.find(x => x.id === staffId);
+        const json = await api('POST', `/api/staff/${staffId}/account`);
+        if (!json.success) {
+            showToast(json.message || 'Hesap oluşturulamadı', 'error');
+            return;
+        }
+        showCredentials(staff ? staff.name : '', json.data);
+        loadStaff();
+    }
+
+    async function resetAccountPassword(staffId) {
+        const staff = staffList.find(x => x.id === staffId);
+        const name = staff ? staff.name : 'bu personel';
+        if (!confirm(`${name} için yeni bir geçici parola oluşturulacak ve açık oturumları kapanacak. Devam edilsin mi?`)) return;
+        const json = await api('POST', `/api/staff/${staffId}/account/reset-password`);
+        if (!json.success) {
+            showToast(json.message || 'Parola sıfırlanamadı', 'error');
+            return;
+        }
+        showCredentials(staff ? staff.name : '', json.data);
+        loadStaff();
     }
 
     function openStaffModal(s) {
@@ -186,6 +311,11 @@
         document.getElementById('stfRole').value = s ? s.role : 'SPECIALIST';
         document.getElementById('stfColor').value = s ? s.colorHex : '#9b59b6';
         document.getElementById('staffModalTitle').textContent = s ? 'Personel Düzenle' : 'Yeni Personel';
+
+        // Hesap yalnızca ekleme sırasında açılır; mevcut personelin hesabı karttan yönetilir.
+        const showAccountOption = !s && CAN_MANAGE_ACCOUNTS;
+        document.getElementById('accountOptionGroup').style.display = showAccountOption ? '' : 'none';
+        document.getElementById('stfCreateAccount').checked = showAccountOption;
 
         // Uzmanlık checkboxlarını işaretle
         const specs = s ? (s.specializations || []) : [];
@@ -211,7 +341,8 @@
             colorHex: document.getElementById('stfColor').value,
             active: true
         };
-        const url = id ? `/api/staff/${id}` : '/api/staff';
+        const withAccount = !id && document.getElementById('stfCreateAccount').checked;
+        const url = id ? `/api/staff/${id}` : `/api/staff?createAccount=${withAccount}`;
         const method = id ? 'PUT' : 'POST';
         const json = await api(method, url, body);
         if (!json.success) {
@@ -219,8 +350,11 @@
             return;
         }
 
-        // Uzmanlıkları güncelle (sadece düzenleme modunda, ID biliniyorsa)
-        const savedId = json.data?.id || id;
+        // Ekleme yanıtı personeli ve — açıldıysa — hesabı birlikte taşır.
+        const saved = id ? json.data : json.data?.staff;
+        const account = id ? null : json.data?.account;
+        const accountNote = id ? null : json.data?.accountNote;
+        const savedId = saved?.id || id;
         if (savedId) {
             const selectedSpecs = Array.from(
                 document.querySelectorAll('#specializationCheckboxes input[type=checkbox]:checked')
@@ -230,7 +364,13 @@
 
         showToast(json.message, 'success');
         closeModal('staffModal');
-        loadStaff();
+        await loadStaff();
+
+        if (account) {
+            showCredentials(body.name, account);
+        } else if (accountNote) {
+            showToast(accountNote, 'warning');
+        }
     }
 
     loadStaff();

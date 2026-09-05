@@ -33,6 +33,9 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import com.gscrm.repository.OrganizationSubscriptionRepository;
+import com.gscrm.repository.SubscriptionPlanRepository;
+import com.gscrm.support.SubscriptionFixtures;
 
 /**
  * Panel tarafında telefon normalizasyonunun davranışını gerçek HTTP ile sınar.
@@ -57,6 +60,11 @@ class CustomerPhoneMatchingIT {
     @Autowired private SalonRepository salonRepository;
     @Autowired private CustomerRepository customerRepository;
 
+    @Autowired private OrganizationSubscriptionRepository subscriptionRepository;
+
+    @Autowired private SubscriptionPlanRepository subscriptionPlanRepository;
+
+
     private Long salonId;
     private UsernamePasswordAuthenticationToken manager;
 
@@ -70,6 +78,7 @@ class CustomerPhoneMatchingIT {
             salonId = salonRepository.save(Salon.builder()
                     .organizationId(org.getId()).slug(slug).name("Telefon Salonu")
                     .timezone("Europe/Istanbul").active(true).createdAt(now).build()).getId();
+            SubscriptionFixtures.seedTrial(subscriptionRepository, subscriptionPlanRepository, org.getId());
 
             AuthenticatedUser user = new AuthenticatedUser(
                     8300L, "yonetici", "", true, UserRole.BRANCH_MANAGER,

@@ -1,13 +1,17 @@
 package com.gscrm.service;
 
+import com.gscrm.dto.request.InviteCreateRequest;
 import com.gscrm.dto.request.TenantProvisionRequest;
 import com.gscrm.dto.response.TenantProvisionResponse;
 import com.gscrm.model.InviteCode;
+import com.gscrm.model.InviteRedemption;
 import com.gscrm.model.enums.InviteKind;
 import com.gscrm.model.enums.OrganizationType;
 import com.gscrm.repository.InviteCodeRepository;
+import com.gscrm.repository.InviteRedemptionRepository;
+import com.gscrm.repository.OrganizationRepository;
+import com.gscrm.repository.SubscriptionPlanRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,32 +27,50 @@ import java.util.Map;
 @Transactional(readOnly = true)
 public class InviteCodeService {
 
+    /** 0/1/I/L/O dışlandığı için okunurken karışabilecek karakter yok. */
     private static final String ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
+    private static final String PREFIX = "GSCRM";
+    private static final int BLOCK = 4;
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final InviteCodeRepository inviteCodeRepository;
+    private final InviteRedemptionRepository inviteRedemptionRepository;
+    private final OrganizationRepository organizationRepository;
+    private final SubscriptionPlanRepository subscriptionPlanRepository;
     private final SalonProvisioningService salonProvisioningService;
+    private final ActivityEventService activityEventService;
 
     @Transactional
-    public InviteCode create(InviteKind kind, Integer maxUses, LocalDateTime expiresAt,
-                             String note, String planCode, OrganizationType organizationType, Long createdBy) {
-        InviteKind resolvedKind = kind != null ? kind : InviteKind.PILOT;
+    public InviteCode create(InviteCreateRequest request, Long createdBy) {
+        String planCode = request.getPlanCode() != null && !request.getPlanCode().isBlank()
+                ? request.getPlanCode().trim().toUpperCase(Locale.ROOT)
+                : "SOLO";
+        // Plan daha önce serbest metindi: hatalı bir plan kodu ancak müşteri kayıt
+        // olmaya çalışırken patlıyordu, yani hatayı davet sahibi değil davetli görüyordu.
+        if (subscriptionPlanRepository.findByCodeAndActiveTrue(planCode).isEmpty()) {
+            throw new IllegalArgumentException("Geçersiz plan kodu: " + planCode);
+        }
+        if (request.getExpiresAt() != null && !request.getExpiresAt().isAfter(LocalDateTime.now())) {
+            throw new IllegalArgumentException("Son kullanma tarihi gelecekte olmalı");
+        }
+
         InviteCode invite = InviteCode.builder()
                 .code(generateUniqueCode())
-                .kind(resolvedKind)
-                .maxUses(maxUses != null && maxUses > 0 ? maxUses : 1)
+                .kind(request.getKind() != null ? request.getKind() : InviteKind.PILOT)
+                .maxUses(request.getMaxUses() != null ? request.getMaxUses() : 1)
                 .usedCount(0)
-                .expiresAt(expiresAt)
-                .planCode(planCode != null && !planCode.isBlank() ? planCode : "SOLO")
-                .organizationType(organizationType != null ? organizationType : OrganizationType.STANDALONE)
-                .note(note)
+                .expiresAt(request.getExpiresAt())
+                .planCode(planCode)
+                .organizationType(request.getOrganizationType() != null
+                        ? request.getOrganizationType() : OrganizationType.STANDALONE)
+                .trialDays(request.getTrialDays() != null ? request.getTrialDays() : 90)
+                .note(request.getNote())
                 .createdBy(createdBy)
                 .createdAt(LocalDateTime.now())
                 .build();
         return inviteCodeRepository.save(invite);
     }
 
-    @Transactional(readOnly = true)
     public List<InviteCode> list() {
         return inviteCodeRepository.findAllByOrderByCreatedAtDesc();
     }
@@ -63,26 +85,64 @@ public class InviteCodeService {
         return inviteCodeRepository.save(invite);
     }
 
+    /**
+     * Davet kodunu bozdurup kiracıyı açar.
+     *
+     * <p>Kodun satırı pesimistik kilitle okunur; kullanım sayacı, kullanım geçmişi
+     * satırı ve organizasyonun ters bağlantısı aynı transaction icinde yazılır, böylece
+     * eşzamanlı iki kayıt tek kullanımlık bir kodu iki kez tüketemez.
+     */
     @Transactional
-    public TenantProvisionResponse registerWithInvite(TenantProvisionRequest request) {
+    public TenantProvisionResponse registerWithInvite(TenantProvisionRequest request, String ip) {
         String raw = request.getInviteCode();
         if (raw == null || raw.isBlank()) {
-            throw new AccessDeniedException("Geçerli bir davet kodu gerekli");
+            throw new IllegalArgumentException("Geçerli bir davet kodu gerekli");
         }
         String code = normalize(raw);
         InviteCode invite = inviteCodeRepository.findByCodeForUpdate(code)
-                .orElseThrow(() -> new AccessDeniedException("Davet kodu geçersiz"));
+                .orElseThrow(() -> new IllegalArgumentException("Davet kodu geçersiz"));
         assertRedeemable(invite);
 
         request.setPlanCode(invite.getPlanCode());
         request.setOrganizationType(invite.getOrganizationType());
         request.setShowcase(invite.getKind() == InviteKind.SHOWCASE);
+        request.setTrialDays(invite.getTrialDays());
 
         TenantProvisionResponse result = salonProvisioningService.provision(request);
+
         invite.setUsedCount(invite.getUsedCount() + 1);
-        invite.setRedeemedOrganizationId(result.getOrganizationId());
         inviteCodeRepository.save(invite);
+
+        inviteRedemptionRepository.save(InviteRedemption.builder()
+                .inviteCodeId(invite.getId())
+                .organizationId(result.getOrganizationId())
+                .salonId(result.getSalonId())
+                .salonSlug(result.getSalonSlug())
+                .adminUserId(result.getAdminUserId())
+                .ip(ip)
+                .redeemedAt(LocalDateTime.now())
+                .build());
+
+        // Ters arama: "bu işletme hangi kodla geldi?"
+        organizationRepository.findById(result.getOrganizationId()).ifPresent(org -> {
+            org.setInviteCodeId(invite.getId());
+            organizationRepository.save(org);
+        });
+
+        // Kayıt anında kiracı bağlamı henüz yok, bu yüzden ActivityAuditFilter
+        // sessizce çıkıyor ve davetin kullanıldığı denetim kütüğünde hiç görünmüyordu:
+        // bilgi yalnızca invite_redemption tablosunda kalıyordu.
+        activityEventService.recordPlatform("REDEEM", "INVITE_CODE", invite.getId(),
+                "Davet kodu kullanıldı: " + invite.getCode() + " → " + result.getSalonSlug(),
+                null, ip);
+
         return result;
+    }
+
+    public List<InviteRedemption> redemptionsFor(List<Long> inviteCodeIds) {
+        return inviteCodeIds.isEmpty()
+                ? List.of()
+                : inviteRedemptionRepository.findByInviteCodeIdInOrderByRedeemedAtDesc(inviteCodeIds);
     }
 
     public Map<String, Object> toMap(InviteCode invite) {
@@ -97,14 +157,14 @@ public class InviteCodeService {
         row.put("planCode", invite.getPlanCode());
         row.put("organizationType", invite.getOrganizationType() != null
                 ? invite.getOrganizationType().name() : OrganizationType.STANDALONE.name());
+        row.put("trialDays", invite.getTrialDays());
         row.put("note", invite.getNote());
         row.put("createdAt", invite.getCreatedAt());
-        row.put("redeemedOrganizationId", invite.getRedeemedOrganizationId());
         row.put("status", resolveStatus(invite));
         return row;
     }
 
-    /** Panelde rozet olarak gösterilen tekil durum; öncelik sırası: iptal > süre doldu > tükendi > kullanımda > yeni. */
+    /** Panelde rozet olarak gösterilen tekil durum; öncelik: iptal &gt; süre doldu &gt; tükendi &gt; kullanımda &gt; yeni. */
     public String resolveStatus(InviteCode invite) {
         if (invite.getRevokedAt() != null) {
             return "REVOKED";
@@ -120,19 +180,19 @@ public class InviteCodeService {
 
     private void assertRedeemable(InviteCode invite) {
         if (invite.getRevokedAt() != null) {
-            throw new AccessDeniedException("Bu davet kodu iptal edilmiş");
+            throw new IllegalArgumentException("Bu davet kodu iptal edilmiş");
         }
         if (invite.getExpiresAt() != null && !invite.getExpiresAt().isAfter(LocalDateTime.now())) {
-            throw new AccessDeniedException("Davet kodunun süresi dolmuş");
+            throw new IllegalArgumentException("Davet kodunun süresi dolmuş");
         }
         if (invite.getUsedCount() >= invite.getMaxUses()) {
-            throw new AccessDeniedException("Davet kodu kullanım hakkını doldurmuş");
+            throw new IllegalArgumentException("Davet kodu kullanım hakkını doldurmuş");
         }
     }
 
     private String generateUniqueCode() {
         for (int i = 0; i < 20; i++) {
-            String code = "GSCRM-" + randomBlock(4) + "-" + randomBlock(4);
+            String code = PREFIX + "-" + randomBlock() + "-" + randomBlock();
             if (!inviteCodeRepository.existsByCode(code)) {
                 return code;
             }
@@ -140,15 +200,31 @@ public class InviteCodeService {
         throw new IllegalStateException("Davet kodu üretilemedi");
     }
 
-    private String randomBlock(int len) {
-        StringBuilder sb = new StringBuilder(len);
-        for (int i = 0; i < len; i++) {
+    private String randomBlock() {
+        StringBuilder sb = new StringBuilder(BLOCK);
+        for (int i = 0; i < BLOCK; i++) {
             sb.append(ALPHABET.charAt(RANDOM.nextInt(ALPHABET.length())));
         }
         return sb.toString();
     }
 
-    private String normalize(String code) {
-        return code.trim().toUpperCase(Locale.ROOT).replace(' ', '-');
+    /**
+     * Elle yazılmış kodu kanonik biçime getirir.
+     *
+     * <p>Kod e-posta veya mesajla paylaşılıyor; kullanıcı onu küçük harfle, tiresiz
+     * ya da boşluklu yazıyor. Katı eşleşme, geçerli bir kodu "geçersiz" gösterip
+     * kaydı daha ilk adımda durduruyordu. {@code gscrm a7k2m4xq}, {@code A7K2-M4XQ}
+     * ve {@code gscrm-a7k2-m4xq} artık aynı koda çözülür.
+     */
+    String normalize(String raw) {
+        String cleaned = raw.toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]", "");
+        if (cleaned.startsWith(PREFIX)) {
+            cleaned = cleaned.substring(PREFIX.length());
+        }
+        if (cleaned.length() != BLOCK * 2) {
+            // Beklenen uzunlukta değil: olduğu gibi bırak, arama sonuçsuz kalsın.
+            return PREFIX + "-" + cleaned;
+        }
+        return PREFIX + "-" + cleaned.substring(0, BLOCK) + "-" + cleaned.substring(BLOCK);
     }
 }

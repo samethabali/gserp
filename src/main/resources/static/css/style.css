@@ -14,6 +14,8 @@
     --bg-glass: rgba(255, 255, 255, 0.06);
     --border-glass: rgba(255, 255, 255, 0.08);
     --border-active: rgba(155, 89, 182, 0.5);
+    --border-strong: rgba(255, 255, 255, 0.22);
+    --bg-input: rgba(255, 255, 255, 0.07);
 
     --color-primary: #9b59b6;
     --color-primary-light: #c39bd3;
@@ -26,7 +28,7 @@
 
     --text-primary: #e8e8f0;
     --text-secondary: #9a9ab0;
-    --text-muted: #5a5a70;
+    --text-muted: #8b8ba6;
 
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.4);
@@ -42,6 +44,15 @@
 
     --sidebar-width: 260px;
     --navbar-height: 64px;
+
+    /* Sablonlarda kullanilan alternatif adlar (tanimsiz kalirsa renk/arka plan cokuyor) */
+    --color-bg: var(--bg-primary);
+    --color-surface: var(--bg-card);
+    --surface-light: var(--bg-card-hover);
+    --color-text: var(--text-primary);
+    --color-text-muted: var(--text-muted);
+    --border-color: var(--border-glass);
+    --color-primary-rgb: 155, 89, 182;
 }
 
 /* ─── Reset & Base ─── */
@@ -79,10 +90,12 @@ a:hover { color: var(--color-primary); }
     left: 0;
     bottom: 0;
     z-index: 100;
+    overflow: hidden;
     transition: var(--transition);
 }
 
 .sidebar-brand {
+    flex-shrink: 0;
     padding: 20px 24px;
     border-bottom: 1px solid var(--border-glass);
     display: flex;
@@ -119,11 +132,24 @@ a:hover { color: var(--color-primary); }
 
 .sidebar-nav {
     flex: 1;
+    min-height: 0;
     padding: 16px 12px;
     display: flex;
     flex-direction: column;
     gap: 4px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(155, 89, 182, 0.4) transparent;
 }
+
+.sidebar-nav::-webkit-scrollbar { width: 6px; }
+.sidebar-nav::-webkit-scrollbar-track { background: transparent; }
+.sidebar-nav::-webkit-scrollbar-thumb {
+    background: rgba(155, 89, 182, 0.35);
+    border-radius: 999px;
+}
+.sidebar-nav::-webkit-scrollbar-thumb:hover { background: rgba(155, 89, 182, 0.55); }
 
 .nav-item {
     display: flex;
@@ -137,6 +163,7 @@ a:hover { color: var(--color-primary); }
     transition: var(--transition);
     cursor: pointer;
     border: 1px solid transparent;
+    flex-shrink: 0;
 }
 
 .nav-item:hover {
@@ -161,6 +188,7 @@ a:hover { color: var(--color-primary); }
     color: var(--text-muted);
     padding: 20px 16px 8px;
     font-weight: 600;
+    flex-shrink: 0;
 }
 
 /* ─── Main Content ─── */
@@ -316,9 +344,9 @@ a:hover { color: var(--color-primary); }
 }
 
 .btn-secondary {
-    background: var(--bg-card);
+    background: var(--bg-input);
     color: var(--text-primary);
-    border-color: var(--border-glass);
+    border-color: var(--border-strong);
 }
 .btn-secondary:hover {
     background: var(--bg-card-hover);
@@ -362,8 +390,8 @@ a:hover { color: var(--color-primary); }
 .form-input, .form-select, .form-textarea {
     width: 100%;
     padding: 10px 14px;
-    background: var(--bg-card);
-    border: 1px solid var(--border-glass);
+    background: var(--bg-input);
+    border: 1px solid var(--border-strong);
     border-radius: var(--radius-sm);
     color: var(--text-primary);
     font-family: 'Inter', sans-serif;
@@ -373,8 +401,13 @@ a:hover { color: var(--color-primary); }
 }
 
 .form-input:focus, .form-select:focus, .form-textarea:focus {
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px rgba(155, 89, 182, 0.15);
+    border-color: var(--color-primary-light);
+    box-shadow: 0 0 0 3px rgba(155, 89, 182, 0.35);
+}
+
+.form-input::placeholder, .form-textarea::placeholder {
+    color: var(--text-muted);
+    opacity: 1;
 }
 
 .form-select {
@@ -1528,8 +1561,20 @@ select.form-select option {
 
 .onboarding-card {
     width: 100%;
-    max-width: 560px;
+    max-width: 620px;
     padding: 28px;
+    background: var(--bg-secondary);
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-lg);
+}
+
+.onboarding-card h1,
+.onboarding-card h2 {
+    color: var(--text-primary);
+}
+
+.onboarding-card .settings-desc {
+    color: var(--text-secondary);
 }
 
 .onboarding-steps {
@@ -1544,25 +1589,210 @@ select.form-select option {
     text-align: center;
     padding: 10px 4px;
     border-radius: var(--radius-md);
-    background: var(--bg-card);
-    opacity: 0.55;
+    background: var(--bg-input);
+    color: var(--text-secondary);
     font-size: 1.1rem;
-    border: 1px solid transparent;
+    border: 1px solid var(--border-strong);
+}
+
+.onboarding-step-dot .step-label {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    line-height: 1.3;
 }
 
 .onboarding-step-dot.active {
-    opacity: 1;
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 1px rgba(233, 30, 140, 0.2);
+    background: rgba(155, 89, 182, 0.22);
+    border-color: var(--color-primary-light);
+    color: var(--text-primary);
+    box-shadow: 0 0 0 1px rgba(195, 155, 211, 0.35);
 }
 
 .onboarding-step-dot.done {
-    opacity: 0.85;
+    background: rgba(46, 204, 113, 0.14);
+    border-color: rgba(46, 204, 113, 0.55);
+    color: var(--text-primary);
 }
 
 .onboarding-panel {
     min-height: 200px;
     margin-bottom: 20px;
+}
+
+/* Kurulum bitmeden menüde duran hatırlatma bağlantısı */
+.nav-item-setup {
+    color: var(--text-primary);
+    background: rgba(46, 204, 113, 0.14);
+    border-left: 3px solid rgba(46, 204, 113, 0.75);
+    font-weight: 600;
+}
+
+/* Hizmet/personel adımlarının kart içi listesi ve ekleme formu */
+.onboarding-list {
+    margin-bottom: 16px;
+}
+
+.onboarding-list-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font-size: 0.86rem;
+}
+
+.onboarding-list-row + .onboarding-list-row {
+    margin-top: 6px;
+}
+
+.onboarding-list-meta {
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.onboarding-list-empty {
+    margin: 0;
+}
+
+.onboarding-inline-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.onboarding-creds {
+    margin-top: 16px;
+}
+
+@media (max-width: 520px) {
+    .onboarding-card .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .onboarding-list-row {
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .onboarding-list-meta {
+        text-align: left;
+        white-space: normal;
+    }
+}
+
+/* Ana renk seçimi: hazır palet + serbest renk */
+.color-palette {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.color-swatch {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-family: inherit;
+    color: var(--text-secondary);
+    font-size: 0.66rem;
+    line-height: 1.2;
+    text-align: center;
+}
+
+.color-swatch .color-swatch-dot {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    min-height: 38px;
+    border-radius: var(--radius-md);
+    border: 2px solid var(--border-strong);
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.12s ease, border-color 0.12s ease;
+}
+
+.color-swatch:hover .color-swatch-dot {
+    transform: translateY(-2px);
+}
+
+.color-swatch:focus-visible {
+    outline: none;
+}
+
+.color-swatch:focus-visible .color-swatch-dot {
+    border-color: var(--text-primary);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.35);
+}
+
+.color-swatch.selected .color-swatch-dot {
+    border-color: var(--text-primary);
+    box-shadow: 0 0 0 3px var(--bg-secondary), 0 0 0 5px currentColor;
+}
+
+.color-swatch.selected .color-swatch-dot::after {
+    content: '✓';
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 700;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.color-swatch.selected {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.color-custom-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.color-custom-row input[type="color"] {
+    width: 44px;
+    height: 38px;
+    padding: 2px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    background: var(--bg-input);
+    cursor: pointer;
+}
+
+.color-custom-row .form-input {
+    width: 130px;
+    text-transform: uppercase;
+}
+
+.color-preview-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 600;
+    box-shadow: var(--shadow-sm);
 }
 
 .onboarding-actions {

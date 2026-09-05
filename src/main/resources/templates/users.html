@@ -18,54 +18,407 @@
         </div>
         <nav th:replace="~{fragments/sidebar-nav :: nav('users')}"></nav>
     </aside>
+
     <main class="main-content">
         <header class="topbar">
-            <span class="topbar-title">🔐 Kullanıcı Yönetimi</span>
-            <button class="btn btn-primary" onclick="openCreate()">➕ Yeni Kullanıcı</button>
+            <div style="display:flex;align-items:center;gap:12px;">
+                <button class="menu-toggle" id="menuToggle" aria-label="Menüyü Aç">☰</button>
+                <span class="topbar-title">🔐 Kullanıcı Yönetimi</span>
+            </div>
+            <div class="topbar-actions">
+                <span style="color:var(--text-muted);font-size:0.9rem;">👤 <span sec:authentication="name">user</span></span>
+                <form method="post" th:action="@{/logout}" style="display:inline;">
+                    <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                    <button type="submit" class="btn btn-secondary btn-xs">Çıkış</button>
+                </form>
+            </div>
         </header>
-        <div class="glass-card" style="padding:16px;">
-            <table class="data-table" id="usersTable">
-                <thead><tr><th>Kullanıcı</th><th>Rol</th><th>Personel ID</th><th>Durum</th><th></th></tr></thead>
-                <tbody></tbody>
-            </table>
+
+        <div class="page-content">
+            <div class="crud-header">
+                <h2>Giriş Hesapları</h2>
+                <button class="btn btn-primary" onclick="openCreateModal()">➕ Yeni Kullanıcı</button>
+            </div>
+
+            <p class="form-hint" style="margin:-6px 0 16px;">
+                Personel eklerken hesabı da açtıysanız burada listelenir. Bu ekran hesabı olmayan
+                personele veya personel kaydı olmayan kişilere (muhasebe, işletme ortağı gibi) hesap açmak içindir.
+            </p>
+
+            <div class="glass-card" style="padding:16px;">
+                <div class="data-table-wrapper">
+                    <table class="data-table" id="usersTable">
+                        <thead>
+                        <tr>
+                            <th>Kullanıcı Adı</th>
+                            <th>Rol</th>
+                            <th>Bağlı Personel</th>
+                            <th>Durum</th>
+                            <th style="text-align:right;">İşlemler</th>
+                        </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div id="usersEmpty" class="empty-state" hidden>
+                    <div class="empty-icon">🔐</div>
+                    <p>Henüz giriş hesabı yok.</p>
+                </div>
+            </div>
         </div>
     </main>
 </div>
+
+<!-- Yeni Kullanıcı -->
+<div class="modal-overlay" id="createUserModal">
+    <div class="modal" style="max-width:520px;">
+        <div class="modal-header">
+            <h3>➕ Yeni Kullanıcı</h3>
+            <button class="modal-close" onclick="closeModal('createUserModal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label" for="usrStaff">Personel Kaydı</label>
+                <select class="form-select" id="usrStaff" onchange="onStaffChange()">
+                    <option value="">Personele bağlama (yönetim hesabı)</option>
+                </select>
+                <div class="form-hint">
+                    Personele bağlanan hesap, o personelin randevularını ve takvimini görür.
+                    Uzman rolü için personel seçimi zorunludur.
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="usrUsername">Kullanıcı Adı</label>
+                    <input type="text" class="form-input" id="usrUsername" autocomplete="off"
+                           placeholder="ornek: ayse.yilmaz" oninput="clearFormError()">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="usrRole">Rol</label>
+                    <select class="form-select" id="usrRole" onchange="clearFormError()"></select>
+                </div>
+            </div>
+            <div class="form-hint" style="margin-top:-8px;">
+                Kullanıcı adı 3-64 karakter; yalnızca küçük harf, rakam, nokta, tire ve alt çizgi.
+            </div>
+
+            <div class="form-group" style="margin-top:16px;">
+                <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;">
+                    <input type="checkbox" id="usrAutoPassword" checked onchange="togglePasswordField()"
+                           style="margin-top:3px;">
+                    <span>
+                        <strong>Geçici parolayı sistem üretsin</strong><br>
+                        <span style="font-size:0.8rem;color:var(--text-muted);">
+                            Kaydettiğinizde parola bir kez gösterilir; kullanıcı ilk girişte kendi parolasını belirler.
+                        </span>
+                    </span>
+                </label>
+            </div>
+
+            <div class="form-group" id="manualPasswordGroup" hidden>
+                <label class="form-label" for="usrPassword">Geçici Parola</label>
+                <input type="text" class="form-input" id="usrPassword" autocomplete="new-password"
+                       placeholder="En az 8 karakter" oninput="clearFormError()"
+                       style="font-family:monospace;letter-spacing:1px;">
+            </div>
+
+            <div id="userFormError" hidden
+                 style="margin-top:12px;padding:10px 12px;border-radius:10px;font-size:0.85rem;
+                        background:rgba(231,76,60,0.12);border:1px solid rgba(231,76,60,0.4);color:#ff9c8f;"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('createUserModal')">İptal</button>
+            <button class="btn btn-primary" id="usrSaveBtn" onclick="saveUser()">💾 Hesabı Oluştur</button>
+        </div>
+    </div>
+</div>
+
+<!-- Geçici Giriş Bilgileri -->
+<div class="modal-overlay" id="credentialsModal">
+    <div class="modal" style="max-width:440px;">
+        <div class="modal-header">
+            <h3>🔑 Giriş Bilgileri</h3>
+            <button class="modal-close" onclick="closeModal('credentialsModal')">✕</button>
+        </div>
+        <div class="modal-body">
+            <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:16px;">
+                Bu parola yalnızca şimdi görüntülenir, daha sonra tekrar gösterilemez.
+                Kullanıcıya iletin; ilk girişinde kendi parolasını belirlemesi istenecek.
+            </p>
+            <div class="form-group">
+                <label class="form-label" for="credUsername">Kullanıcı Adı</label>
+                <input type="text" class="form-input" id="credUsername" readonly onclick="this.select()">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="credPassword">Geçici Parola</label>
+                <input type="text" class="form-input" id="credPassword" readonly
+                       onclick="this.select()" style="font-family:monospace;letter-spacing:1px;">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="copyCredentials()">📋 Kopyala</button>
+            <button class="btn btn-primary" onclick="closeModal('credentialsModal')">Anladım</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
 <script th:replace="~{fragments/assets :: app-js}"></script>
 <script th:replace="~{fragments/assets :: custom-select-js}"></script>
 <script>
-async function loadUsers() {
-    const json = await api('GET', '/api/users');
-    const tbody = document.querySelector('#usersTable tbody');
-    tbody.innerHTML = (json.data || []).map(u => `
-        <tr>
-            <td>${u.username}</td>
-            <td>${u.role}</td>
-            <td>${u.staffId || '-'}</td>
-            <td>${u.enabled ? 'Aktif' : 'Pasif'}</td>
-            <td>
-                <button class="btn btn-xs btn-secondary" onclick="resetPw(${u.id})">Parola sıfırla</button>
-            </td>
-        </tr>`).join('');
-}
-function openCreate() {
-    const username = prompt('Kullanıcı adı');
-    const password = prompt('Geçici parola (min 6)');
-    const role = prompt('Rol (ADMIN / RECEPTIONIST / SPECIALIST)');
-    if (!username || !password || !role) return;
-    api('POST', '/api/users', { username, password, role }).then(r => {
-        showToast(r.message || 'OK', r.success ? 'success' : 'error');
-        if (r.success) loadUsers();
-    });
-}
-function resetPw(id) {
-    const password = prompt('Yeni geçici parola');
-    if (!password) return;
-    api('POST', `/api/users/${id}/reset-password`, { password }).then(r => {
-        showToast(r.message || 'OK', r.success ? 'success' : 'error');
-    });
-}
-loadUsers();
+    const ROLE_LABELS = {
+        PLATFORM_ADMIN: 'Platform Yöneticisi',
+        ORG_OWNER: 'İşletme Sahibi',
+        BRANCH_MANAGER: 'Şube Yöneticisi',
+        ADMIN: 'Yönetici',
+        RECEPTIONIST: 'Resepsiyonist',
+        SPECIALIST: 'Uzman'
+    };
+    const STAFF_ROLE_TO_USER_ROLE = {
+        ADMIN: 'BRANCH_MANAGER',
+        RECEPTIONIST: 'RECEPTIONIST',
+        SPECIALIST: 'SPECIALIST'
+    };
+    const USERNAME_PATTERN = /^[a-z0-9][a-z0-9._-]{2,63}$/;
+
+    let users = [];
+    let staffWithoutAccount = [];
+
+    function roleLabel(code) { return ROLE_LABELS[code] || code; }
+
+    // ─── Liste ───
+
+    async function loadUsers() {
+        const json = await api('GET', '/api/users');
+        if (!json.success) {
+            showToast(json.message || 'Kullanıcılar yüklenemedi', 'error');
+            return;
+        }
+        users = json.data || [];
+        renderUsers();
+    }
+
+    function renderUsers() {
+        const tbody = document.querySelector('#usersTable tbody');
+        const table = document.getElementById('usersTable');
+        const empty = document.getElementById('usersEmpty');
+        table.hidden = users.length === 0;
+        empty.hidden = users.length > 0;
+
+        tbody.innerHTML = users.map(u => {
+            const pending = u.mustChangePassword
+                ? ' <span class="badge badge-scheduled" title="Kullanıcı ilk girişinde parolasını değiştirecek">parola bekliyor</span>'
+                : '';
+            const self = u.self ? ' <span class="badge badge-scheduled">siz</span>' : '';
+            const toggleLabel = u.enabled ? 'Devre dışı bırak' : 'Aktifleştir';
+            return `
+            <tr>
+                <td><code>${esc(u.username)}</code>${self}</td>
+                <td>${esc(roleLabel(u.role))}</td>
+                <td>${u.staffName ? esc(u.staffName) : '<span style="color:var(--text-muted);">—</span>'}</td>
+                <td>
+                    <span class="badge ${u.enabled ? 'badge-completed' : 'badge-cancelled'}">${u.enabled ? 'Aktif' : 'Pasif'}</span>${pending}
+                </td>
+                <td style="text-align:right;white-space:nowrap;">
+                    <button class="btn btn-xs btn-secondary" onclick="resetPassword(${u.id})">Parola sıfırla</button>
+                    <button class="btn btn-xs btn-secondary" onclick="toggleEnabled(${u.id}, ${!u.enabled})"
+                            ${u.self && u.enabled ? 'disabled title="Kendi hesabınızı kapatamazsınız"' : ''}>${toggleLabel}</button>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    function esc(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    // ─── Yeni Kullanıcı ───
+
+    async function openCreateModal() {
+        document.getElementById('usrUsername').value = '';
+        document.getElementById('usrPassword').value = '';
+        document.getElementById('usrAutoPassword').checked = true;
+        togglePasswordField();
+        clearFormError();
+
+        await Promise.all([fillRoleOptions(), fillStaffOptions()]);
+        openModal('createUserModal');
+    }
+
+    /** Rol listesi sunucudaki atama kuralından gelir; ekranda olmayan bir rol seçilemesin. */
+    async function fillRoleOptions() {
+        const select = document.getElementById('usrRole');
+        if (select.options.length > 0) return;
+        const json = await api('GET', '/api/users/assignable-roles');
+        const roles = (json.data || []).length ? json.data : ['BRANCH_MANAGER', 'RECEPTIONIST', 'SPECIALIST'];
+        select.innerHTML = roles.map(r => `<option value="${r}">${esc(roleLabel(r))}</option>`).join('');
+        select.value = roles.includes('RECEPTIONIST') ? 'RECEPTIONIST' : roles[0];
+        window.refreshCustomSelect && window.refreshCustomSelect(select);
+    }
+
+    /** Hesabı olan personel listelenmez: her personel kaydının en fazla bir hesabı olur. */
+    async function fillStaffOptions() {
+        const [staffRes, accountRes] = await Promise.all([
+            api('GET', '/api/staff'),
+            api('GET', '/api/staff/accounts')
+        ]);
+        const taken = new Set((accountRes.data || []).map(a => a.staffId));
+        staffWithoutAccount = (staffRes.data || []).filter(s => !taken.has(s.id));
+
+        const select = document.getElementById('usrStaff');
+        select.innerHTML = '<option value="">Personele bağlama (yönetim hesabı)</option>'
+            + staffWithoutAccount.map(s =>
+                `<option value="${s.id}">${esc(s.name)}</option>`).join('');
+        select.value = '';
+        window.refreshCustomSelect && window.refreshCustomSelect(select);
+    }
+
+    function onStaffChange() {
+        clearFormError();
+        const staffId = document.getElementById('usrStaff').value;
+        if (!staffId) return;
+        const staff = staffWithoutAccount.find(s => String(s.id) === staffId);
+        if (!staff) return;
+
+        const usernameInput = document.getElementById('usrUsername');
+        if (!usernameInput.value.trim()) {
+            usernameInput.value = slugify(staff.name);
+        }
+        const roleSelect = document.getElementById('usrRole');
+        const suggested = STAFF_ROLE_TO_USER_ROLE[staff.role];
+        if (suggested && Array.from(roleSelect.options).some(o => o.value === suggested)) {
+            roleSelect.value = suggested;
+            window.refreshCustomSelect && window.refreshCustomSelect(roleSelect);
+        }
+    }
+
+    /** "Ayşe Yılmaz" -> "ayse.yilmaz" — sunucudaki personel hesabı üreticisiyle aynı kural. */
+    function slugify(raw) {
+        const folds = { 'ç': 'c', 'ğ': 'g', 'ı': 'i', 'ö': 'o', 'ş': 's', 'ü': 'u', 'â': 'a', 'î': 'i', 'û': 'u' };
+        const lower = (raw || '').trim().toLowerCase();
+        let out = '';
+        for (const ch of lower) {
+            const c = folds[ch] || ch;
+            if (/[a-z0-9]/.test(c)) out += c;
+            else if (out.length > 0 && !out.endsWith('.')) out += '.';
+        }
+        return out.replace(/\.+$/, '').slice(0, 64);
+    }
+
+    function togglePasswordField() {
+        const auto = document.getElementById('usrAutoPassword').checked;
+        document.getElementById('manualPasswordGroup').hidden = auto;
+        if (auto) document.getElementById('usrPassword').value = '';
+    }
+
+    function showFormError(message) {
+        const box = document.getElementById('userFormError');
+        box.textContent = message;
+        box.hidden = false;
+    }
+
+    function clearFormError() {
+        document.getElementById('userFormError').hidden = true;
+    }
+
+    async function saveUser() {
+        const username = document.getElementById('usrUsername').value.trim().toLowerCase();
+        const role = document.getElementById('usrRole').value;
+        const staffId = document.getElementById('usrStaff').value;
+        const auto = document.getElementById('usrAutoPassword').checked;
+        const password = document.getElementById('usrPassword').value;
+
+        if (!USERNAME_PATTERN.test(username)) {
+            showFormError('Kullanıcı adı 3-64 karakter olmalı; yalnızca küçük harf, rakam, nokta, tire ve alt çizgi içerebilir.');
+            return;
+        }
+        if (!role) {
+            showFormError('Rol seçin.');
+            return;
+        }
+        if (role === 'SPECIALIST' && !staffId) {
+            showFormError('Uzman hesabı bir personel kaydına bağlanmalı. Personel seçin veya rolü değiştirin.');
+            return;
+        }
+        if (!auto && (password.length < 8 || password.length > 72)) {
+            showFormError('Geçici parola 8-72 karakter arasında olmalı.');
+            return;
+        }
+
+        const btn = document.getElementById('usrSaveBtn');
+        btn.disabled = true;
+        try {
+            const json = await api('POST', '/api/users', {
+                username,
+                role,
+                staffId: staffId ? Number(staffId) : null,
+                password: auto ? null : password
+            });
+            if (!json.success) {
+                showFormError(json.message || 'Kullanıcı oluşturulamadı');
+                return;
+            }
+            closeModal('createUserModal');
+            showToast(json.message || 'Kullanıcı oluşturuldu', 'success');
+            await loadUsers();
+            if (json.data && json.data.temporaryPassword) {
+                showCredentials(json.data.username, json.data.temporaryPassword);
+            }
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    // ─── Satır İşlemleri ───
+
+    async function resetPassword(id) {
+        const user = users.find(u => u.id === id);
+        const name = user ? user.username : 'bu kullanıcı';
+        if (!confirm(`${name} için yeni bir geçici parola üretilecek ve açık oturumları kapanacak. Devam edilsin mi?`)) return;
+
+        const json = await api('POST', `/api/users/${id}/reset-password`, {});
+        if (!json.success) {
+            showToast(json.message || 'Parola sıfırlanamadı', 'error');
+            return;
+        }
+        await loadUsers();
+        showCredentials(json.data.username, json.data.temporaryPassword);
+    }
+
+    async function toggleEnabled(id, enabled) {
+        const user = users.find(u => u.id === id);
+        const name = user ? user.username : 'bu kullanıcı';
+        if (!enabled && !confirm(`${name} hesabı kapatılacak ve açık oturumları düşecek. Devam edilsin mi?`)) return;
+
+        const json = await api('PATCH', `/api/users/${id}/enabled`, { enabled });
+        showToast(json.message || (json.success ? 'Durum güncellendi' : 'İşlem başarısız'),
+            json.success ? 'success' : 'error');
+        if (json.success) await loadUsers();
+    }
+
+    function showCredentials(username, password) {
+        document.getElementById('credUsername').value = username;
+        document.getElementById('credPassword').value = password;
+        openModal('credentialsModal');
+    }
+
+    async function copyCredentials() {
+        const text = 'Kullanıcı adı: ' + document.getElementById('credUsername').value
+            + '\n' + 'Geçici parola: ' + document.getElementById('credPassword').value;
+        try {
+            await navigator.clipboard.writeText(text);
+            showToast('Giriş bilgileri kopyalandı', 'success');
+        } catch (e) {
+            // Panoya erişim yoksa (güvensiz bağlam / izin reddi) kullanıcı elle seçebilsin.
+            document.getElementById('credPassword').select();
+            showToast('Kopyalanamadı, metni seçip kopyalayın', 'warning');
+        }
+    }
+
+    loadUsers();
 </script>
 </body>
 </html>

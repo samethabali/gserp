@@ -39,7 +39,7 @@
 |-------|----------|
 | **Ne yapar?** | Randevu, personel, müşteri, ödeme, gider, ürün stoku, kampanya/sadakat, public online booking, müşteri portalı |
 | **Kim kullanır?** | Bağımsız salonlar (STANDALONE) ve franchise zincirleri (FRANCHISE) |
-| **Deploy modeli** | Tek Spring Boot instance + shared PostgreSQL; tenant `{slug}.gscrm.domain` subdomain ile ayrılır |
+| **Deploy modeli** | Tek Spring Boot instance + shared PostgreSQL; tek domain, kiracı oturum/JWT ile, public randevu `/b/{slug}` yoluyla ayrılır |
 | **Monolit mi?** | Evet — tek JAR, Thymeleaf UI + REST API + WebSocket |
 
 ### Ürün evrimi
@@ -60,7 +60,7 @@
 | API | REST + Validation | `@RestController`, Jakarta Validation |
 | Realtime | WebSocket + STOMP | SockJS, `/ws-calendar` |
 | Persistence | Spring Data JPA, Hibernate | `ddl-auto: validate` (prod) |
-| Migration | Flyway | `classpath:db/migration` (V1–V24) |
+| Migration | Flyway | `classpath:db/migration` (V1–V33) |
 | DB | PostgreSQL | 16 |
 | Security | Spring Security | Dual chain: JWT (API) + form login (web) |
 | Token | jjwt | HS256, access + refresh |
@@ -80,7 +80,7 @@ gscrm/
 ├── docs/
 │   ├── PROJECT_REFERENCE.md    # ← BU DOSYA
 │   ├── deploy-vps.md           # VPS kurulum rehberi
-│   └── saas/                   # SLA, DPA, pricing, DR, nginx wildcard
+│   └── saas/                   # SLA, DPA, pricing, DR, tek domain nginx
 ├── scripts/
 │   ├── backup-db.sh            # pg_dump yedek
 │   └── vps-setup.sh            # VPS otomasyon
@@ -100,7 +100,7 @@ gscrm/
 │   ├── application-dev.yml
 │   ├── application-prod.yml
 │   ├── logback-spring.xml
-│   ├── db/migration/           # V1–V24 SQL
+│   ├── db/migration/           # V1–V33 SQL
 │   ├── db/dev-migration/       # V7 mock (sadece dev)
 │   ├── static/js/              # calendar, booking, websocket
 │   └── templates/              # Thymeleaf HTML
@@ -119,8 +119,8 @@ gscrm/
 
 ```
                     ┌─────────────────────────────────────────┐
-                    │           nginx (wildcard SSL)           │
-                    │   *.gscrm.avesitesi.xyz → :8989         │
+                    │              nginx (SSL)                 │
+                    │     gscrm.avesitesi.xyz → :8989          │
                     └───────────────────┬─────────────────────┘
                                         │
                     ┌───────────────────▼─────────────────────┐
@@ -140,7 +140,7 @@ gscrm/
 
 ### İstek yaşam döngüsü
 
-1. **TenantFilter** — Host subdomain veya `X-Salon-Slug` → `salon` kaydı → `TenantContext` (salonId, orgId, slug)
+1. **TenantFilter** — JWT `salonId` → oturum → adresteki slug (`/b/{slug}`, `salonSlug`, `X-Salon-Slug`) → `salon` kaydı → `TenantContext` (salonId, orgId, slug)
 2. **TenantMdcFilter** — Log MDC’ye `salonId`, `orgId` yazar
 3. **BookingRateLimitFilter** — `/api/booking/**` için salon+IP rate limit
 4. **JwtAuthenticationFilter** — `/api/**` Bearer token (access token, `typ=access`)
@@ -163,12 +163,22 @@ Platform (PLATFORM_ADMIN)
 
 ### Tenant çözümleme (`TenantFilter`)
 
+Tek ve kesin sıra. Alt alan adı, `*.localhost` ve sessiz `default` yedeği V33 ile
+kaldırıldı: hiçbiri diğeriyle karşılaştırılmıyordu ve alt alan adı üretimde zaten
+çalışmıyordu (wildcard DNS de sertifika da yok).
+
 | Öncelik | Kaynak | Örnek |
 |---------|--------|-------|
-| 1 | Header `X-Salon-Slug` | `default`, `kadikoy` |
-| 2 | Subdomain | `kadikoy.gscrm.avesitesi.xyz` → `kadikoy` |
-| 3 | `*.localhost` | `kadikoy.localhost:8989` |
-| 4 | localhost | → `default` (id=1, migration seed) |
+| 1 | Bearer JWT `salonId` claim'i | API istemcileri |
+| 2 | Oturum `TENANT_SALON_ID` | Girişte yazılır; web isteklerinde tek yetkili kaynak |
+| 3 | Adreste açık slug | `/b/kadikoy`, `?salonSlug=kadikoy`, `X-Salon-Slug: kadikoy` |
+| 4 | Anonim ziyaretçinin seçtiği salon | Daha önce `/b/{slug}` ile girdiği salon |
+
+Hiçbiri yoksa: sayfalar `/login`'e yönlenir, API `400 İşletme belirtilmedi` döner.
+
+**Güvenlik:** kimlikli bir istekte açıkça verilen slug, oturum/JWT'deki salonla
+uyuşmuyorsa istek `403` ile reddedilir. Önceden herkes başlık göndererek başka
+kiracının public yüzeyine geçebiliyordu.
 
 ### Bypass (tenant zorunlu değil)
 
@@ -176,6 +186,10 @@ Platform (PLATFORM_ADMIN)
 - `/api/platform/**` — platform admin
 - `/api/onboarding/register` — yeni salon kaydı
 - `/platform/**` web sayfaları — `platformBypass=true`
+- `/login`, `/logout`, `/error`, `/onboarding/wizard`
+- Statik dosyalar: `/css/**`, `/js/**`, `/images/**`, `/webjars/**`, `/favicon.ico`
+  — bunlar eskiden bypass listesinde değildi; bilinmeyen bir slug'da CSS/JS bile
+  JSON 404 dönüyor, giriş sayfası çizilemiyordu.
 
 ### Veri izolasyonu
 
@@ -193,7 +207,7 @@ Platform (PLATFORM_ADMIN)
 ## 6. Veritabanı ve Flyway
 
 **Konum:** `src/main/resources/db/migration/`  
-**Prod:** V1–V24 · **Dev ek:** `db/dev-migration/V7__mock_data.sql`
+**Prod:** V1–V33 · **Dev ek:** `db/dev-migration/V7__mock_data.sql`
 
 | Versiyon | Dosya | Amaç |
 |----------|-------|------|
@@ -220,6 +234,11 @@ Platform (PLATFORM_ADMIN)
 | V22 | `V22__onboarding_impersonation.sql` | onboarding_state, impersonation_log |
 | V23 | `V23__subscription_billing.sql` | plan, subscription, usage_meter, billing_event |
 | V24 | `V24__consent_registry.sql` | consent_record, salon contact/dpo |
+| V29 | `V29__appointment_overlap_constraint.sql` | randevu çakışma kısıtı |
+| V30 | `V30__phone_normalization.sql` | telefon normalizasyonu |
+| V31 | `V31__phone_verification.sql` | doğrulama kodu, sms_log |
+| V32 | `V32__appointment_body_regions.sql` | randevu bölge seçimi |
+| V33 | `V33__invite_tracking_trial_and_audit.sql` | invite_redemption, invite_code.trial_days, activity_event scope/outcome/http_status, personel kullanıcı adı global unique |
 
 ### Varsayılan seed (V14)
 
@@ -313,7 +332,10 @@ Tüm operasyonel entity’ler `TenantEntity` implement eder (`getSalonId()`).
 
 ## 9. REST API Referansı
 
-> Tüm tenant-scoped isteklerde `X-Salon-Slug` veya doğru subdomain gerekir (local: `default`).
+> Tenant-scoped istekler kiracıyı oturumdan (web) ya da Bearer JWT'den (API) alır.
+> Public randevu uçlarında `salonSlug` parametresi veya `X-Salon-Slug` başlığı
+> zorunludur. Kimlikli bir istekte gönderilen slug kimliğin salonuyla
+> uyuşmuyorsa istek 403 döner.
 
 ### Auth — `/api/auth`
 | Method | Path | Açıklama |
@@ -535,7 +557,7 @@ SPRING_PROFILES_ACTIVE=prod
 ```bash
 docker compose -f docker-compose.dev.yml up -d db
 mvnw spring-boot:run -Dspring-boot.run.profiles=dev
-# http://localhost:8989 · admin/admin (dev seed)
+# http://localhost:8989 · admin/admin123 (dev seed)
 # Header: X-Salon-Slug: default
 ```
 
@@ -549,7 +571,7 @@ curl http://127.0.0.1:8989/actuator/health
 
 ### VDS (Emre deseni)
 
-- **Multi-tenant:** tek instance, wildcard nginx (`docs/saas/nginx-wildcard.md`)
+- **Multi-tenant:** tek instance, tek domain nginx (`docs/saas/nginx-single-domain.md`)
 - **MCP:** `deploy_kurallari.yaml` → `gscrm`, image_transfer, port 5004
 - **CD:** `.github/workflows/deploy.yml` — SSH git pull + compose
 - **Yedek:** `scripts/backup-db.sh` — 14 gün retention
@@ -624,12 +646,12 @@ curl http://127.0.0.1:8989/actuator/health
 ## Hızlı Referans Kartı
 
 ```
-Tenant header:     X-Salon-Slug: default
+Tenant (public):   /b/default  ya da  X-Salon-Slug: default
 Staff login API:   POST /api/auth/login
 Public booking:    POST /api/booking/request
 Provision tenant:  POST /api/platform/tenants (PLATFORM_ADMIN)
 Default salon:     id=1, slug=default
-Flyway latest:     V24
+Flyway latest:     V33
 Java package:      com.gscrm
 Port:              8989
 ```

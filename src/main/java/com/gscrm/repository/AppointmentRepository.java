@@ -137,4 +137,8 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
             @Param("salonId") Long salonId,
             @Param("phoneNormalized") String phoneNormalized,
             @Param("statuses") List<AppointmentStatus> statuses);
+
+    /** Platform panelindeki kiracı listesi için salon başına randevu sayısı (tek sorgu). */
+    @Query("SELECT a.salonId, COUNT(a) FROM Appointment a WHERE a.salonId IN :salonIds GROUP BY a.salonId")
+    java.util.List<Object[]> countGroupedBySalonIds(@Param("salonIds") java.util.Collection<Long> salonIds);
 }

@@ -74,7 +74,6 @@
             <div style="font-size:48px;">💅</div>
             <h1>Salon Kaydı</h1>
             <span style="color:var(--text-muted);font-size:0.9rem;">Davet kodunuzla hesabınızı oluşturun</span>
-            <div><span class="trial-pill">🎁 14 gün ücretsiz deneme</span></div>
         </div>
 
         <div id="formError" class="alert alert-error" style="display:none;"></div>
@@ -84,7 +83,7 @@
             <div class="form-group">
                 <label class="form-label" for="inviteCode">Davet kodu</label>
                 <input type="text" class="form-input" id="inviteCode" name="inviteCode"
-                       placeholder="GSCRM-XXXX-XXXX" required autocomplete="off" maxlength="16" autofocus>
+                       placeholder="GSCRM-XXXX-XXXX" required autocomplete="off" maxlength="24" autofocus>
                 <span class="field-hint">Size iletilen kodu girin; biçim otomatik tamamlanır.</span>
             </div>
 
@@ -97,12 +96,7 @@
                 <label class="form-label" for="salonName">Salon adı</label>
                 <input type="text" class="form-input" id="salonName" placeholder="Örn. Aves Kadıköy" required>
             </div>
-            <div class="form-group">
-                <label class="form-label" for="salonSlug">Subdomain</label>
-                <input type="text" class="form-input" id="salonSlug" placeholder="aves-kadikoy" required
-                       autocomplete="off" pattern="[a-z0-9][a-z0-9-]{1,62}">
-                <span class="field-hint">Adresiniz: <strong id="slugPreview">salonunuz</strong></span>
-            </div>
+
             <div class="form-group">
                 <label class="form-label" for="contactEmail">İletişim e-postası <span style="color:var(--text-muted);font-weight:400;">(opsiyonel)</span></label>
                 <input type="email" class="form-input" id="contactEmail" placeholder="iletisim@salonunuz.com" autocomplete="email">
@@ -136,7 +130,13 @@
 </div>
 
 <script th:inline="javascript">
-const BASE_DOMAIN = /*[[${@environment.getProperty('app.tenant.base-domain', '')}]]*/ '';
+// Tek domain, yol tabanlı kiracı: /{isletme-slug}.
+const PUBLIC_BASE_URL = /*[[${@environment.getProperty('app.public-base-url', '')}]]*/ '';
+
+function bookingUrl(slug) {
+    const base = (PUBLIC_BASE_URL || window.location.origin).replace(/\/+$/, '');
+    return base + '/' + slug;
+}
 
 const form = document.getElementById('registerForm');
 const errorBox = document.getElementById('formError');
@@ -144,11 +144,7 @@ const successBox = document.getElementById('successBox');
 const submitBtn = document.getElementById('submitBtn');
 const inviteInput = document.getElementById('inviteCode');
 const salonNameInput = document.getElementById('salonName');
-const slugInput = document.getElementById('salonSlug');
-const slugPreview = document.getElementById('slugPreview');
 const passInput = document.getElementById('adminPass');
-
-let slugTouched = false;
 
 // ─── Slug türetme (Türkçe karakter destekli) ───
 const TR_MAP = { 'ç': 'c', 'ğ': 'g', 'ı': 'i', 'ö': 'o', 'ş': 's', 'ü': 'u', 'İ': 'i' };
@@ -162,23 +158,6 @@ function slugify(value) {
         .replace(/^-+/, '')
         .slice(0, 63);
 }
-
-function renderSlugPreview() {
-    const slug = slugInput.value.replace(/-+$/, '') || 'salonunuz';
-    slugPreview.textContent = BASE_DOMAIN ? slug + '.' + BASE_DOMAIN : slug;
-}
-
-salonNameInput.addEventListener('input', () => {
-    if (slugTouched) return;
-    slugInput.value = slugify(salonNameInput.value);
-    renderSlugPreview();
-});
-
-slugInput.addEventListener('input', () => {
-    slugTouched = slugInput.value.trim() !== '';
-    slugInput.value = slugify(slugInput.value);
-    renderSlugPreview();
-});
 
 // ─── Davet kodu maskesi: GSCRM-XXXX-XXXX ───
 inviteInput.addEventListener('input', () => {
@@ -204,17 +183,19 @@ if (params.get('code')) {
     inviteInput.value = params.get('code').toUpperCase();
     document.getElementById('orgName').focus();
 }
-renderSlugPreview();
 
 // ─── Doğrulama ───
 function validate(body) {
-    if (!/^GSCRM-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(body.inviteCode)) {
-        return 'Davet kodu GSCRM-XXXX-XXXX biçiminde olmalı.';
+    // Biçim sunucuda normalize ediliyor (küçük harf, tiresiz, boşluklu kabul edilir);
+    // burada yalnızca "kod var mı ve yeterince karakter içeriyor mu" kontrol edilir.
+    const codeChars = (body.inviteCode || '').replace(/[^A-Za-z0-9]/g, '');
+    if (codeChars.length < 8) {
+        return 'Davet kodunu eksiksiz girin.';
     }
     if (!body.organizationName) return 'Organizasyon adı gerekli.';
     if (!body.salonName) return 'Salon adı gerekli.';
     if (!/^[a-z0-9][a-z0-9-]{1,62}$/.test(body.salonSlug)) {
-        return 'Subdomain en az 2 karakter olmalı; sadece küçük harf, rakam ve tire içerebilir.';
+        return 'Salon adınızdan geçersiz bir işletme adresi oluştu.';
     }
     if (body.adminUsername.length < 3) return 'Kullanıcı adı en az 3 karakter olmalı.';
     if (body.adminPassword.length < 8) return 'Şifre en az 8 karakter olmalı.';
@@ -235,7 +216,7 @@ form.addEventListener('submit', async (e) => {
         inviteCode: inviteInput.value.trim(),
         organizationName: document.getElementById('orgName').value.trim(),
         salonName: salonNameInput.value.trim(),
-        salonSlug: slugInput.value.trim().toLowerCase().replace(/-+$/, ''),
+        salonSlug: slugify(salonNameInput.value.trim()),
         contactEmail: document.getElementById('contactEmail').value.trim(),
         adminUsername: document.getElementById('adminUser').value.trim(),
         adminPassword: passInput.value
@@ -256,15 +237,23 @@ form.addEventListener('submit', async (e) => {
 
         if (json.success) {
             const slug = json.data.salonSlug;
-            const address = BASE_DOMAIN ? slug + '.' + BASE_DOMAIN : slug;
+            const trialEnd = json.data.trialEnd
+                ? new Date(json.data.trialEnd).toLocaleDateString('tr-TR')
+                : null;
             form.style.display = 'none';
             successBox.className = 'alert alert-success';
             successBox.style.display = 'block';
+            // Eskiden burada yalnızca alt alan adı yazıyordu; o adres hiçbir zaman
+            // açılmıyordu ve altındaki /login yeni yöneticiyi başka bir salona düşürüyordu.
             successBox.innerHTML =
-                '<strong>✅ Kaydınız tamamlandı.</strong><br>'
-                + 'Salon adresiniz: <strong id="successAddress"></strong><br><br>'
+                '<strong>✅ Kaydınız tamamlandı.</strong><br><br>'
+                + 'Müşterilerinizin randevu aldığı adres:<br>'
+                + '<a id="successBookingLink" target="_blank" rel="noopener"></a><br><br>'
+                + (trialEnd ? 'Ücretsiz kullanım bitiş tarihiniz: <strong>' + trialEnd + '</strong><br><br>' : '')
                 + '<a href="/login" class="btn btn-primary" style="width:100%;">Giriş yap ve kurulumu tamamla</a>';
-            document.getElementById('successAddress').textContent = address;
+            const link = document.getElementById('successBookingLink');
+            link.href = bookingUrl(slug);
+            link.textContent = bookingUrl(slug);
             successBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         } else {
             showError(json.message || 'Kayıt başarısız. Bilgilerinizi kontrol edin.');
