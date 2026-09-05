@@ -43,9 +43,39 @@ olduğu ölçüldü.
 | **A** | **Veritabanı yedeklemesi** — hiç yok | Hayır | 🔴 ⬜ |
 | B | `docker builder prune -f` (~3.9 GB geri) | Hayır | ⬜ |
 | C | `mem_limit` + JVM bellek ayarı | Evet, kısa | ⬜ |
-| D | Log rotasyonu (`max-size`/`max-file`) | Evet, kısa | ⬜ |
+| D | Log rotasyonu (`max-size`/`max-file`) | Evet, kısa | ✅ `8b3f375` |
+| **E** | **Geri alma yolu** — başarısız deploy artık kesinti bırakmıyor | Hayır | ✅ hazır |
 | 1 | İmaj build'ini VPS'ten CI'a (GHCR) taşı | Hayır | ⬜ |
 | 3 | 2 konteyner + nginx upstream + sıralı deploy | Evet, kısa | ⬜ |
+
+> ⚠️ **`deploy.yml` değişiklikleri `main`'e girmeden etkili olmaz.** Workflow
+> `workflow_run` ile tetiklendiği için GitHub her zaman **varsayılan daldaki**
+> sürümü çalıştırır. Geri alma yolu da bu kurala tabi.
+
+---
+
+## E. Geri alma yolu (tamamlandı, deploy bekliyor)
+
+Başarısız bir deploy uygulamayı **kapalı bırakıyordu**: sağlık kontrolü tutmazsa
+script log basıp `exit 1` yapıyor, düzeltilene kadar kesinti sürüyordu. Geri
+dönmenin tek yolu kodu geri alıp yeniden build etmekti — bir build süresi daha
+kesinti.
+
+Eklenenler:
+
+1. **Geri dönüş noktası.** Her deploy, build'den önce o an çalışan imajı
+   `gserp:previous` olarak etiketler. Etiketli olduğu için `docker image prune`
+   onu silmez.
+2. **Otomatik geri alma.** Sağlık kontrolü tutmazsa script kendiliğinden
+   `gserp:previous`'a döner ve öyle hata verir. Uygulama ayakta kalır, deploy
+   başarısız raporlanır.
+3. **Elle geri alma.** Actions ekranından `geri_al` kutusu işaretlenerek
+   çalıştırılır: build yok, git'e dokunulmaz, yalnızca önceki imaj geri konur —
+   ölçülen ~100 sn.
+
+Doğrulandı: YAML geçerli, gömülü kabuk script'i `sh -n` ile sözdizimi kontrolünden
+geçti. **Gerçek koşulda henüz denenmedi** — ilk deploy'da `gserp:previous`
+oluşacak, elle geri alma ancak ondan sonra kullanılabilir.
 
 **C, 3'ün ön koşuludur.** Yapılmadan iki konteyner açmak kesintiyi azaltmaz,
 OOM ile kesinti yaratır — gerekçe aşağıda.
