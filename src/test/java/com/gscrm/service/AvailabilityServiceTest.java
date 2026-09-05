@@ -1,5 +1,6 @@
 package com.gscrm.service;
 
+import com.gscrm.model.Appointment;
 import com.gscrm.model.Staff;
 import com.gscrm.model.WorkingHours;
 import com.gscrm.repository.StaffRepository;
@@ -61,7 +62,7 @@ class AvailabilityServiceTest {
 
         when(branchPricingService.effectiveDuration(SERVICE_ID)).thenReturn(DURATION_MINUTES);
         when(branchHolidayService.isHoliday(eq(SALON_ID), any())).thenReturn(false);
-        when(schedulerService.isStaffAvailable(anyLong(), any(), any(), any())).thenReturn(true);
+        when(schedulerService.busyBlocks(anyLong(), any(), any())).thenReturn(List.of());
 
         // Ayarlar için varsayılanlar (servis çağrıdaki default değeri geri alır)
         when(salonSettingsService.get(anyString(), anyString()))
@@ -185,8 +186,13 @@ class AvailabilityServiceTest {
     void bookedSlotIsMarkedUnavailableAndRejected() {
         workingHours(LocalTime.of(9, 0), LocalTime.of(18, 0), false);
         LocalDateTime taken = MONDAY.atTime(10, 0);
-        when(schedulerService.isStaffAvailable(STAFF_ID, taken, taken.plusMinutes(DURATION_MINUTES), null))
-                .thenReturn(false);
+        // Slot basina cakisma sorgusu yerine gunun dolu bloklari tek seferde
+        // getiriliyor; test de artik gercek bir randevu koyuyor.
+        when(schedulerService.busyBlocks(anyLong(), any(), any()))
+                .thenReturn(List.of(Appointment.builder()
+                        .id(1L).salonId(SALON_ID).staffId(STAFF_ID)
+                        .startTime(taken).endTime(taken.plusMinutes(DURATION_MINUTES))
+                        .build()));
 
         List<AvailabilityService.TimeSlot> slots = availabilityService.slotsFor(STAFF_ID, SERVICE_ID, MONDAY);
 

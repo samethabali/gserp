@@ -3,6 +3,7 @@ package com.gscrm.model;
 import com.gscrm.model.enums.AppointmentStatus;
 import com.gscrm.model.enums.BodyRegion;
 import com.gscrm.tenant.TenantEntity;
+import org.hibernate.annotations.BatchSize;
 import jakarta.persistence.*;
 import org.hibernate.annotations.Filter;
 import lombok.*;
@@ -98,8 +99,21 @@ public class Appointment implements TenantEntity {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    /**
+     * Üç koleksiyon da EAGER: randevu nesnesi hiçbir zaman koleksiyonları olmadan
+     * kullanılmıyor ve LAZY'ye çevirmek işlem sınırı dışında okuyan çağrı yerlerini
+     * kırma riski taşıyor. Ama Hibernate birden çok koleksiyonu tek sorguda
+     * birleştiremediği için her randevu <b>üç ek SELECT</b> demekti: takvimin bir
+     * günü 40 randevuysa 120 fazladan sorgu. Ölçümde takvim ucunun p50'si 844 ms'ye
+     * çıkıyor, on bağlantılık havuz doyuyordu.
+     *
+     * <p>{@code @BatchSize} bunu düzeltir: koleksiyonlar randevu başına değil,
+     * yüzerlik gruplar hâlinde {@code where appointment_id in (...)} ile yüklenir.
+     * Sorgu sayısı randevu adedinden bağımsız hâle gelir.
+     */
     /** IDs of resources locked for this appointment */
     @Builder.Default
+    @BatchSize(size = 100)
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(
             name = "appointment_resources",
@@ -115,6 +129,7 @@ public class Appointment implements TenantEntity {
      * gösterim tarafında {@link BodyRegion} sırasına göre kurulur.
      */
     @Builder.Default
+    @BatchSize(size = 100)
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(
             name = "appointment_body_region",
@@ -125,6 +140,7 @@ public class Appointment implements TenantEntity {
 
     /** Quick flags/sticky notes */
     @Builder.Default
+    @BatchSize(size = 100)
     @OneToMany(mappedBy = "appointment", cascade = CascadeType.ALL,
                orphanRemoval = true, fetch = FetchType.EAGER)
     private List<AppointmentFlag> flags = new ArrayList<>();
