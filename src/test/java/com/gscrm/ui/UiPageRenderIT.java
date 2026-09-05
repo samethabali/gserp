@@ -228,6 +228,27 @@ class UiPageRenderIT {
         assertThat(result.getResponse().getContentAsString()).contains("<html");
     }
 
+    /**
+     * Kiracı bağlamı olmayan ziyaretçiye de açık olması gereken sayfalar.
+     *
+     * <p>Aşağıdaki {@code publicPagesRender} her isteğe {@code X-Salon-Slug}
+     * ekliyor ve bu, kiracı çözümlemesini her zaman başarılı kılıyor — yani
+     * "işletme belli değilken de açılıyor mu" sorusu hiç sorulmuyordu. KVKK
+     * metni tam bu yüzden üretimde {@code /login}'e atıyordu: güvenlik
+     * yapılandırması yolu permitAll bırakmıştı ama TenantFilter muafiyet
+     * listesinde yoktu.
+     */
+    @ParameterizedTest(name = "{0} işletme belirtilmeden de açılır")
+    @CsvSource({"/login", "/privacy", "/onboarding/wizard"})
+    void publicPagesRenderWithoutTenant(String path) throws Exception {
+        MvcResult result = mockMvc.perform(get(path)).andReturn();
+
+        assertThat(result.getResponse().getStatus())
+                .as("%s kiracı bağlamı olmadan da 200 dönmeli", path)
+                .isEqualTo(200);
+        assertThat(result.getResponse().getContentAsString()).contains("<html");
+    }
+
     @ParameterizedTest(name = "{0} herkese açık olarak render edilir")
     @CsvSource({"/login", "/privacy", "/customer/login", "/customer/register", "/onboarding/wizard"})
     void publicPagesRender(String path) throws Exception {
