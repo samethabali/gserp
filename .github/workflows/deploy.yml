@@ -27,6 +27,10 @@ on:
         description: "Sadece teşhis: durumu raporla, deploy yapma"
         type: boolean
         default: false
+      geri_al:
+        description: "GERİ AL: bir önceki imaja dön (build yok, ~100 sn)"
+        type: boolean
+        default: false
 
 concurrency:
   group: vps-deploy
@@ -41,6 +45,7 @@ jobs:
         uses: appleboy/ssh-action@v1.2.0
         env:
           DIAG_ONLY: ${{ inputs.sadece_teshis && '1' || '0' }}
+          ROLLBACK: ${{ inputs.geri_al && '1' || '0' }}
           REPO_URL: https://github.com/${{ github.repository }}.git
         with:
           host: ${{ secrets.VDS_HOST }}
@@ -48,14 +53,16 @@ jobs:
           key: ${{ secrets.VDS_SSH_KEY }}
           port: ${{ secrets.VDS_SSH_PORT || 22 }}
           command_timeout: 25m
-          envs: DIAG_ONLY,REPO_URL
+          envs: DIAG_ONLY,ROLLBACK,REPO_URL
           script: |
             set -euo pipefail
 
             INSTALL_DIR=/home/gserp/gserp
             BRANCH=production-ready
             # App, paylaşımlı (external) postgres kullanan prod override ile çalışır.
-            # Bu dosya VPS'e özgüdür (repo'da takip edilmez), silme.
+            # Bu dosya ARTIK REPODA takip ediliyor (2026-09-05); önceden yalnızca
+            # VPS'te elle bakılıyordu ve gözden geçirilemiyordu. Sunucudaki takipsiz
+            # kopya kenara alındıktan sonra git'ten geliyor — bkz. docs/ssh-gorev-2.md
             COMPOSE_FILE="$INSTALL_DIR/docker-compose.prod.yml"
 
             # git'in kimlik sorması, etkileşimsiz oturumda "could not read Username"
@@ -88,6 +95,47 @@ jobs:
             if [ "${DIAG_ONLY:-0}" = "1" ]; then
               echo "[=] sadece_teshis modu — hicbir degisiklik yapilmadi."
               exit 0
+            fi
+
+            # --- Elle geri alma -------------------------------------------------
+            # Bozuk bir deploy'dan donmenin tek yolu, kodu geri alip yeniden build
+            # etmekti: bir build suresi daha kesinti demek. Burada onceki imaj
+            # dogrudan geri konur, build yok — olculen ~100 sn.
+            # Git'e dokunulmaz: repo ileride kalir, yalnizca calisan imaj geri alinir.
+            if [ "${ROLLBACK:-0}" = "1" ]; then
+              echo "===== GERI ALMA ====="
+              if [ ! -f "$COMPOSE_FILE" ]; then
+                echo "[x] $COMPOSE_FILE yok — geri alinamaz."
+                exit 1
+              fi
+              if ! docker image inspect gserp:previous >/dev/null 2>&1; then
+                echo "[x] gserp:previous yok. Geri donulecek bir imaj kaydedilmemis"
+                echo "    (bu ozellik eklendikten sonra henuz deploy yapilmamis olabilir)."
+                exit 1
+              fi
+              EXTRA_ENV_FILE="$INSTALL_DIR/docker-compose.deploy-env.yml"
+              COMPOSE="-f $COMPOSE_FILE"
+              [ -f "$EXTRA_ENV_FILE" ] && COMPOSE="$COMPOSE -f $EXTRA_ENV_FILE"
+
+              echo "[*] gserp:previous -> gserp:latest"
+              docker tag gserp:previous gserp:latest
+              docker compose $COMPOSE up -d
+
+              DEADLINE=$(( $(date +%s) + 180 ))
+              OK=0
+              while [ "$(date +%s)" -lt "$DEADLINE" ]; do
+                if curl -fsS --max-time 5 "http://127.0.0.1:8989/actuator/health" >/dev/null 2>&1; then
+                  OK=1; break
+                fi
+                sleep 5
+              done
+              if [ "$OK" = "1" ]; then
+                echo "[+] Geri alma tamam — onceki surum ayakta."
+                exit 0
+              fi
+              echo "[x] Geri alinan surum de saglikli olmadi. Loglar:"
+              docker compose $COMPOSE logs --tail 120 app
+              exit 1
             fi
 
             # Repo public; remote'u her deployda dogru URL'e sabitle ki kimlik
@@ -196,6 +244,21 @@ jobs:
             docker image prune -f >/dev/null 2>&1 || true
             echo "[i] build oncesi disk: $(df -h "$INSTALL_DIR" | awk 'NR==2{print $4" bos"}')"
 
+            # Calisan imaji "onceki" olarak etiketle — geri donus noktasi.
+            # Etiketlenmis imaj dangling olmadigi icin asagidaki image prune onu silmez.
+            # Konteynerin gercekte kullandigi imaj kimligi alinir; gserp:latest bu
+            # sirada zaten yeni build'e isaret ediyor olabilir.
+            RUNNING_CID=$(docker compose $COMPOSE ps -q app 2>/dev/null || echo "")
+            if [ -n "$RUNNING_CID" ]; then
+              RUNNING_IMG=$(docker inspect --format='{{.Image}}' "$RUNNING_CID" 2>/dev/null || echo "")
+              if [ -n "$RUNNING_IMG" ]; then
+                docker tag "$RUNNING_IMG" gserp:previous && \
+                  echo "[i] geri donus noktasi: gserp:previous -> ${RUNNING_IMG#sha256:}" | cut -c1-72
+              fi
+            else
+              echo "[i] calisan konteyner yok; geri donus noktasi olusturulmadi."
+            fi
+
             echo "[*] docker compose build + up ($COMPOSE_FILE)"
             docker compose $COMPOSE build app
             docker compose $COMPOSE up -d
@@ -236,6 +299,30 @@ jobs:
             if [ "$OK" != "1" ]; then
               echo "[x] app saglikli olmadi. Son loglar:"
               docker compose $COMPOSE logs --tail 120 app
+
+              # Eskiden burada exit 1 vardi ve uygulama KAPALI kaliyordu: basarisiz
+              # bir deploy, duzeltilene kadar suren bir kesintiye donusuyordu.
+              # Once bilinen calisan imaja donulur, sonra hata bildirilir.
+              if docker image inspect gserp:previous >/dev/null 2>&1; then
+                echo "[!] GERI ALINIYOR: gserp:previous -> gserp:latest"
+                docker tag gserp:previous gserp:latest
+                docker compose $COMPOSE up -d
+                RB_DEADLINE=$(( $(date +%s) + 180 ))
+                RB_OK=0
+                while [ "$(date +%s)" -lt "$RB_DEADLINE" ]; do
+                  if curl -fsS --max-time 5 "http://127.0.0.1:${APP_PORT}/actuator/health" >/dev/null 2>&1; then
+                    RB_OK=1; break
+                  fi
+                  sleep 5
+                done
+                if [ "$RB_OK" = "1" ]; then
+                  echo "[+] Geri alindi — onceki surum ayakta. Deploy BASARISIZ."
+                else
+                  echo "[x] Geri alma da basarisiz — uygulama KAPALI, elle mudahale gerekli."
+                fi
+              else
+                echo "[x] gserp:previous yok, geri alinamiyor — uygulama KAPALI."
+              fi
               exit 1
             fi
             echo "[+] app saglikli"

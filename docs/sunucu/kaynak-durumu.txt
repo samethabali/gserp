@@ -1,0 +1,123 @@
+Kaynak durumu — üretim sunucusu (avesitesi)
+Alınma tarihi : 2026-09-05
+Alan          : SSH, salt okuma. Sunucuda hiçbir dosya/servis değiştirilmedi.
+Uyarı         : Bu bir ANLIK GÖRÜNTÜ. İkinci konteyner kararı öncesi tazele.
+
+
+===== free -h =====
+               total        used        free      shared  buff/cache   available
+Mem:           2.9Gi       1.5Gi       221Mi        38Mi       1.2Gi       1.2Gi
+Swap:          2.0Gi       1.1Gi       938Mi
+
+===== df -h / =====
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda2        30G   24G  4.7G  84% /
+
+===== docker ps --format '{{.Names}}\t{{.Status}}\t{{.Ports}}' =====
+gserp-app            Up 2 hours (healthy)    127.0.0.1:8989->8989/tcp
+maps_scan-app        Up 25 hours             127.0.0.1:5006->8000/tcp
+anatolia-app         Up 3 days (healthy)     127.0.0.1:5011->8000/tcp
+mindmap-app          Up 12 days              127.0.0.1:5010->4000/tcp
+p2p-bridge-app       Up 12 days              0.0.0.0:5012->8000/tcp
+wireguard-hub        Up 12 days              (port yayını yok)
+anatolia-postgis     Up 12 days (healthy)    5432/tcp
+sporkreatin-app      Up 12 days (healthy)    127.0.0.1:5001->8000/tcp
+projectplanner-app   Up 12 days              127.0.0.1:5009->3000/tcp
+analytics_app        Up 12 days              127.0.0.1:5007->8080/tcp
+web_parfum_app       Up 12 days              127.0.0.1:5000->8080/tcp
+postgres             Up 12 days              5432/tcp
+
+Toplam 12 konteyner. p2p-bridge-app dışındaki tüm HTTP portları 127.0.0.1'e bağlı.
+gserp-app tek örnek, 127.0.0.1:8989 üzerinde ve healthy.
+
+===== docker images --format '{{.Repository}}:{{.Tag}}\t{{.Size}}' =====
+gserp:latest                            542MB
+maps_scan:places-errors                 508MB
+maps_scan:before-places-errors          508MB
+maps_scan:latest                        508MB
+anatolia:20260901                       1.5GB
+anatolia:latest                         1.5GB
+mindmap:latest                          367MB
+p2p-bridge:latest                       408MB
+lscr.io/linuxserver/wireguard:latest    169MB
+sporkreatin:latest                      874MB
+projectplanner:latest                   429MB
+analytics-web:latest                    482MB
+web_parfum-app:latest                   369MB
+postgres:16                             641MB
+postgis/postgis:16-3.4                  853MB
+
+===== docker system df =====
+TYPE            TOTAL     ACTIVE    SIZE      RECLAIMABLE
+Images          13        12        9.441GB   239.9MB (2%)
+Containers      12        12        2.294MB   0B (0%)
+Local Volumes   7         3         4.309GB   290MB (6%)
+Build Cache     59        0         4.469GB   3.937GB
+
+
+===========================================================================
+DEĞERLENDİRME — ikinci konteyner sığar mı?
+===========================================================================
+
+DİSK
+  Boş yer                          : 4.7 GB (30 GB'ın %84'ü dolu)
+  Build cache (kullanılmayan)      : 3.937 GB temizlenebilir
+  Aylak imajlar                    : 239.9 MB temizlenebilir
+  Aylak volume'ler                 : 290 MB temizlenebilir
+  ---------------------------------------------------------------
+  `docker builder prune -f` sonrası tahmini boş yer: ~8.6 GB
+
+  Sonuç: İkinci konteynerin DİSK maliyeti neredeyse SIFIR — aynı gserp:latest
+  imajını paylaşır, ek katman yazmaz. Asıl disk tüketicisi imaj BUILD'idir ve o
+  şu an bu makinede yapılıyor. Build cache'i temizlemek, Aşama 1 (build'i CI'a
+  taşıma) yapılana kadar rahat nefes aldırır.
+
+RAM  <-- ASIL KISIT, DİSK DEĞİL
+  Toplam 2.9 GB, kullanılan 1.5 GB, gerçekten müsait 1.2 GB.
+  Swap 2.0 GB'ın 1.1 GB'ı ZATEN KULLANIMDA -> makine hâlihazırda RAM baskısı altında.
+
+  gserp-app JAVA_OPTS = "-XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError"
+  Konteynerde bellek limiti YOK (HostConfig.Memory = 0). Yani JVM heap'i
+  KONTEYNERİN değil, HOST'un toplam RAM'inin %75'ine göre boyutlanıyor:
+  yaklaşık 2.2 GB üst sınır.
+
+  İki JVM aynı anda ayakta olursa (mavi/yeşil geçiş anında ikisi birden
+  çalışacak) ikisi de 2.2 GB'a kadar büyüyebileceğini varsayar -> OOM riski.
+  -XX:+ExitOnOutOfMemoryError nedeniyle JVM hata verip DÜŞER, kendini toparlamaz.
+
+  ÖLÇÜLDÜ (2026-09-05, /proc/1/smaps + PrintFlagsFinal):
+    MaxRAM      = 2.9 GB (host'un tamamı — konteynerde limit yok)
+    MaxHeapSize = 2.18 GB {ergonomic}
+    InitialHeap = 48 MB   -> heap büyüdü, G1 geri vermedi
+    G1PeriodicGCInterval = 0  (boştayken bellek iadesi KAPALI)
+    MaxHeapFreeRatio     = 70
+
+    gserp-app RSS ~1011 MB dağılımı:
+      Java heap (1.10 GB commit)              710.5 MB resident
+      JIT code cache (rwxp)                    28.5 MB
+      Metaspace + 39 thread stack + G1 iç yapı ~253 MB
+      Dosya destekli (jar, .so)                 19 MB
+
+    Yük DEĞİL: 3 saatte toplam 617 kB ağ trafiği, gserp_db 13 MB,
+    ve trafiksiz 30 dakikada RSS 994.7 -> 1024 MiB tırmandı.
+
+  Ayrıntılı analiz ve önerilen JAVA_OPTS: docs/ssh-yapılanlar.md §5b
+
+  Bu yüzden Aşama 3'ün ÖN KOŞULU:
+    1) Her iki servise de compose'da `mem_limit` (örn. 1g) vermek, VE
+    2) MaxRAMPercentage'ı konteyner limitine göre yeniden ayarlamak
+       (limitli konteynerde JVM limiti görür, %75 -> 768MB gibi).
+  Bu yapılmadan ikinci konteyner açmak, kesintiyi azaltmak yerine OOM ile
+  kesinti YARATIR.
+
+VERİTABANI
+  gserp kendi DB konteynerini çalıştırmıyor; `shared-db` (external) ağı üzerinden
+  paylaşımlı `postgres:16` konteynerine bağlanıyor (jdbc:postgresql://postgres:5432/gserp_db).
+  Bu ağda 10 konteyner var. İkinci gserp örneği aynı şemayı paylaşacağı için
+  mavi/yeşil geçişte iki sürümün AYNI şemaya yazacağı unutulmamalı:
+  şema göçleri geriye dönük uyumlu olmak zorunda.
+
+PORT
+  gserp-app compose'da `container_name: gserp-app` ve sabit `127.0.0.1:8989:8989`
+  ile tanımlı. İkinci örnek için İKİSİ DE kaldırılmalı; aksi halde compose
+  isim/port çakışmasından ikinci servisi ayağa kaldıramaz.

@@ -200,8 +200,36 @@ class UiPageRenderIT {
                 .andReturn().getResponse().getContentAsString();
     }
 
+    /**
+     * {@code /booking} kanonik adrese düzeltilmeli.
+     *
+     * <p>Sayfa bu adreste çiziliyordu ve adres çubuğunda {@code /booking} kalıyordu:
+     * KVKK metni ya da müşteri girişi gibi bir ara sayfadan dönen ziyaretçi
+     * işletmesiz bir adrese düşüyor, o adresi yeniden açtığında "işletme seçilmedi"
+     * görüyordu.
+     */
+    @org.junit.jupiter.api.Test
+    @DisplayName("/booking kiracı çözülebiliyorsa /{slug} adresine yönlendirir")
+    void bookingRedirectsToCanonicalSlug() throws Exception {
+        mockMvc.perform(get("/booking").header("X-Salon-Slug", slug))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .status().is3xxRedirection())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .redirectedUrl("/" + slug));
+    }
+
+    /** İşletme hiç belirtilmemişse yönlendirecek adres yok: bilgilendirme sayfası kalır. */
+    @org.junit.jupiter.api.Test
+    @DisplayName("/booking işletmesiz çağrıldığında bilgilendirme sayfası döner")
+    void bookingWithoutTenantRendersInfoPage() throws Exception {
+        MvcResult result = mockMvc.perform(get("/booking")).andReturn();
+
+        assertThat(result.getResponse().getStatus()).isEqualTo(200);
+        assertThat(result.getResponse().getContentAsString()).contains("<html");
+    }
+
     @ParameterizedTest(name = "{0} herkese açık olarak render edilir")
-    @CsvSource({"/login", "/booking", "/privacy", "/customer/login", "/customer/register", "/onboarding/wizard"})
+    @CsvSource({"/login", "/privacy", "/customer/login", "/customer/register", "/onboarding/wizard"})
     void publicPagesRender(String path) throws Exception {
         MvcResult result = mockMvc.perform(get(path).header("X-Salon-Slug", slug)).andReturn();
 
