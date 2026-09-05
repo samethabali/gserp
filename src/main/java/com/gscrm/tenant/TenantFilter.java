@@ -124,6 +124,10 @@ public class TenantFilter extends OncePerRequestFilter {
             salon = resolvePublicSelection(request);
         }
 
+        if (salon == null && explicitSlug == null) {
+            salon = adoptDefaultTenantForPlatformAdmin(request);
+        }
+
         if (salon == null) {
             if ("/booking".equals(path) && explicitSlug == null) {
                 filterChain.doFilter(request, response);
@@ -185,6 +189,35 @@ public class TenantFilter extends OncePerRequestFilter {
         return null;
     }
 
+    /**
+     * Kiracısı olmayan platform yöneticisine varsayılan bir işletme benimsetir.
+     *
+     * <p>Bu rol {@code salon_id = NULL} ile seed ediliyor (V34). Takvim, dashboard ve
+     * org özeti kiracıya bağlı sayfalar olduğu için hiçbiri çözümlenemiyor, istek de
+     * {@code /login}'e yönleniyordu: oturum açık olduğu hâlde kullanıcı kendini giriş
+     * ekranında buluyor, çıkış yaptırılmış sanıyordu. Aynı şey oturumdaki işletme
+     * sonradan askıya alındığında da oluyordu.
+     *
+     * <p>Seçim oturuma yazılır; yönetici kenar çubuğundaki şube seçicisiyle
+     * dilediği işletmeye geçebilir.
+     */
+    private Salon adoptDefaultTenantForPlatformAdmin(HttpServletRequest request) {
+        if (!isPlatformAdminSession(request)) {
+            return null;
+        }
+        Salon salon = salonRepository.findFirstByActiveTrueOrderByIdAsc().orElse(null);
+        if (salon != null) {
+            request.getSession().setAttribute(TenantContext.SESSION_AUTH_SALON_ID, salon.getId());
+        }
+        return salon;
+    }
+
+    private boolean isPlatformAdminSession(HttpServletRequest request) {
+        HttpSession session = request.getSession(false);
+        return session != null
+                && Boolean.TRUE.equals(session.getAttribute(TenantContext.SESSION_PLATFORM_ADMIN));
+    }
+
     private Salon resolvePublicSelection(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
         if (session == null) {
@@ -211,6 +244,12 @@ public class TenantFilter extends OncePerRequestFilter {
         }
         if (path.startsWith("/b/") || PublicBookingPath.isPublicRootPath(path)) {
             response.sendRedirect("/booking");
+            return;
+        }
+        // Aktif tek bir işletme bile yoksa platform yöneticisini girişe atmak yanlış
+        // sinyal verir: oturumu geçerli, yalnızca gösterilecek kiracı yok.
+        if (isPlatformAdminSession(request)) {
+            response.sendRedirect("/platform/tenants");
             return;
         }
         response.sendRedirect("/login");

@@ -14,6 +14,17 @@ public interface SalonRepository extends JpaRepository<Salon, Long> {
     List<Salon> findByOrganizationIdAndActiveTrue(Long organizationId);
 
     /**
+     * Platform yöneticisinin işletme listesi.
+     *
+     * <p>Bu rol hiçbir organizasyona bağlı değildir; şube seçicisi ona
+     * organizasyonun değil, platformdaki tüm aktif işletmelerin listesini verir.
+     */
+    List<Salon> findByActiveTrueOrderByIdAsc();
+
+    /** Kiracı bağlamı olmayan platform yöneticisine benimsetilecek varsayılan işletme. */
+    Optional<Salon> findFirstByActiveTrueOrderByIdAsc();
+
+    /**
      * Slug çakışma kontrolü aktiflikten bağımsız olmalı.
      *
      * <p>Kontrol {@code findBySlugAndActiveTrue} ile yapılırken askıya alınmış bir

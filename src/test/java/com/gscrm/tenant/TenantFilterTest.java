@@ -7,12 +7,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -83,6 +85,30 @@ class TenantFilterTest {
         mockMvc.perform(get("/api/settings/public")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk());
+    }
+
+    /**
+     * Platform yöneticisi hiçbir salona bağlı değil (V34 salon_id'yi bu rol için
+     * NULL bırakıyor). Takvim/dashboard gibi kiracıya bağlı sayfalarda istek
+     * çözümlenemeyip {@code /login}'e yönleniyordu: oturum açıkken kullanıcı
+     * kendini giriş ekranında buluyordu.
+     */
+    @Test
+    void platformAdminWithoutSalonAdoptsDefaultTenantInsteadOfLoginRedirect() throws Exception {
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute(TenantContext.SESSION_PLATFORM_ADMIN, Boolean.TRUE);
+
+        mockMvc.perform(get("/api/settings/public").session(session))
+                .andExpect(status().isOk());
+
+        assertThat(session.getAttribute(TenantContext.SESSION_AUTH_SALON_ID)).isNotNull();
+    }
+
+    /** İşaret yoksa davranış değişmemeli: kiracısız API isteği hâlâ 400. */
+    @Test
+    void sessionWithoutPlatformMarkerStillFailsTenantResolution() throws Exception {
+        mockMvc.perform(get("/api/settings/public").session(new MockHttpSession()))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

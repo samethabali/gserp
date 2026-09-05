@@ -3,6 +3,7 @@ package com.gscrm.controller;
 import com.gscrm.dto.response.ApiResponse;
 import com.gscrm.dto.response.OrgSummaryResponse;
 import com.gscrm.model.Salon;
+import com.gscrm.model.enums.UserRole;
 import com.gscrm.security.AuthenticatedUser;
 import com.gscrm.security.BranchScopeService;
 import com.gscrm.security.StaffScopeService;
@@ -32,9 +33,20 @@ public class OrganizationController {
     private final DashboardService dashboardService;
     private final com.gscrm.security.JwtService jwtService;
 
+    /**
+     * Kenar çubuğundaki şube seçicisinin listesi.
+     *
+     * <p>Platform yöneticisi tek bir organizasyona bağlı değildir; ona kendi
+     * kaydındaki organizasyonun şubelerini göstermek yanlış (çoğu zaman da boş)
+     * bir liste üretiyordu. Bu rolde seçici, platformdaki tüm aktif işletmeleri
+     * listeler — kiracıya bağlı sayfalara geçebilmesinin tek yolu bu.
+     */
     @GetMapping("/salons")
     public ResponseEntity<ApiResponse<List<Salon>>> listSalons() {
         AuthenticatedUser user = staffScopeService.requireAuthenticatedUser();
+        if (user.getRole() == UserRole.PLATFORM_ADMIN) {
+            return ResponseEntity.ok(ApiResponse.ok(salonRepository.findByActiveTrueOrderByIdAsc()));
+        }
         Long orgId = requireOrganizationId(user);
         return ResponseEntity.ok(ApiResponse.ok(
                 salonRepository.findByOrganizationIdAndActiveTrue(orgId)));

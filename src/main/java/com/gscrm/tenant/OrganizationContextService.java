@@ -1,6 +1,7 @@
 package com.gscrm.tenant;
 
 import com.gscrm.model.Salon;
+import com.gscrm.model.enums.UserRole;
 import com.gscrm.repository.SalonRepository;
 import com.gscrm.security.AuthenticatedUser;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +14,13 @@ public class OrganizationContextService {
     private final SalonRepository salonRepository;
 
     public Long resolveOrganizationId(AuthenticatedUser user) {
+        // Platform yöneticisi işletmeler arasında geziyor: belirleyici olan kendi
+        // kaydındaki organizasyon değil, o an seçili kiracıdır. Aksi hâlde şube
+        // seçicisiyle başka bir işletmeye geçtiğinde org özeti eski organizasyonu
+        // göstermeye devam ediyordu.
+        if (user != null && user.getRole() == UserRole.PLATFORM_ADMIN && TenantContext.getOrgId() != null) {
+            return TenantContext.getOrgId();
+        }
         if (user != null && user.getOrganizationId() != null) {
             return user.getOrganizationId();
         }

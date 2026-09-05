@@ -14,6 +14,16 @@ public final class TenantContext {
      */
     public static final String SESSION_PUBLIC_SALON_ID = "GSCRM_PUBLIC_SALON_ID";
 
+    /**
+     * Oturumun bir platform yöneticisine ait olduğunu belirtir.
+     *
+     * <p>Kiracı çözümlemesi Spring Security'den önce çalıştığı için o noktada
+     * {@code SecurityContextHolder} henüz boştur; rolü öğrenmenin tek yolu girişte
+     * oturuma bırakılan bu işarettir. Platform yöneticisi hiçbir salona bağlı
+     * olmayabilir ve o durumda kiracıya bağlı sayfalar çözümlenemez.
+     */
+    public static final String SESSION_PLATFORM_ADMIN = "GSCRM_PLATFORM_ADMIN";
+
     private static final ThreadLocal<Long> salonId = new ThreadLocal<>();
     private static final ThreadLocal<Long> orgId = new ThreadLocal<>();
     private static final ThreadLocal<String> slug = new ThreadLocal<>();

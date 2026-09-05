@@ -2,6 +2,7 @@ package com.gscrm.security;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import com.gscrm.model.enums.UserRole;
 import com.gscrm.tenant.TenantContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -91,12 +92,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      * yani salt-API çağrıları boşuna oturum açmaz.
      */
     private void rememberTenant(HttpServletRequest request, UserDetails userDetails) {
-        if (!(userDetails instanceof AuthenticatedUser user) || user.getSalonId() == null) {
+        if (!(userDetails instanceof AuthenticatedUser user)) {
             return;
         }
         HttpSession session = request.getSession(false);
-        if (session != null) {
+        if (session == null) {
+            return;
+        }
+        if (user.getSalonId() != null) {
             session.setAttribute(TenantContext.SESSION_AUTH_SALON_ID, user.getSalonId());
+        }
+        if (user.getRole() == UserRole.PLATFORM_ADMIN) {
+            session.setAttribute(TenantContext.SESSION_PLATFORM_ADMIN, Boolean.TRUE);
         }
     }
 }

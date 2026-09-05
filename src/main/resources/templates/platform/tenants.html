@@ -618,8 +618,12 @@ loadTenants();
 loadInvites();
 </script>
 
-<!-- İşletme Detay Modalı -->
-<div class="modal-overlay" id="tenantDetailModal" style="display:none;">
+<!-- İşletme Detay Modalı.
+     Satır içi display:none KULLANMAYIN: modal openModal() ile, yani .active
+     sınıfıyla açılıyor ve satır içi stil o sınıfın display:flex kuralını eziyor —
+     "Detay" düğmesi veriyi çekiyor ama ekranda hiçbir şey olmuyordu. Gizleme
+     zaten .modal-overlay kuralında. -->
+<div class="modal-overlay" id="tenantDetailModal">
     <div class="modal" style="max-width:880px;max-height:85vh;overflow-y:auto;">
         <div class="modal-header">
             <h3 id="tdModalTitle">İşletme Detayı</h3>

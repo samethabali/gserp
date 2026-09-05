@@ -1,8 +1,10 @@
 package com.gscrm.security;
 
+import com.gscrm.model.enums.UserRole;
 import com.gscrm.tenant.TenantContext;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
@@ -35,8 +37,15 @@ public class MustChangePasswordSuccessHandler extends SimpleUrlAuthenticationSuc
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
                                         Authentication authentication) throws IOException, jakarta.servlet.ServletException {
         if (authentication.getPrincipal() instanceof AuthenticatedUser user) {
+            HttpSession session = request.getSession(true);
             if (user.getSalonId() != null) {
-                request.getSession(true).setAttribute(TenantContext.SESSION_AUTH_SALON_ID, user.getSalonId());
+                session.setAttribute(TenantContext.SESSION_AUTH_SALON_ID, user.getSalonId());
+            }
+            // Platform yöneticisi salona bağlı olmayabilir. Kiracı çözümlemesi Spring
+            // Security'den önce çalıştığı için rolü oradan okuyamaz; işareti burada
+            // bırakıyoruz ki TenantFilter ona bir işletme benimsetebilsin.
+            if (user.getRole() == UserRole.PLATFORM_ADMIN) {
+                session.setAttribute(TenantContext.SESSION_PLATFORM_ADMIN, Boolean.TRUE);
             }
             authEventLogger.loginSucceeded(request, user);
             String target = onboardingRedirectService.determinePostLoginUrl(user);
