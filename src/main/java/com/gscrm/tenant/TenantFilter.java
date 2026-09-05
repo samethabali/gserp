@@ -66,6 +66,12 @@ public class TenantFilter extends OncePerRequestFilter {
             "/logout",
             "/error",
             "/favicon.ico",
+            // KVKK aydınlatma metni hiçbir kiracıya ait değil ve herkese açık olmak
+            // zorunda. Listede olmadığı için oturumunda salon bulunmayan bir ziyaretçi
+            // — adresi doğrudan açan ya da paylaşılan bağlantıya tıklayan biri —
+            // metni göremeyip /login'e atılıyordu. Güvenlik yapılandırması yolu zaten
+            // permitAll bırakmıştı; engel buradaydı.
+            "/privacy",
             "/onboarding/wizard");
 
     /**
