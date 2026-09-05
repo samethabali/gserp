@@ -4,6 +4,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -43,6 +44,18 @@ public class RateLimitFilter extends OncePerRequestFilter {
     /** Doğrulama kodu üretimi/denemesi genel randevu yazma sınırından daha dar olmalı. */
     private static final int OTP_START_LIMIT_PER_MINUTE = 3;
     private static final int OTP_CONFIRM_LIMIT_PER_MINUTE = 6;
+    /**
+     * Diğer tüm API uçları için genel taban.
+     *
+     * <p>Kimliği doğrulanmış hiçbir uçta sınır yoktu: ele geçirilmiş bir oturum ya da
+     * kaçak bir istemci döngüsü, 2 vCPU'lu ve on iki konteyner paylaşan makineyi
+     * doğrultabilirdi.
+     *
+     * <p>Değer bilerek yüksek: dakikada 300 istek, saniyede beşe denk geliyor. Yoğun
+     * bir resepsiyonistin takvimi çevirip randevu açması bunun çok altında kalır —
+     * amaç kullanıcıyı yavaşlatmak değil, kaçak döngüyü durdurmak.
+     */
+    private static final int API_LIMIT_PER_MINUTE = 300;
 
     private static final long WINDOW_MILLIS = 60_000L;
 
@@ -122,7 +135,17 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (uri.startsWith("/api/booking")) {
             return isPost ? BOOKING_WRITE_LIMIT_PER_MINUTE : BOOKING_READ_LIMIT_PER_MINUTE;
         }
+        // Yukarıdakilerin dışında kalan her API ucu genel tabana tabi.
+        if (uri.startsWith("/api/")) {
+            return API_LIMIT_PER_MINUTE;
+        }
         return 0;
+    }
+
+    /** Genel taban mı, uca özel dar sınır mı? Kova anahtarı buna göre kuruluyor. */
+    private boolean isGeneralApiBucket(HttpServletRequest request) {
+        return limitFor(request) == API_LIMIT_PER_MINUTE
+                && request.getRequestURI().startsWith("/api/");
     }
 
     /**
@@ -132,6 +155,20 @@ public class RateLimitFilter extends OncePerRequestFilter {
      * hedefleyen deneme, o IP'nin diğer trafiğini etkilemeden ayrı sayılır.
      */
     private String bucketKey(HttpServletRequest request) {
+        // Genel taban tek bir bütçe olmalı: URI başına ayrı sayılsaydı, üç yüz farklı
+        // uca giden bir döngü hiçbir sınıra takılmazdı.
+        //
+        // Kimlik yerine oturum kullanılıyor çünkü bu filtre Spring Security'den ÖNCE
+        // çalışıyor ve SecurityContext henüz dolu değil. Oturum, aynı salonda aynı
+        // ofis IP'sinden çalışan personeli birbirinden ayırmaya yetiyor — IP'ye
+        // dayansaydı beş kişilik bir ekip tek kovayı paylaşır ve normal kullanımda
+        // birbirini kilitlerdi.
+        if (isGeneralApiBucket(request)) {
+            HttpSession session = request.getSession(false);
+            String client = session != null ? "s:" + session.getId()
+                    : "i:" + clientIpResolver.resolve(request);
+            return "api|" + client;
+        }
         String salon = com.gscrm.tenant.TenantContext.getSlug();
         if (salon == null || salon.isBlank()) {
             salon = request.getHeader("X-Salon-Slug");

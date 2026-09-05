@@ -26,8 +26,10 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -601,17 +603,14 @@ public class AppointmentService {
         List<Appointment> appointments = staffIdFilter != null
                 ? appointmentRepository.findBySalonIdAndStaffIdAndStartTimeBetween(salonId, staffIdFilter, start, end)
                 : appointmentRepository.findBySalonIdAndStartTimeBetween(salonId, start, end);
-        return appointments.stream()
+        return toResponses(appointments.stream()
                 .sorted((a, b) -> a.getStartTime().compareTo(b.getStartTime()))
-                .map(this::toResponse)
-                .toList();
+                .toList(), salonId);
     }
 
     public List<AppointmentResponse> getAll() {
         Long salonId = TenantContext.requireSalonId();
-        return appointmentRepository.findBySalonId(salonId).stream()
-                .map(this::toResponse)
-                .toList();
+        return toResponses(appointmentRepository.findBySalonId(salonId), salonId);
     }
 
     /**
@@ -621,11 +620,11 @@ public class AppointmentService {
         Long salonId = TenantContext.requireSalonId();
         String normalized = PhoneNormalizer.normalizeOrNull(phone);
         if (normalized == null) return List.of();
-        return appointmentRepository
+        List<Appointment> history = appointmentRepository
                 .findBySalonIdAndCustomerPhoneNormalizedOrderByStartTimeDesc(salonId, normalized).stream()
                 .limit(10)
-                .map(this::toResponse)
                 .toList();
+        return toResponses(history, salonId);
     }
 
     public AppointmentResponse toResponse(Appointment a) {
@@ -636,7 +635,37 @@ public class AppointmentService {
         ServiceDefinition service = salonId != null
                 ? serviceRepository.findByIdAndSalonId(a.getServiceId(), salonId).orElse(null)
                 : serviceRepository.findById(a.getServiceId()).orElse(null);
+        return build(a, staff, service);
+    }
 
+    /**
+     * Listeleri tek sorgu çiftiyle dönüştürür.
+     *
+     * <p>{@link #toResponse} her randevu için personel ve hizmeti ayrı ayrı
+     * sorguluyor: bir günde 40 randevu 81 sorgu demek. Üstelik bunlar türetilmiş
+     * sorgu olduğu için Hibernate'in birinci seviye önbelleğini de kullanmıyor,
+     * aynı personel için bile her seferinde SQL gidiyor. Paylaşımlı veritabanı ve
+     * 10 bağlantılık havuzla bu, takvimin açılışta takılmasının doğrudan sebebi.
+     *
+     * <p>Bir salonun personeli ve hizmet menüsü küçük olduğu için hepsini bir kez
+     * çekip bellekten eşleştirmek, sorgu sayısını randevu adedinden bağımsız
+     * kılıyor: 1 + 2.
+     */
+    private List<AppointmentResponse> toResponses(List<Appointment> appointments, Long salonId) {
+        if (appointments.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, Staff> staffById = staffRepository.findBySalonId(salonId).stream()
+                .collect(Collectors.toMap(Staff::getId, java.util.function.Function.identity(), (x, y) -> x));
+        Map<Long, ServiceDefinition> serviceById = serviceRepository.findBySalonId(salonId).stream()
+                .collect(Collectors.toMap(ServiceDefinition::getId, java.util.function.Function.identity(), (x, y) -> x));
+
+        return appointments.stream()
+                .map(a -> build(a, staffById.get(a.getStaffId()), serviceById.get(a.getServiceId())))
+                .toList();
+    }
+
+    private AppointmentResponse build(Appointment a, Staff staff, ServiceDefinition service) {
         return AppointmentResponse.builder()
                 .id(a.getId())
                 .salonId(a.getSalonId())
