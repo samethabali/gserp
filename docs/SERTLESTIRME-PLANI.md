@@ -1,11 +1,29 @@
 # Sertleştirme planı — güvenlik, yük ve kriz hazırlığı
 
-**Tarih:** 2026-09-05
+**Tarih:** 2026-09-05 — *son güncelleme: aynı gün, gece*
 **Kapsam:** Pilot müşteriler sisteme girmeden önce kapatılması gereken açıklar ve
 kriz anında elimizde olması gereken şeyler.
 
 Aşağıdakiler tahmin değil; her madde kodda veya üretimde doğrulandı. Doğrulandığı
 yer madde içinde yazıyor.
+
+## Durum özeti
+
+| # | Madde | Durum |
+|---|---|---|
+| A1 | Çıktı kaçışı (XSS) | ✅ Bitti — canlıda |
+| A2 | Yetki matrisi testi | ✅ Bitti — 121 test, canlıda |
+| A3 | Hız sınırı kapsamı | ✅ Bitti + ziyaretçi bazlı kova düzeltmesi |
+| A4 | Dependabot / CodeQL | ✅ Kullanıcı açtı |
+| B1 | Yük testi | ✅ Bitti — [yuk-testi-sonuclari.md](yuk-testi-sonuclari.md) |
+| B2 | Bellek limiti doğrulaması | ⏳ SSH görevi #3, İş 4 |
+| B3 | İndeks ve sorgu kontrolü | ✅ Bitti — B1 kapsamında |
+| C1 | İzleme / uyarı | ⛔ Kullanıcı şimdilik istemedi |
+| C2 | Geri yükleme provası | ⏳ SSH görevi #3, İş 1 |
+| C3 | Olay kılavuzu | ✅ Bitti — [olay-kilavuzu.md](olay-kilavuzu.md) |
+
+Ayrıca planda olmayan, ölçüm sırasında çıkan bir bulgu düzeltildi: statik
+dosyalar hiç önbelleklenmiyordu (bkz. B1 sonuçları).
 
 ---
 
