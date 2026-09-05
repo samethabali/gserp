@@ -69,7 +69,7 @@ async function loadKPIs() {
                         <strong>${formatCurrency(s.revenue)}</strong>
                     </div>
                     <div style="display:flex;justify-content:space-between;font-size:0.85rem;">
-                        <span style="color:var(--text-secondary);">No-Show:</span>
+                        <span style="color:var(--text-secondary);">Gelmeyen:</span>
                         <strong style="color:var(--color-danger)">${s.noShows}</strong>
                     </div>
                     <div style="margin-top:10px;height:5px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;">
