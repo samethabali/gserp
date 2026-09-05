@@ -124,14 +124,16 @@ Doğrudan canlının üstüne geri yükleme, sorunu büyütmenin en hızlı yolu
 ```bash
 # Gerçek sunucu süresi: bağlantı kurulumunu dışarıda bırakmak için aynı
 # bağlantıda birkaç istek at. İlk istek her zaman yavaştır (DNS + TLS).
-curl -sS -o /dev/null -w "%{time_starttransfer}\n" \
-     https://gscrm.avesitesi.xyz/actuator/health \
-     https://gscrm.avesitesi.xyz/actuator/health \
-     https://gscrm.avesitesi.xyz/actuator/health
+# Her URL için ayrı bir -o gerekiyor, yoksa gövdeler ekrana dökülür.
+curl -sS -w "%{time_starttransfer}\n" \
+     -o /dev/null https://gscrm.avesitesi.xyz/actuator/health \
+     -o /dev/null https://gscrm.avesitesi.xyz/actuator/health \
+     -o /dev/null https://gscrm.avesitesi.xyz/actuator/health
 ```
 
-İkinci ve üçüncü istek ~250 ms civarındaysa sunucu normal çalışıyor demektir
-(bunun ~180 ms'i Türkiye–Frankfurt gidiş-dönüş süresi).
+**Son** istek ~250 ms civarındaysa sunucu normal çalışıyor demektir (bunun
+~180 ms'i Türkiye–Frankfurt gidiş-dönüş süresi). İlk istek bağlantı kurulumunu
+da içerdiği için 1,5 saniyeye kadar çıkabilir; bu normaldir.
 
 **Statik dosyalar Cloudflare önbelleğinden geliyor mu?**
 
