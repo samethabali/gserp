@@ -29,6 +29,7 @@
 | [docs/sunucu/nginx-gscrm.conf](sunucu/nginx-gscrm.conf) | `sites-available/gscrm` + `sites-available/gserp` (eski alan adı yönlendirmesi) |
 | [docs/sunucu/kaynak-durumu.txt](sunucu/kaynak-durumu.txt) | RAM / disk / konteyner / imaj çıktıları + ikinci konteyner değerlendirmesi |
 | [docs/sunucu/docker-compose.deploy-env.yml](sunucu/docker-compose.deploy-env.yml) | Planda yoktu; §4'te açıklandı. Referans kopya — CI bunu her deploy'da yeniden üretir |
+| [docs/sunucu/envanter.txt](sunucu/envanter.txt) | Planda yoktu; sunucunun tam envanteri — donanım, 12 konteynerin RAM/CPU payı, disk kırılımı, 17 nginx bloğu, veritabanları, yedekleme durumu, ölçülemeyenler |
 
 **Maskeleme:** Gerek duyulmadı. `docker-compose.prod.yml` içinde düz metin parola/secret **yok**; hepsi `${DB_PASSWORD:?...}`, `${JWT_SECRET:?...}` biçiminde `.env` referansı. Dosyalar olduğu gibi aktarıldı.
 
@@ -251,6 +252,9 @@ Görev dosyasındaki beklentiler doğrulandı, üç de ek not:
 
 ## 7. Ek gözlemler (görevde istenmedi, kayda değer)
 
+- 🔴 **gserp veritabanının hiçbir yedeği bulunamadı.** `emre` ve `gserp` crontab'ları boş, `/etc/cron.d`'de yalnızca `e2scrub_all` ve `sysstat` var, disk genelinde (`*backup*`, `*.dump`, `*.sql.gz`) gserp'e ait tek bir dump yok — sadece başka projelere ait olanlar. [docs/deploy-vps.md](deploy-vps.md) bir backup cron'u tarif ediyor ama kurulmamış. Pilot müşteriler canlıyken `gserp_db` (13 MB) yedeksiz görünüyor. *Kısıt: root'un crontab'ı okunamadı (sudo parola istiyor), oraya konmuş bir iş tamamen elenemez — ama çıktı dosyası da yok.* Ayrıntı: [envanter.txt §8](sunucu/envanter.txt)
+- **6 nginx sitesi ölü:** `kaptan`, `tos`, `chess`, `kart`, `file`, `balatro` blokları tanımlı ama arkalarındaki 5002/5003/5004/5005/5008 portlarının hiçbiri dinlenmiyor — ziyaretçi 502 alır. Öksüz volume'leri hâlâ diskte (`yahyakaptan_pgdata` 113.7 MB bir **veritabanı**, `docker volume prune` ile silinirse veri kaybı olur).
+- **Log rotasyonu iki yerde birden eksik:** `/var/log/journal` 209 MB (journald sınırsız) ve Docker `json-file` sürücüsü `LogOpts={}` ile. %84 dolu diskte sessizce ilerleyen risk.
 - **Healthcheck compose'da değil, Dockerfile'da.** `docker-compose.prod.yml` içinde `healthcheck:` yok; konteynerde görünen healthcheck [Dockerfile:43](../Dockerfile#L43) satırından geliyor. `deploy.yml`'deki `HAS_HEALTH` kontrolü bu yüzden var. Yeni bir servis eklenirken aynı imaj kullanılacağı için healthcheck kendiliğinden gelir.
 - **Kaynak limiti hiç yok:** `Memory=0`, `NanoCpus=0`, log driver `json-file` **rotasyon ayarı olmadan** (`LogOpts={}`). Sınırsız büyüyen konteyner logları, %84 dolu diskte sessiz bir risk. `max-size`/`max-file` eklenmesi ucuz bir kazanç. Bellek limitinin yokluğunun asıl bedeli §5b'de ölçüldü.
 - **`p2p-bridge-app` `0.0.0.0:5012` üzerinde dinliyor** — diğer 11 konteynerin hepsi `127.0.0.1`'e bağlıyken bu servis dışarıya açık. gserp ile ilgisi yok, ama gözden kaçmış olabilir diye not düşüldü.
@@ -278,8 +282,9 @@ Görev kapsamı gereği **Aşama 0'ın yalnızca veri toplama kısmı** yapıld�
 
 [docs/YAPILACAKLAR.md](YAPILACAKLAR.md) Aşama 0 artık kapatılabilir. Toplanan veriye dayanan öneri sıralaması:
 
+0. 🔴 **Her şeyden önce yedekleme.** 13 MB'lık bir veritabanı için günlük `pg_dump` + rotasyon dakikalar içinde kurulur. Sıfır kesintili deploy çalışmasının anlamı geri dönülebilir bir duruma sahip olmaktan geçiyor; şu an o durum yok.
 1. **Aşama 3'ten ÖNCE `mem_limit` + `MaxRAMPercentage` ayarı** (§5b, somut değerlerle). RAM, iki konteynerin önündeki tek gerçek engel; tek başına ~1 GB → ~500 MB kazanç.
-2. `docker builder prune -f` ile ~3.9 GB geri al (tek başına güvenli, çalışan hiçbir şeye dokunmaz).
+2. `docker builder prune -f` ile ~3.9 GB geri al (tek başına güvenli, çalışan hiçbir şeye dokunmaz). **`docker volume prune` ÇALIŞTIRMA** — öksüz volume'lerin arasında ölü bir sitenin veritabanı var.
 3. Log rotasyonu (`max-size`/`max-file`) ekle.
 4. Aşama 1 (build'i CI'a taşı) — diskin kalıcı çözümü.
 5. Aşama 3'te `container_name` ve sabit port kaldırılacak, `deploy-env.yml` üreten workflow bloğu iki servisi kapsayacak, nginx'te `/` ve `/ws-calendar/` **birlikte** `upstream`'e taşınacak.

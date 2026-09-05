@@ -1,0 +1,320 @@
+Sunucu envanteri — avesitesi
+Alınma tarihi : 2026-09-05
+Alan          : SSH, salt okuma. Sunucuda hiçbir dosya/servis değiştirilmedi.
+Uyarı         : ANLIK GÖRÜNTÜ. Karar vermeden önce tazele.
+İlgili        : kaynak-durumu.txt (gserp odaklı), ../ssh-yapılanlar.md (analiz)
+
+
+===========================================================================
+1. DONANIM VE SISTEM
+===========================================================================
+
+Host          : avesitesi (VMware sanal makine)
+İşletim sist. : Ubuntu 22.04.5 LTS (Jammy Jellyfish), kernel 5.15.0-190-generic
+CPU           : 2 vCPU — Intel(R) Xeon(R) CPU E5-2699 v4 @ 2.20GHz
+                (1 soket / 2 çekirdek / çekirdek başına 1 thread)
+RAM           : 2.9 GB (2968 MB) + 2.0 GB swap
+Disk          : 30 GB, tek bölüm /dev/sda2, tamamı "/" altında
+Uptime        : 12 gün 2 saat
+Yük ortalaması: 0.22 / 0.19 / 0.29  -> 2 çekirdekte ~%11, pratikte boşta
+Süreç sayısı  : 637
+
+CPU HİÇBİR ŞEKİLDE DARBOĞAZ DEĞİL. Tüm konteynerlerin anlık CPU toplamı ~%2.4.
+
+
+===========================================================================
+2. RAM DAGILIMI — KONTEYNER BAZINDA
+===========================================================================
+
+  Toplam 2968 MB | kullanılan 1576 MB | boş 152 MB | buff/cache 1239 MB
+  Gerçekten müsait: 1156 MB
+  SWAP: 2047 MB'ın 1109 MB'ı KULLANIMDA  <- makine RAM baskısı altında
+
+  KONTEYNER            RAM        LIMIT        PAY
+  -------------------------------------------------------------------
+  gserp-app            994.7 MiB  YOK          %75   <-- baskın kalem
+  analytics_app         66.6 MiB  YOK          %5
+  postgres              51.8 MiB  YOK          %4
+  mindmap-app           36.3 MiB  YOK          %2.7
+  sporkreatin-app       35.6 MiB  YOK          %2.7
+  projectplanner-app    35.6 MiB  YOK          %2.7
+  anatolia-postgis      32.3 MiB  1.17 GiB     %2.4
+  anatolia-app          28.4 MiB  600 MiB      %2.1
+  web_parfum_app        20.9 MiB  YOK          %1.6
+  maps_scan-app         19.2 MiB  YOK          %1.4
+  p2p-bridge-app         6.6 MiB  YOK          %0.5
+  wireguard-hub          4.2 MiB  YOK          %0.3
+  -------------------------------------------------------------------
+  Konteyner toplamı   ~1.30 GiB
+
+  Host tarafı ek ~245 MB: dockerd 81 MB, containerd 36 MB,
+  systemd-journald 32 MB, multipathd 27 MB, snapd 23 MB, fail2ban 21 MB.
+
+  12 konteynerin 10'unda bellek limiti YOK. Limiti olan tek iki servis
+  anatolia ikilisi.
+
+  gserp-app'in neden ~1 GB kullandığı ölçüldü: ../ssh-yapılanlar.md §5b
+  Özet: sızıntı değil — konteynerde limit olmadığı için JVM host'un 2.9 GB'ını
+  kendi bütçesi sanıyor, heap tavanı 2.18 GB oluyor ve G1 büyüyen heap'i
+  geri vermiyor (G1PeriodicGCInterval=0).
+
+
+===========================================================================
+3. DISK — 24 GB KULLANIMDA / 30 GB (%84)
+===========================================================================
+
+  DOCKER (~15 GB gerçek ayak izi)
+
+    KALEM                          BOYUT      ATIL
+    ----------------------------------------------------
+    İmajlar (13 adet)              9.44 GB    239.9 MB
+    Build cache (59 katman)        4.47 GB    3.937 GB   <-- en büyük atıl
+    Volume'ler (7 adet)            4.31 GB    290 MB
+    Konteyner yazma katmanları     2.3 MB     0
+
+    NOT: Bileşenler tam toplamı vermez; build cache imaj katmanlarıyla kısmen
+    ortak. Diskteki gerçek Docker ayak izi = 24 GB - 9.1 GB (Docker dışı) ≈ 15 GB.
+
+  DOCKER DIŞI (~9.1 GB)
+
+    4.0 GB  /usr            (firmware 1.2 GB, modules 921 MB, dotnet 574 MB)
+    3.0 GB  /snap
+    1.1 GB  /var/lib/snapd
+    968 MB  /home/emre      (bunun 705 MB'ı /home/emre/.claude)
+    300 MB  /var/log
+      4 KB  /home/gserp     (emre okuyamıyor — gerçek boyut ölçülemedi)
+
+  IMAJLAR (SIZE / UNIQUE SIZE / kullanan konteyner)
+
+    anatolia:20260901                1.5 GB   1.413 GB   1
+    anatolia:latest                  1.5 GB   (aynı imaj, ikinci etiket)
+    postgis/postgis:16-3.4           853 MB   852.8 MB   1
+    sporkreatin:latest               874 MB   787 MB     1
+    postgres:16                      641 MB   641.4 MB   1
+    gserp:latest                     542 MB   532.5 MB   1
+    maps_scan:places-errors          508 MB   240 MB     1
+    maps_scan:before-places-errors   508 MB   239.9 MB   0   <-- ATIL
+    maps_scan:latest                 508 MB   (aynı, üçüncü etiket)
+    analytics-web:latest             482 MB   397.1 MB   1
+    projectplanner:latest            429 MB   420.4 MB   1
+    p2p-bridge:latest                408 MB   320.2 MB   1
+    web_parfum-app:latest            369 MB   283.7 MB   1
+    mindmap:latest                   367 MB   357.9 MB   1
+    lscr.io/linuxserver/wireguard    169 MB   169.3 MB   1
+
+  VOLUME'LER (LINKS = bağlı konteyner sayısı)
+
+    anatolia_pgdata                   4.019 GB   1    <-- tüm volume alanının %93'ü
+    filetransfer-clamav-db            176.2 MB   0    ÖKSÜZ
+    yahyakaptan_pgdata                113.7 MB   0    ÖKSÜZ (bir VERİTABANI)
+    gserp_gserp-app-logs              228.7 kB   1
+    filetransfer-minio-data           49.11 kB   0    ÖKSÜZ
+    analytics-deploy_analytics_state        6 B  1
+    balatro-data                            0 B  0    ÖKSÜZ
+
+  GERİ KAZANILABİLİR ALAN
+
+    docker builder prune -f      ~3.94 GB   GÜVENLİ, çalışana dokunmaz
+    dangling imajlar             ~240 MB    GÜVENLİ
+    öksüz volume'ler             ~290 MB    DİKKAT — aşağıdaki nota bak
+    ----------------------------------------
+    TOPLAM                       ~4.47 GB
+
+    !! yahyakaptan_pgdata (113.7 MB) ölü bir sitenin POSTGRES VERİSİ.
+       `docker volume prune` bunu da siler = VERİ KAYBI.
+       Öksüz volume'lere dokunmadan önce sahibine sor.
+
+
+===========================================================================
+4. VERITABANLARI
+===========================================================================
+
+  Paylaşımlı `postgres:16` konteyneri (shared-db ağı):
+
+    analytics_db          50 MB
+    web_parfum            32 MB
+    gserp_db              13 MB   <-- GSCRM üretim verisi
+    mindmap_db          8639 kB
+    projectplanner_db   8431 kB
+    sporkreatin_db      8183 kB
+    filetransfer_db     7977 kB   (sitesi kapalı, verisi duruyor)
+    postgres            7519 kB
+
+  Ayrıca ayrı bir `anatolia-postgis` konteyneri (4 GB'lık anatolia_pgdata volume'ü
+  buna ait; yukarıdaki listede yer almaz).
+
+
+===========================================================================
+5. YAYINDAKI SITELER — 17 NGINX BLOGU
+===========================================================================
+
+  DOSYA              ALAN ADI                  HEDEF                 DURUM
+  ---------------------------------------------------------------------------
+  gscrm              gscrm.avesitesi.xyz       127.0.0.1:8989        ÇALIŞIYOR
+  gserp              gserp.avesitesi.xyz       301 -> gscrm          ÇALIŞIYOR
+  avesitesi          avesitesi.xyz + www       /var/www/...-landing  ÇALIŞIYOR
+  analytics          analytics.avesitesi.xyz   127.0.0.1:5007        ÇALIŞIYOR
+  anatolia           anatolia.avesitesi.xyz    127.0.0.1:5011        ÇALIŞIYOR
+  mindmap            mind.avesitesi.xyz        127.0.0.1:5010        ÇALIŞIYOR
+  projectplanner     plan.avesitesi.xyz        127.0.0.1:5009        ÇALIŞIYOR
+  p2p_bridge         pipe.avesitesi.xyz        127.0.0.1:5012        ÇALIŞIYOR
+  parfum             parfum.avesitesi.xyz      127.0.0.1:5000        ÇALIŞIYOR
+  scan.avesitesi.xyz scan.avesitesi.xyz        127.0.0.1:5006        ÇALIŞIYOR
+  sporkreatin        tracker.avesitesi.xyz     127.0.0.1:5001        ÇALIŞIYOR
+  ---------------------------------------------------------------------------
+  kaptan             kaptan.avesitesi.xyz      127.0.0.1:5002        !! ÖLÜ
+  tos                tos.avesitesi.xyz         127.0.0.1:5002        !! ÖLÜ
+  chess_bot          chess.avesitesi.xyz       127.0.0.1:5003        !! ÖLÜ
+  kart_oyunu         kart.avesitesi.xyz        127.0.0.1:5004        !! ÖLÜ
+  filetransfer       file.avesitesi.xyz        127.0.0.1:5005        !! ÖLÜ
+  balatro            balatro.avesitesi.xyz     127.0.0.1:5008        !! ÖLÜ
+
+  6 SITE NGINX'TE TANIMLI AMA ARKASINDA DINLEYEN HIÇBIR ŞEY YOK.
+  5002/5003/5004/5005/5008 portlarının hiçbiri açık değil -> ziyaretçi 502 alır.
+  Bu sitelerin öksüz volume'leri hâlâ diskte duruyor (bkz. §3).
+
+  TLS: 17 site bloğunun 17'si de Cloudflare Origin sertifikasını kullanıyor
+       (/etc/ssl/cloudflare/origin-cert.pem). certbot snap olarak KURULU ama
+       /etc/letsencrypt/live/ HİÇ YOK -> kullanılmıyor.
+
+  NOT: sites-enabled/parfum sembolik bağ değil, doğrudan dosya. Ayrıca içeriği
+       CRLF satır sonlu (diğerleri LF). nginx tolere ediyor, sorun çıkarmıyor.
+
+
+===========================================================================
+6. AG — DINLENEN PORTLAR
+===========================================================================
+
+  DIŞA AÇIK
+    0.0.0.0:22     SSH
+    0.0.0.0:80     nginx
+    0.0.0.0:443    nginx
+    0.0.0.0:5012   p2p-bridge-app   <-- TEK dışa açık uygulama konteyneri
+
+  SADECE LOCALHOST
+    127.0.0.1:5000  web_parfum_app
+    127.0.0.1:5001  sporkreatin-app
+    127.0.0.1:5006  maps_scan-app
+    127.0.0.1:5007  analytics_app
+    127.0.0.1:5009  projectplanner-app
+    127.0.0.1:5010  mindmap-app
+    127.0.0.1:5011  anatolia-app
+    127.0.0.1:8989  gserp-app
+    127.0.0.53:53   systemd-resolved
+
+  Docker iç ağı `shared-db` (172.18.0.0/16): 10 konteyner
+    analytics_app .3, anatolia-app .4, maps_scan-app .5, postgres .6,
+    mindmap-app .7, sporkreatin-app .8, projectplanner-app .9,
+    web_parfum_app .10, gserp-app .11, anatolia-postgis .2
+
+  p2p-bridge-app dışındaki tüm uygulama portları localhost'a bağlı — doğru kurulum.
+
+
+===========================================================================
+7. SISTEM SERVISLERI VE PAKETLER
+===========================================================================
+
+  Çalışan servisler (docker dışı):
+    nginx, docker, containerd, ssh, cron, fail2ban, rsyslog, snapd,
+    systemd-journald/logind/networkd/resolved/timesyncd/udevd,
+    open-vm-tools, vgauth (VMware), unattended-upgrades, ModemManager,
+    multipathd, irqbalance, packagekit, polkit, udisks2, upower, dbus
+
+  Snap paketleri:
+    certbot 5.8.0 (classic)   <-- KURULU AMA KULLANILMIYOR
+    core / core20 / core22 / core24
+    lxd 5.0.9
+    snapd 2.76.2
+
+  /snap + /var/lib/snapd birlikte ~4.1 GB. certbot ve lxd kullanılmıyorsa
+  buradan yer kazanılabilir (önce doğrula).
+
+
+===========================================================================
+8. YEDEKLEME — CIDDI BULGU
+===========================================================================
+
+  GSERP VERITABANININ HICBIR YEDEGI BULUNAMADI.
+
+  Kanıt:
+    - `crontab -l` (emre)   -> "no crontab for emre"
+    - `crontab -l` (gserp)  -> "no crontab for gserp"
+    - /etc/cron.d/          -> yalnızca e2scrub_all ve sysstat
+    - /home/gserp/          -> backup dizini yok
+    - Disk geneli arama (*backup*, *.dump, *.sql.gz, maxdepth 5):
+        yalnızca sistem dosyaları (dpkg-db-backup, vgcfgbackup, /var/backups),
+        /home/emre/maps_scan/backups (başka proje),
+        /home/emre/anatolia/*.dump (elle alınmış, 2026-09-01, başka proje)
+      -> gserp'e ait TEK BIR dump yok.
+
+  docs/deploy-vps.md bir backup cron'u tarif ediyor ama kurulmamış.
+  Pilot müşteriler CANLIYKEN gserp_db (13 MB) yedeksiz görünüyor.
+
+  KISIT: root'un crontab'ı okunamadı (sudo parola istiyor). Oraya konmuş bir
+  yedekleme işi olma ihtimali tamamen elenemez — ancak öyle bir iş olsaydı
+  diskte bir çıktı dosyası bulunması beklenirdi, o da yok.
+
+  ÖNERİ: 13 MB'lık bir veritabanı için günlük pg_dump + rotasyon dakikalar
+  içinde kurulur ve diskte ihmal edilebilir yer kaplar. Aşama 0/1/3'ten önce
+  gelmeli — sıfır kesintili deploy çalışmasının anlamı, geri dönülebilir bir
+  duruma sahip olmaktan geçiyor.
+
+
+===========================================================================
+9. LOG ROTASYONU — IKI YERDE BIRDEN EKSIK
+===========================================================================
+
+  /var/log toplam 300 MB:
+    209 MB  /var/log/journal      <-- journald sınırsız (SystemMaxUse ayarsız)
+     36 MB  /var/log/auth.log
+     21 MB  /var/log/syslog
+     13 MB  /var/log/ufw.log
+     13 MB  /var/log/kern.log
+    4.6 MB  /var/log/nginx
+
+  Docker tarafı:
+    LogDriver = json-file, LogOpts = {}   <-- max-size/max-file YOK
+    Konteyner logları sınırsız büyüyor.
+
+  %84 dolu bir diskte iki tarafta da sınırsız log = sessizce ilerleyen risk.
+  journald için SystemMaxUse=200M, docker için max-size=10m + max-file=3
+  ucuz ve güvenli kazanç.
+
+  NOT: auth.log 36 MB — fail2ban aktif, muhtemelen SSH tarama trafiği.
+       İçeriği okunmadı (adm grubuna kapalı).
+
+
+===========================================================================
+10. OLCULEMEYENLER (durustluk notu)
+===========================================================================
+
+  Aşağıdakiler sudo/grup izni gerektirdiği için OKUNAMADI. Bu envanterdeki
+  ilgili rakamlar eksik olabilir:
+
+    /var/lib/docker/        emre okuyamıyor -> du 4 KB gösteriyor.
+                            Docker'ın disk payı df farkından hesaplandı (~15 GB).
+    /home/gserp/            750 gserp:gserp -> boyut ölçülemedi
+    /var/log/nginx/*.log    www-data:adm 640 -> emre adm grubunda değil.
+                            Trafik hacmi ölçülemedi; onun yerine
+                            `docker stats` NET I/O kullanıldı.
+    root crontab            sudo parola istiyor -> §8'deki kısıt
+    /etc/ssl/cloudflare/    izin yok (sertifika dosyaları listelenemedi)
+    ufw kural listesi       `ufw status` root gerektiriyor
+    gserp-app heap'inin
+    canlı nesne oranı       jcmd imajda yok, actuator'da metrics kapalı
+                            (bkz. ../ssh-yapılanlar.md §5b)
+
+
+===========================================================================
+11. OZET — ONCELIK SIRASI
+===========================================================================
+
+  1. YEDEKLEME YOK (§8)            — pilot müşteriler canlı, veri geri
+                                      dönülemez durumda. En acil madde.
+  2. gserp-app ~1 GB RAM (§2)      — mem_limit + JAVA_OPTS ile ~500 MB'a iner;
+                                      Aşama 3'ün ön koşulu.
+  3. ~4.2 GB güvenli temizlik (§3) — builder prune + dangling imajlar.
+                                      Öksüz volume'lere DOKUNMA.
+  4. Log rotasyonu (§9)            — journald + docker json-file.
+  5. 6 ölü nginx sitesi (§5)       — ya kaldırılmalı ya ayağa kaldırılmalı;
+                                      şu an ziyaretçiye 502 dönüyor.
