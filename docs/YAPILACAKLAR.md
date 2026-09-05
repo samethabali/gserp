@@ -31,12 +31,67 @@ Bu kararın sonuçları:
 
 ### Aşama sırası
 
+Sunucu envanteri toplandıktan sonra **yeniden sıralandı** (2026-09-05, bkz.
+[`docs/ssh-yapılanlar.md`](ssh-yapılanlar.md)). İki şey değişti: yedekleme
+olmadığı ortaya çıktı ve iki konteynerin önündeki engelin disk değil **RAM**
+olduğu ölçüldü.
+
 | # | Adım | Prod'u durdurur mu | Durum |
 |---|------|--------------------|-------|
-| 0 | `docker-compose.prod.yml`'i repoya al | Hayır | ⬜ |
+| 0 | `docker-compose.prod.yml`'i repoya al | Hayır | ✅ `445cb5a` |
+| 2 | Uçtan uca pilot akış testi (P0-2) | Hayır | ✅ `69b6ac8` |
+| **A** | **Veritabanı yedeklemesi** — hiç yok | Hayır | 🔴 ⬜ |
+| B | `docker builder prune -f` (~3.9 GB geri) | Hayır | ⬜ |
+| C | `mem_limit` + JVM bellek ayarı | Evet, kısa | ⬜ |
+| D | Log rotasyonu (`max-size`/`max-file`) | Evet, kısa | ⬜ |
 | 1 | İmaj build'ini VPS'ten CI'a (GHCR) taşı | Hayır | ⬜ |
-| 2 | Uçtan uca pilot akış testi (P0-2) | Hayır | ⬜ |
-| 3 | 2 konteyner + nginx upstream + sıralı deploy (P0-1) | Evet, kısa | ⬜ |
+| 3 | 2 konteyner + nginx upstream + sıralı deploy | Evet, kısa | ⬜ |
+
+**C, 3'ün ön koşuludur.** Yapılmadan iki konteyner açmak kesintiyi azaltmaz,
+OOM ile kesinti yaratır — gerekçe aşağıda.
+
+---
+
+## A. 🔴 Veritabanının yedeği yok
+
+Pilot müşteriler canlıyken `gserp_db` (13 MB) yedeksiz. Crontab'lar boş,
+disk genelinde gserp'e ait tek bir dump yok. [`docs/deploy-vps.md`](deploy-vps.md)
+bir backup cron'u tarif ediyor ama **kurulmamış**.
+
+> Kısıt: root'un crontab'ı okunamadı (sudo parola istiyor). Yani "yedek yok"
+> değil, "yedeğe dair hiçbir iz yok" — ama çıktı dosyası da bulunamadı.
+
+**Neden listenin başında:** Sıfır kesintili deploy çalışmasının amacı geri
+dönülebilir bir duruma sahip olmak. Şu an o durum yok; en kötü senaryoda
+kesintiyi değil, müşterinin verisini kaybediyoruz.
+
+**Yapılacak:** Günlük `pg_dump` + rotasyon. 13 MB'lık bir veritabanı için
+dakikalar sürer, deploy gerektirmez, prod'a dokunmaz.
+
+---
+
+## C. `mem_limit` yok — iki konteynerin önündeki gerçek engel
+
+Ölçüm ([`ssh-yapılanlar.md` §5b](ssh-yapılanlar.md)):
+
+- Sunucu: 2.9 GB RAM, 1.2 GB gerçekten müsait, **swap'in 1.1 GB'ı zaten kullanımda**
+- Konteynerde bellek limiti **yok** (`HostConfig.Memory = 0`)
+- [`Dockerfile:38`](../Dockerfile#L38): `-XX:MaxRAMPercentage=75.0`
+
+Limit olmayınca JVM konteynerin değil **host'un** RAM'ini görüyor: heap tavanı
+**2.18 GB**. Mavi/yeşil geçişte iki JVM birden ayakta olacak ve ikisi de bu
+tavanı varsayacak. `-XX:+ExitOnOutOfMemoryError` nedeniyle JVM toparlanmaz,
+**düşer**.
+
+Ölçülen mevcut kullanım ~1 GB RSS; bunun 710 MB'ı heap ve yük yüzünden değil —
+heap büyümüş, G1 geri vermemiş (`InitialHeap` 48 MB, `G1PeriodicGCInterval` 0).
+
+**Yapılacak:** Compose'a `mem_limit` koy ve `MaxRAMPercentage`'ı ona göre ayarla.
+Önerilen değerler §5b'de. **Tek başına deploy edilip gözlenmeli** — konteyner
+sayısıyla aynı anda değiştirilmemeli, yoksa bir sorun çıkarsa hangisinden
+geldiği ayırt edilemez.
+
+---
 
 ---
 
