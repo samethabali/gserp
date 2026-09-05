@@ -32,6 +32,33 @@ public class QuotaEnforcementService {
         }
     }
 
+    /**
+     * Kota durumunu istisna fırlatmadan bildirir: engel varsa açıklaması, yoksa {@code null}.
+     *
+     * <p>Personel eklenirken hesabı da açılmaya çalışılır. Kota kontrolü istisna
+     * fırlatsaydı, bu servis de işlemsel olduğu için istisna dışarıdaki işlemi
+     * rollback-only işaretler ve kota dolduğunda personelin kendisi bile
+     * kaydedilemezdi. Çağıran taraf sonuca göre hesabı atlar, personeli yine yazar.
+     */
+    public String userSeatBlocker(Long organizationId) {
+        if (organizationId == null) {
+            return null;
+        }
+        OrganizationSubscription sub = subscriptionRepository.findByOrganizationId(organizationId).orElse(null);
+        if (sub == null) {
+            return "Abonelik bulunamadı";
+        }
+        SubscriptionPlan plan = planRepository.findById(sub.getPlanId()).orElse(null);
+        if (plan == null) {
+            return "Plan bulunamadı";
+        }
+        long current = userRepository.countSeatUsersByOrganization(
+                organizationId, List.of(UserRole.CUSTOMER, UserRole.PLATFORM_ADMIN));
+        return current >= plan.getMaxUsers()
+                ? "Kullanıcı kotası dolu (max " + plan.getMaxUsers() + ")"
+                : null;
+    }
+
     public void assertCanAddSalon(Long organizationId) {
         SubscriptionPlan plan = resolvePlan(organizationId);
         long current = salonRepository.findByOrganizationIdAndActiveTrue(organizationId).size();

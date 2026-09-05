@@ -1,5 +1,7 @@
 package com.gscrm.service;
 
+import com.gscrm.dto.response.StaffAccountResponse;
+import com.gscrm.dto.response.StaffCreateResponse;
 import com.gscrm.model.Staff;
 import com.gscrm.model.WorkingHours;
 import com.gscrm.model.enums.ServiceCategory;
@@ -27,6 +29,7 @@ public class StaffService {
     private final StaffRepository staffRepository;
     private final ActivityEventService activityEventService;
     private final WorkingHoursRepository workingHoursRepository;
+    private final StaffAccountService staffAccountService;
 
     public List<Staff> getAll() {
         return staffRepository.findAll();
@@ -52,6 +55,28 @@ public class StaffService {
         activityEventService.record("CREATE", "STAFF", saved.getId(), null,
                 "Personel eklendi: " + saved.getName());
         return saved;
+    }
+
+    /**
+     * Personeli ekler ve istenirse aynı anda giriş hesabını açar.
+     *
+     * <p>Hesap açılamazsa personel yine kaydedilir; nedeni {@code accountNote} ile
+     * paneldeki kullanıcıya bildirilir. Kota dolduğu için personelin hiç
+     * eklenememesi, salonun asıl işini engellerdi.
+     */
+    @Transactional
+    public StaffCreateResponse createWithAccount(Staff staff, boolean withAccount) {
+        Staff saved = create(staff);
+        if (!withAccount) {
+            return new StaffCreateResponse(saved, null, null);
+        }
+        String blocker = staffAccountService.provisionBlocker(saved);
+        if (blocker != null) {
+            return new StaffCreateResponse(saved, null,
+                    "Personel eklendi ancak giriş hesabı açılamadı: " + blocker);
+        }
+        StaffAccountResponse account = staffAccountService.provision(saved);
+        return new StaffCreateResponse(saved, account, null);
     }
 
     @Transactional
@@ -82,6 +107,8 @@ public class StaffService {
                         .compare("rol", prevRole, saved.getRole())
                         .compare("aktif", prevActive, saved.isActive())
                         .toJson());
+        // Rol ve aktiflik hesabı da bağlar: pasife alınan personelin girişi kapanmalı.
+        staffAccountService.syncWithStaff(saved);
         return saved;
     }
 

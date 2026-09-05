@@ -38,6 +38,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByIdAndSalonId(Long id, Long salonId);
 
+    /** Personel kaydına bağlı giriş hesabı; personel başına en fazla bir tane vardır. */
+    Optional<User> findBySalonIdAndStaffId(Long salonId, Long staffId);
+
+    List<User> findBySalonIdAndStaffIdNotNull(Long salonId);
+
     /**
      * Org'a ait, seat kotasına dahil kullanıcı sayısı (CUSTOMER ve PLATFORM_ADMIN hariç).
      * Kota sayımı için DB tarafında hesaplanır (findAll bellek taraması yerine).
