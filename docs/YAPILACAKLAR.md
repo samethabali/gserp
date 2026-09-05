@@ -48,9 +48,9 @@ zorunlu olarak bu dosyaya dokunuyor.
 
 **Yapılacak:** Dosyayı repoya al, deploy script'i repodakini kullansın.
 
-```bash
-ssh gserp@<vds-host> 'cat /home/gserp/gserp/docker-compose.prod.yml'
-```
+Veri toplama adımı ayrı bir brifingde: **[`docs/ssh-bilgi-toplama.md`](ssh-bilgi-toplama.md)**
+— SSH erişimi olan makinedeki asistana verilecek, salt okuma görevi. Compose
+dosyasının yanında nginx yapılandırması ve sunucu kaynak durumu da oradan gelecek.
 
 ---
 
