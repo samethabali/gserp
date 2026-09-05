@@ -163,6 +163,28 @@ class UiPageRenderIT {
                 .doesNotContain("href=\"/onboarding/setup\"");
     }
 
+    /**
+     * Uzman rolüne yetkisi olmayan uçları çağıran kartlar basılmamalı.
+     *
+     * <p>Dashboard'daki tahsilat kartı ve kritik stok rozeti yüklenirken
+     * {@code /api/payments/**} ile {@code /api/products/**} çağırıyordu; bu uçlar
+     * uzmana 403 dönüyor, istemci de 403'ü oturum bitti sayıp kullanıcıyı
+     * {@code /login}'e atıyordu. Kartlar rol bazlı gizlenince istek hiç gitmez.
+     */
+    @org.junit.jupiter.api.Test
+    @DisplayName("uzmanın dashboard'unda yetkisiz uçları çağıran kartlar yok")
+    void dashboardHidesCardsSpecialistCannotLoad() throws Exception {
+        assertThat(dashboardHtml(UserRole.SPECIALIST))
+                .as("uzmana tahsilat ve stok kartları gösterilmemeli")
+                .doesNotContain("id=\"paymentSummaryCard\"")
+                .doesNotContain("id=\"stockAlertBadge\"");
+
+        assertThat(dashboardHtml(UserRole.RECEPTIONIST))
+                .as("resepsiyonist bu kartları görmeye devam etmeli")
+                .contains("id=\"paymentSummaryCard\"")
+                .contains("id=\"stockAlertBadge\"");
+    }
+
     private void saveOnboardingStep(String step) {
         txTemplate.executeWithoutResult(status -> onboardingStateRepository.save(OnboardingState.builder()
                 .salonId(salonId)

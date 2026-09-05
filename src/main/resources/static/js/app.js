@@ -118,12 +118,18 @@ async function api(method, url, body) {
     if (body) opts.body = JSON.stringify(body);
     const res = await fetch(url, opts);
 
-    // 401/403/302 (form-login chain'inden redirect) -> oturum yok demek
-    if (res.status === 401 || res.status === 403 || res.type === 'opaqueredirect') {
+    // 401/302 (form-login chain'inden redirect) -> oturum gerçekten yok
+    if (res.status === 401 || res.type === 'opaqueredirect') {
         if (!window.location.pathname.startsWith('/login')) {
             window.location.href = '/login';
         }
         return { success: false, message: 'Oturum sona erdi' };
+    }
+    // 403 oturumun bittiği değil, bu rolün o uca yetkisi olmadığı anlamına gelir.
+    // Eskiden burada da /login'e atılıyordu; uzman (SPECIALIST) hesabı dashboard'da
+    // yetkisi olmayan tek bir ucu çağırdığında sayfadan atılıyordu.
+    if (res.status === 403) {
+        return { success: false, forbidden: true, message: 'Bu işlem için yetkiniz yok' };
     }
     // Boş 204 cevapları
     if (res.status === 204) return { success: true };
